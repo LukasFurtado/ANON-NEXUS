@@ -4,12 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
 from app.core.config import settings
 from app.services.database import init_db
+from app.version import APP_VERSION
 
 
 app = FastAPI(
     title="NEXUS ANON",
     description="Anonimizacao documental local e offline para documentos sensiveis.",
-    version="0.1.0",
+    version=APP_VERSION,
 )
 
 app.add_middleware(

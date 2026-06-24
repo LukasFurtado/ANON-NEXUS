@@ -24,6 +24,28 @@ function Start-Helper($name, $script, $outLogFile, $errLogFile) {
 
 Write-Host "Abrindo NEXUS ANON..."
 
+$ollamaReady = Test-Http "http://127.0.0.1:11434/api/tags"
+if (-not $ollamaReady) {
+    $ollamaCommand = Get-Command "ollama" -ErrorAction SilentlyContinue
+    if ($ollamaCommand) {
+        Start-Process -FilePath $ollamaCommand.Source -ArgumentList "serve" -WorkingDirectory $root -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logs "ollama.out.log") -RedirectStandardError (Join-Path $logs "ollama.err.log")
+        Write-Host "Ollama iniciado em segundo plano."
+        for ($i = 0; $i -lt 20; $i++) {
+            if (Test-Http "http://127.0.0.1:11434/api/tags") {
+                $ollamaReady = $true
+                break
+            }
+            Start-Sleep -Seconds 1
+        }
+    } else {
+        Write-Host "Ollama nao encontrado no PATH. Instale ou abra o Ollama antes de anonimizar." -ForegroundColor Yellow
+    }
+}
+
+if (-not $ollamaReady) {
+    Write-Host "Atencao: a interface pode abrir, mas a anonimizacao sera bloqueada ate o Ollama responder." -ForegroundColor Yellow
+}
+
 $backendReady = Test-Http "http://127.0.0.1:8000/health"
 if (-not $backendReady) {
     Start-Helper "Backend local" (Join-Path $root "scripts\start-backend.ps1") (Join-Path $logs "backend.out.log") (Join-Path $logs "backend.err.log")

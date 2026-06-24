@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.8.5] - 2026-06-24
+
+### Alterado
+
+- Perfil `extrato_bancario` passa a priorizar saida unica em PDF quando o arquivo de entrada tambem for PDF.
+- Exportacao de extrato bancario em PDF deixa de gerar TXT/DOCX para evitar produtos com formatacao inferior ao fac-simile preservado.
+- Cada solicitacao passa a registrar a versao do ANON usada no resumo, selo de auditoria e log do conjunto.
+- Mensagem de downloads passa a orientar analise individual dos produtos gerados e escolha do arquivo que melhor sintetiza os dados.
+
+### Corrigido
+
+- Integrado dicionario operacional DELOS para preservar coluna `Doc.`, identificadores `Requisicao` e `Numero de Caso`, codigos `Inst.`, ISPB/COMPE, placeholders nulos e historicos operacionais bancarios.
+- Detector de extrato bancario passa a tratar o titular como entidade ancora e buscar variacoes em campos como `Nome Benef/Depos` e `POR [NOME]`.
+- Reduzidos falsos positivos que classificavam historicos bancarios, agencias, contas operacionais e identificadores de transacao como pessoas, telefones ou identificadores pessoais.
+
 ## [1.8.4] - 2026-06-24
 
 ### Alterado

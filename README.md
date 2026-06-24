@@ -7,7 +7,7 @@ Aplicação desktop profissional, local e offline, para anonimização inteligen
 - Nenhum documento é enviado para a internet.
 - O processamento roda localmente em Python, FastAPI, SQLite e Ollama.
 - Regex e validação protegem datas, valores, percentuais, fundamentação jurídica e análise técnica.
-- A IA local atua como motor auxiliar de reconhecimento de entidades, não como chatbot.
+- A IA local é obrigatória para o reconhecimento de entidades e não atua como chatbot.
 - Cada módulo tem responsabilidade única: parser, OCR, regex, IA, validação, exportação e histórico.
 
 ## Estrutura
@@ -79,6 +79,8 @@ ollama pull qwen3:32b
 ollama serve
 ```
 
+O Ollama deve permanecer em execução durante o uso do ANON. Sem resposta local do Ollama, a anonimização é bloqueada para evitar processamento sem IA.
+
 Depois, crie o modelo especializado do NEXUS ANON:
 
 ```powershell
@@ -141,14 +143,14 @@ Esta versão entrega:
 - Perfil documental RIF/COAF e demais perfis iniciais.
 - API local de anonimização.
 - Detecção por regex para CPF, CNPJ, telefone, e-mail, CEP, placas, IP, MAC, contas, agências, PIX, processos, protocolos e documentos.
-- Encaixe para Ollama local.
+- Uso obrigatório do Ollama local para reconhecimento de entidades.
 - Validador para preservar datas, valores e termos jurídicos.
 - Exportação em TXT, DOCX e PDF.
 - Histórico básico em SQLite com SHA-256.
 
 ## Versionamento
 
-Versão atual: **1.8.4**.
+Versão atual: **1.8.5**.
 
 Toda atualização funcional, visual ou documental deve incrementar a versão e registrar a mudança em `CHANGELOG.md`.
 

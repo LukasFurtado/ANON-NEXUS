@@ -1,4 +1,4 @@
-import {
+﻿import {
   AlertCircle,
   Archive,
   Clock,
@@ -47,6 +47,7 @@ type Result = {
     ocr_used: boolean;
     structure_preserved: boolean;
     validation_status: string;
+    anon_version?: string;
   };
 };
 
@@ -145,7 +146,7 @@ export function App() {
   }, []);
 
   const progressLabel = useMemo(() => {
-    if (loading) return "Processando solicita??o localmente";
+    if (loading) return "Processando solicita?o localmente";
     return "Aguardando documentos";
   }, [loading]);
 
@@ -271,7 +272,7 @@ export function App() {
     try {
       setCurrentFileName(files.map((file) => file.name).join(", "));
       setCurrentFileIndex(1);
-      setProcessingStep("Preparando lote e dicionario unico de substituicoes.");
+      setProcessingStep("Preparando lote e dicion?rio ?nico de substitui??es.");
       initialGroup.files.forEach((file) => updateFile(groupId, file.id, { status: "processando" }));
 
       const form = new FormData();
@@ -287,7 +288,7 @@ export function App() {
         body: form,
         signal: controller.signal
       });
-      setProcessingStep("Conferindo hashes, exportacoes e log de auditoria do conjunto.");
+      setProcessingStep("Conferindo hashes, exporta??es e log de auditoria do conjunto.");
       if (!response.ok) {
         throw new Error(await readErrorMessage(response));
       }
@@ -436,7 +437,7 @@ export function App() {
     }
     const response = await fetch(`${API_URL}/api/exports/groups/${group.backendGroupId}/log`);
     if (!response.ok) {
-      window.alert("Nao foi possivel baixar o log do conjunto.");
+      window.alert("N?o foi poss?vel baixar o log do conjunto.");
       return;
     }
     const blob = await response.blob();
@@ -1025,7 +1026,7 @@ function UsageRulesDialogV3({ onAccept, onClose }: { onAccept: () => void; onClo
 
           <div className="usageRulesWarning">
             O processamento local reduz riscos de exposição, mas não elimina a responsabilidade funcional do operador
-            pela conferência, validação e segurança do documento final.
+            pela conferência, Validação e segurança do documento final.
           </div>
         </div>
 
@@ -1080,7 +1081,7 @@ function WorkSummary({
         `Entidades identificadas: ${result.stats.entities_found}`,
         `Substituições aplicadas: ${result.stats.replacements_applied}`,
         ...Object.entries(result.audit.export_sha256).map(([format, hash]) => `Hash SHA-256 ${format.toUpperCase()}: ${hash}`),
-        `Avisos de validação: ${result.stats.validation_warnings.length}`
+        `Avisos de Validação: ${result.stats.validation_warnings.length}`
       ].join("\n")
     : "";
 
@@ -1126,7 +1127,7 @@ function ValidationWarningsPanel({ warnings }: { warnings: string[] }) {
     <details className="summaryWarnings">
       <summary>
         <div>
-          <strong>Avisos de validação automática</strong>
+          <strong>Avisos de Validação automática</strong>
           <span>
             {warnings.length} ocorrência(s) reunida(s) em {groupedWarnings.length} tipo(s). Clique para consultar a
             explicação e revisar os pontos indicados.
@@ -1161,6 +1162,7 @@ function AuditSeal({ result }: { result: Result }) {
       <div className="successStamp">DOCUMENTO PROCESSADO COM SUCESSO</div>
       <div className="auditGrid">
         <AuditItem label="Modelo" value={formatModelName(result.model)} />
+        <AuditItem label="Versão ANON" value={result.audit.anon_version || "Não informada"} />
         <AuditItem label="Tempo" value={formatSeconds(result.audit.processing_time_seconds)} />
         <AuditItem label="OCR" value={result.audit.ocr_used ? "Utilizado" : "Não utilizado"} />
         <AuditItem label="Estrutura" value={result.audit.structure_preserved ? "Preservada" : "Não preservada"} />
@@ -1222,7 +1224,7 @@ function DownloadFormatsInfo({ formats }: { formats: string[] }) {
     <div className="downloadFormatsInfo">
       <span>Arquivos disponíveis para download</span>
       <strong>{normalizedFormats.length ? normalizedFormats.join(" · ") : "Aguardando geração"}</strong>
-      <small>Os produtos são baixados com conferência prévia de SHA-256.</small>
+      <small>Os produtos são baixados com conferência prévia de SHA-256. Analise individualmente os novos arquivos gerados. Identifique qual é o melhor que sintetiza os seus dados.</small>
     </div>
   );
 }
@@ -1299,7 +1301,7 @@ function InstitutionalFooter() {
         {" "}- Polícia Civil do Estado de Pernambuco.
       </span>
       <strong>
-        <a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noreferrer">Versão 1.8.4</a>
+        <a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noreferrer">Versão 1.8.5</a>
       </strong>
     </footer>
   );

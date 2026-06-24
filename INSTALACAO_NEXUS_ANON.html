@@ -252,7 +252,7 @@
         <div class="badge">1</div>
         <div>
           <h3>Instale os programas obrigatórios</h3>
-          <p>Antes do NEXUS ANON funcionar, o computador precisa ter <a href="https://www.python.org/downloads/" target="_blank" rel="noopener noreferrer">Python 3.11 ou 3.12</a>, <a href="https://nodejs.org/" target="_blank" rel="noopener noreferrer">Node.js LTS</a> e <a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">Ollama</a> instalados. Eles são a base local que permite ao sistema abrir a tela, processar documentos e conversar com o modelo de IA instalado na máquina.</p>
+          <p>Antes do NEXUS ANON funcionar, o computador precisa ter <a href="https://www.python.org/downloads/" target="_blank" rel="noopener noreferrer">Python 3.11 ou 3.12</a>, <a href="https://nodejs.org/" target="_blank" rel="noopener noreferrer">Node.js LTS</a> e <a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">Ollama</a> instalados. Eles são a base local que permite ao sistema abrir a tela, processar documentos e acionar obrigatoriamente o modelo de IA instalado na máquina.</p>
         </div>
       </div>
       <div class="step">
@@ -266,7 +266,7 @@
         <div class="badge">3</div>
         <div>
           <h3>Abra o programa</h3>
-          <p>Dê dois cliques em <span class="file">ABRIR_NEXUS_ANON.bat</span> ou no atalho <strong>NEXUS ANON</strong> criado na Área de Trabalho. O sistema liga os serviços locais e abre automaticamente o navegador em <strong>http://localhost:5173/</strong>.</p>
+          <p>Dê dois cliques em <span class="file">ABRIR_NEXUS_ANON.bat</span> ou no atalho <strong>NEXUS ANON</strong> criado na Área de Trabalho. O sistema liga os serviços locais, tenta iniciar o Ollama quando necessário e abre automaticamente o navegador em <strong>http://localhost:5173/</strong>.</p>
         </div>
       </div>
     </section>
@@ -292,7 +292,7 @@
             </tr>
             <tr>
               <td><a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">Ollama</a></td>
-              <td>Executa o modelo de IA local, sem envio de texto para serviços externos.</td>
+              <td>Executa o modelo de IA local, sem envio de texto para serviços externos. Deve permanecer em execução durante a anonimização.</td>
             </tr>
             <tr>
               <td><a href="https://ollama.com/library/qwen3:32b" target="_blank" rel="noopener noreferrer">qwen3:32b</a></td>
@@ -314,7 +314,7 @@
         <h2>Arquivos principais do instalador</h2>
         <ul>
           <li><span class="file">INSTALAR_NEXUS_ANON.bat</span>: prepara o computador para rodar o sistema.</li>
-          <li><span class="file">ABRIR_NEXUS_ANON.bat</span>: liga o backend, liga a interface e abre o navegador.</li>
+          <li><span class="file">ABRIR_NEXUS_ANON.bat</span>: liga o backend, tenta iniciar o Ollama, liga a interface e abre o navegador.</li>
           <li><span class="file">NEXUS_ANON.url</span>: link local direto para a interface, útil quando os serviços já estão ligados.</li>
           <li><span class="file">GERAR_PACOTE_NEXUS_ANON.bat</span>: cria um pacote ZIP limpo para transporte ou entrega institucional.</li>
         </ul>
@@ -329,7 +329,7 @@
       <ol>
         <li>Instale <strong><a href="https://www.python.org/downloads/" target="_blank" rel="noopener noreferrer">Python 3.11 ou 3.12</a></strong>. Durante a instalação, marque a opção <strong>Add python.exe to PATH</strong>.</li>
         <li>Instale <strong><a href="https://nodejs.org/" target="_blank" rel="noopener noreferrer">Node.js LTS</a></strong>. Após instalar, feche e abra novamente o instalador do NEXUS ANON.</li>
-        <li>Instale <strong><a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">Ollama</a></strong> e confirme que ele está funcionando no Windows.</li>
+        <li>Instale <strong><a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">Ollama</a></strong> e confirme que ele está funcionando no Windows. O Ollama precisa estar aberto ou responder em segundo plano para a anonimização ocorrer.</li>
         <li>Dê dois cliques em <span class="file">INSTALAR_NEXUS_ANON.bat</span>.</li>
         <li>Se o instalador perguntar sobre o download do <strong><a href="https://ollama.com/library/qwen3:32b" target="_blank" rel="noopener noreferrer">qwen3:32b</a></strong>, responda <strong>S</strong> se desejar baixar o modelo naquele momento.</li>
         <li>Ao final, use <span class="file">ABRIR_NEXUS_ANON.bat</span> ou o atalho da Área de Trabalho.</li>
@@ -355,7 +355,7 @@
         <ul>
           <li>Se abrir <strong>http://127.0.0.1:8000/</strong> e aparecer “Not Found”, isso é normal: essa porta é da API. A tela correta é <strong>http://localhost:5173/</strong>.</li>
           <li>Se o botão abrir e nada acontecer, execute novamente <span class="file">ABRIR_NEXUS_ANON.bat</span> e aguarde alguns segundos.</li>
-          <li>Se o Ollama não for encontrado, instale o <a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">Ollama</a> e reinicie o computador ou abra uma nova janela do PowerShell.</li>
+          <li>Se o Ollama não for encontrado ou não estiver em execução, instale o <a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">Ollama</a>, abra o Ollama manualmente e tente novamente. A interface pode abrir sem ele, mas a anonimização será bloqueada.</li>
           <li>Se o modelo for lento, use máquina mais potente ou reduza o tamanho/lote dos documentos processados.</li>
         </ul>
       </article>
@@ -367,7 +367,7 @@
         <li>Cria o ambiente Python local do backend.</li>
         <li>Instala as bibliotecas necessárias para FastAPI, leitura de PDF, DOCX e exportação.</li>
         <li>Instala as dependências da interface React.</li>
-        <li>Verifica se o Ollama está disponível.</li>
+        <li>Verifica se o Ollama está disponível e tenta iniciar o serviço local quando possível.</li>
         <li>Verifica se o <strong><a href="https://ollama.com/library/qwen3:32b" target="_blank" rel="noopener noreferrer">qwen3:32b</a></strong> está instalado e oferece baixar quando estiver ausente.</li>
         <li>Cria ou atualiza o modelo especializado <strong>NEXUS-anon:latest</strong>.</li>
         <li>Cria um atalho na Área de Trabalho para abrir o sistema sem digitar comandos.</li>
@@ -376,7 +376,7 @@
 
     <footer>
       <span>© 2026 NEXUS ANON · Uso institucional e interno · Criador e Desenvolvedor: <a href="https://github.com/LukasFurtado" target="_blank" rel="noopener noreferrer">Lukas Furtado</a> - Polícia Civil do Estado de Pernambuco.</span>
-      <strong><a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noopener noreferrer">Versão 1.8.4</a></strong>
+      <strong><a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noopener noreferrer">Versão 1.8.5</a></strong>
     </footer>
   </main>
 </body>

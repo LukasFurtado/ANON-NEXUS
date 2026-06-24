@@ -4,6 +4,9 @@ from app.models.schemas import DocumentKind, Entity, EntityType
 from app.pipeline.profile_strategy import profile_regex_patterns
 
 
+NAME_CHARS = r"A-ZÀ-ÖØ-Ý"
+WORD_CHARS = r"A-Za-zÀ-ÖØ-öø-ÿ"
+
 PATTERNS: list[tuple[EntityType, re.Pattern[str]]] = [
     (EntityType.cpf, re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")),
     (EntityType.cnpj, re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b")),
@@ -18,10 +21,10 @@ PATTERNS: list[tuple[EntityType, re.Pattern[str]]] = [
     (EntityType.renavam, re.compile(r"\bRENAVAM\s*[:\-]?\s*\d{9,11}\b", re.I)),
     (EntityType.chassis, re.compile(r"\b[A-HJ-NPR-Z0-9]{17}\b", re.I)),
     (EntityType.proceeding, re.compile(r"\b\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}\b")),
-    (EntityType.protocol, re.compile(r"\b(?:PROTOCOLO|PROCESSO|SEI|IP|BO)\s*(?:N[ºO.]*)?\s*[:\-]?\s*[\w./-]{5,}\b", re.I)),
+    (EntityType.protocol, re.compile(r"\b(?:PROTOCOLO|PROCESSO|SEI|IP|BO)\s*(?:N[O.]*)?\s*[:\-]?\s*[\w./-]{5,}\b", re.I)),
     (EntityType.bank_branch, re.compile(r"\bAG(?:ENCIA|\.)?\s*[:\-]?\s*\d{3,5}(?:-\d)?\b", re.I)),
     (EntityType.bank_account, re.compile(r"\b(?:CONTA|C/C|CC)\s*[:\-]?\s*\d{3,12}(?:-\d)?\b", re.I)),
-    (EntityType.functional_id, re.compile(r"\bMATR[IÍ]CULA\s*(?:FUNCIONAL)?\s*[:\-]?\s*\d{3,12}\b", re.I)),
+    (EntityType.functional_id, re.compile(r"\bMATRICULA\s*(?:FUNCIONAL)?\s*[:\-]?\s*\d{3,12}\b", re.I)),
     (EntityType.rg, re.compile(r"\bRG\s*[:\-]?\s*[\d.xX-]{5,14}\b", re.I)),
     (EntityType.cnh, re.compile(r"\bCNH\s*[:\-]?\s*\d{9,11}\b", re.I)),
     (EntityType.passport, re.compile(r"\bPASSAPORTE\s*[:\-]?\s*[A-Z0-9]{6,12}\b", re.I)),
@@ -29,31 +32,20 @@ PATTERNS: list[tuple[EntityType, re.Pattern[str]]] = [
 ]
 
 PERSON_HINT = re.compile(
-    r"\b(?:INVESTIGADO|V[IÍ]TIMA|TESTEMUNHA|DELEGADO|PROMOTOR|JUIZ|ADVOGADO|POLICIAL)\s*[:\-]\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\-]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\-]+){1,5})",
+    rf"\b(?:INVESTIGADO|VITIMA|TESTEMUNHA|DELEGADO|PROMOTOR|JUIZ|ADVOGADO|POLICIAL)\s*[:\-]\s*([{NAME_CHARS}][{WORD_CHARS}'\-]+(?:\s+[{NAME_CHARS}][{WORD_CHARS}'\-]+){{1,5}})",
     re.I,
 )
-
-COMPANY_HINT = re.compile(
-    r"\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9][A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9\s&.-]{3,80}\s(?:LTDA|S/A|SA|ME|EPP|EIRELI))\b",
-    re.I,
-)
-
-ADDRESS_HINT = re.compile(
-    r"\b(?:residente|domiciliad[oa]|situad[oa]|localizad[oa])\s+(?:na|no|à|ao|em)\s+([^,\n;]+(?:,\s*(?:n[ºo.]?\s*)?\d+[A-Za-z0-9\-]*)?)",
-    re.I,
-)
-
+COMPANY_HINT = re.compile(rf"\b([{NAME_CHARS}0-9][{NAME_CHARS}0-9\s&.-]{{3,80}}\s(?:LTDA|S/A|SA|ME|EPP|EIRELI))\b", re.I)
+ADDRESS_HINT = re.compile(r"\b(?:residente|domiciliad[oa]|situad[oa]|localizad[oa])\s+(?:na|no|a|ao|em)\s+([^,\n;]+(?:,\s*(?:n[o.]?\s*)?\d+[A-Za-z0-9\-]*)?)", re.I)
 NAME_BEFORE_DOCUMENT = re.compile(
-    r"\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\-]+(?:\s+(?:da|de|do|das|dos|e)\s+|\s+)[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\-]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\-]+){0,4})\s*,?\s+(?:CPF|RG|CNH|PASSAPORTE)\b",
+    rf"\b([{NAME_CHARS}][{WORD_CHARS}'\-]+(?:\s+(?:da|de|do|das|dos|e)\s+|\s+)[{NAME_CHARS}][{WORD_CHARS}'\-]+(?:\s+[{NAME_CHARS}][{WORD_CHARS}'\-]+){{0,4}})\s*,?\s+(?:CPF|RG|CNH|PASSAPORTE)\b",
     re.I,
 )
-
 NAME_AFTER_TRANSACTION = re.compile(
-    r"\b(?:para|em favor de|benefici[áa]ri[oa])\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\-]+(?:\s+(?:da|de|do|das|dos|e)\s+|\s+)[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\-]+(?:\s+(?!(?:CPF|RG|CNH|PASSAPORTE|PIX|TED|DOC)\b)[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇ'\-]+){0,4})(?=\s*,|\s+(?:CPF|RG|CNH|PASSAPORTE|no valor)\b|\.|;|$)",
+    rf"\b(?:para|em favor de|beneficiari[oa])\s+([{NAME_CHARS}][{WORD_CHARS}'\-]+(?:\s+(?:da|de|do|das|dos|e)\s+|\s+)[{NAME_CHARS}][{WORD_CHARS}'\-]+(?:\s+(?!(?:CPF|RG|CNH|PASSAPORTE|PIX|TED|DOC)\b)[{NAME_CHARS}][{WORD_CHARS}'\-]+){{0,4}})(?=\s*,|\s+(?:CPF|RG|CNH|PASSAPORTE|no valor)\b|\.|;|$)",
     re.I,
 )
-
-TRANSACTION_FRAGMENT_BLOCKLIST = ("transferência", "transferencia", " pix", " ted", " doc", "realizou", "pagamento")
+TRANSACTION_FRAGMENT_BLOCKLIST = ("transferencia", " pix", " ted", " doc", "realizou", "pagamento")
 
 
 def detect_entities_by_regex(text: str, document_kind: DocumentKind = DocumentKind.auto) -> list[Entity]:
@@ -65,68 +57,51 @@ def detect_entities_by_regex(text: str, document_kind: DocumentKind = DocumentKi
 
     for entity_type, pattern in [*PATTERNS, *profile_regex_patterns(document_kind)]:
         for match in pattern.finditer(text):
-            entities.append(
-                Entity(
-                    type=entity_type,
-                    text=match.group(0),
-                    start=match.start(),
-                    end=match.end(),
-                    source="regex",
-                )
-            )
+            entities.append(Entity(type=entity_type, text=match.group(0), start=match.start(), end=match.end(), source="regex"))
 
     for match in PERSON_HINT.finditer(text):
-        start, end = match.span(1)
-        entities.append(Entity(type=EntityType.person, text=match.group(1), start=start, end=end, source="regex"))
+        entities.append(Entity(type=EntityType.person, text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
 
     for pattern in (NAME_BEFORE_DOCUMENT, NAME_AFTER_TRANSACTION):
         for match in pattern.finditer(text):
-            start, end = match.span(1)
             fragment = match.group(1).strip()
             if fragment.lower().startswith(("rua ", "avenida ", "av ", "travessa ", "estrada ")):
                 continue
             if any(term in f" {fragment.lower()} " for term in TRANSACTION_FRAGMENT_BLOCKLIST):
                 continue
-            entities.append(Entity(type=EntityType.person, text=fragment, start=start, end=end, source="regex"))
+            entities.append(Entity(type=EntityType.person, text=fragment, start=match.start(1), end=match.end(1), source="regex"))
 
     for match in ADDRESS_HINT.finditer(text):
-        start, end = match.span(1)
-        entities.append(Entity(type=EntityType.address, text=match.group(1), start=start, end=end, source="regex"))
+        entities.append(Entity(type=EntityType.address, text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
 
     for match in COMPANY_HINT.finditer(text):
-        entities.append(
-            Entity(
-                type=EntityType.organization,
-                text=match.group(1),
-                start=match.start(1),
-                end=match.end(1),
-                source="regex",
-            )
-        )
+        entities.append(Entity(type=EntityType.organization, text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
 
     return _deduplicate(entities)
 
 
-BANK_STATEMENT_TITULAR = re.compile(
-    r"\bTitular\s*:\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ '\.-]{5,120}?)(?=\s*\()",
-    re.I,
-)
+BANK_STATEMENT_TITULAR = re.compile(rf"\bTitular\s*:\s*([{NAME_CHARS}][{NAME_CHARS} '\.-]{{5,120}}?)(?=\s*\()", re.I)
 BANK_STATEMENT_HEADER_ID = re.compile(r"\bCPF/CNPJ\s*:\s*(\d{5,14})\b", re.I)
 BANK_STATEMENT_DETAILED_COUNTERPARTY = re.compile(
-    r"\b[CD]\s+(\d{5,14})\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9 '&\.-]{4,120}?)(?=\s+(?:\d+\s+){0,3}(?:SAQUE|TARIFA|TRANSFER|CONTRAPARTIDA|PAGAMENTO|PIX|TED|DOC|$))",
+    rf"\b[CD]\s+(\d{{5,14}})\s+([{NAME_CHARS}][{NAME_CHARS}0-9 '&\.-]{{4,120}}?)(?=\s+(?:\d+\s+){{0,3}}(?:SAQUE|TARIFA|TRANSFER|CONTRAPARTIDA|PAGAMENTO|PIX|TED|DOC|$))",
     re.I,
 )
 BANK_STATEMENT_CONSOLIDATED_COUNTERPARTY = re.compile(
-    r"^\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9 '&\.-]{4,120}?)\s+(\d{5,14})\s+(?:\d+\s+){1,4}(?:Conta\s+(?:Corrente|Poupança)|R\$)",
+    rf"^\s*([{NAME_CHARS}][{NAME_CHARS}0-9 '&\.-]{{4,120}}?)\s+(\d{{5,14}})\s+(?:\d+\s+){{1,4}}(?:Conta\s+(?:Corrente|Poupanca)|R\$)",
     re.I | re.M,
 )
+BANK_STATEMENT_AUTHORIZED_BY_NAME = re.compile(rf"\bPOR\s+([{NAME_CHARS}][{NAME_CHARS} '\.-]{{6,100}})(?=\s|$)", re.I)
 
 
 def _detect_bank_statement_entities(text: str) -> list[Entity]:
     entities: list[Entity] = []
 
     for match in BANK_STATEMENT_TITULAR.finditer(text):
+        titular = match.group(1).strip()
         entities.append(Entity(type=EntityType.person, text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
+        surname_variant = _bank_statement_surname_variant(titular)
+        if surname_variant:
+            entities.extend(_find_literal_person_entities(text, surname_variant))
 
     for match in BANK_STATEMENT_HEADER_ID.finditer(text):
         entities.append(_typed_identifier_entity(text, match.start(1), match.end(1)))
@@ -143,13 +118,18 @@ def _detect_bank_statement_entities(text: str) -> list[Entity]:
             entities.append(Entity(type=_bank_counterparty_type(name), text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
         entities.append(_typed_identifier_entity(text, match.start(2), match.end(2)))
 
+    for match in BANK_STATEMENT_AUTHORIZED_BY_NAME.finditer(text):
+        fragment = match.group(1).strip()
+        if _looks_like_bank_statement_counterparty(fragment):
+            entities.append(Entity(type=EntityType.person, text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
+
     return entities
 
 
 def _typed_identifier_entity(text: str, start: int, end: int) -> Entity:
     value = text[start:end]
     digits = re.sub(r"\D", "", value)
-    if len(digits) == 11:
+    if 9 <= len(digits) <= 11:
         entity_type = EntityType.cpf
     elif len(digits) == 14:
         entity_type = EntityType.cnpj
@@ -158,17 +138,29 @@ def _typed_identifier_entity(text: str, start: int, end: int) -> Entity:
     return Entity(type=entity_type, text=value, start=start, end=end, source="regex")
 
 
+def _bank_statement_surname_variant(name: str) -> str | None:
+    parts = [part for part in re.split(r"\s+", name.strip()) if len(part) > 1]
+    if len(parts) < 4:
+        return None
+    return " ".join(parts[-3:])
+
+
+def _find_literal_person_entities(text: str, value: str) -> list[Entity]:
+    pattern = re.compile(rf"(?<!\w){re.escape(value)}(?!\w)", re.I)
+    return [Entity(type=EntityType.person, text=match.group(0), start=match.start(), end=match.end(), source="regex") for match in pattern.finditer(text)]
+
+
 def _looks_like_bank_statement_counterparty(value: str) -> bool:
     normalized = value.strip().upper()
     if not normalized or normalized in {"BANCO DO BRASIL S.A.", "BCO DO BRASIL S.A.", "CAIXA ECONOMICA FEDERAL"}:
         return False
-    protected_terms = ("SAQUE", "TARIFA", "RESGATE", "APLICACAO", "APLICAÇÃO", "TRANSFERENCIA", "TRANSFERÊNCIA")
+    protected_terms = ("SAQUE", "TARIFA", "RESGATE", "APLICACAO", "TRANSFERENCIA", "COMPRA COM CARTAO", "JUROS")
     return not any(term in normalized for term in protected_terms)
 
 
 def _bank_counterparty_type(value: str) -> EntityType:
     normalized = value.upper()
-    company_terms = (" LTDA", " S/A", " S.A.", " EIRELI", " INDUSTRIA", " COMERCIO", " COMÉRCIO", " MINISTERIO", " MINISTÉRIO", " CCLA ")
+    company_terms = (" LTDA", " S/A", " S.A.", " EIRELI", " INDUSTRIA", " COMERCIO", " MINISTERIO", " CCLA ")
     return EntityType.organization if any(term in normalized for term in company_terms) else EntityType.person
 
 
@@ -192,7 +184,6 @@ def _detect_rif_csv_entities(text: str) -> list[Entity]:
     if len(lines) < 2:
         return []
 
-    entities: list[Entity] = []
     offset = 0
     for index, line in enumerate(lines[:-1]):
         delimiter = ";" if line.count(";") >= line.count(",") and ";" in line else "," if "," in line else None
@@ -201,35 +192,40 @@ def _detect_rif_csv_entities(text: str) -> list[Entity]:
             continue
 
         headers = [cell.strip().strip('"').lower() for cell in line.rstrip("\r\n").split(delimiter)]
-        sensitive_columns = {
-            column_index: RIF_CSV_COLUMN_TYPES[header]
-            for column_index, header in enumerate(headers)
-            if header in RIF_CSV_COLUMN_TYPES
-        }
+        sensitive_columns = {column_index: RIF_CSV_COLUMN_TYPES[header] for column_index, header in enumerate(headers) if header in RIF_CSV_COLUMN_TYPES}
         if not sensitive_columns:
             offset += len(line)
             continue
 
-        row_offset = offset + len(line)
-        for row in lines[index + 1 :]:
-            if delimiter not in row:
-                break
-            cells = row.rstrip("\r\n").split(delimiter)
-            positions = _cell_positions(row, delimiter)
-            for column_index, entity_type in sensitive_columns.items():
-                if column_index >= len(cells) or column_index >= len(positions):
-                    continue
-                value = cells[column_index].strip().strip('"')
-                if not _is_sensitive_rif_cell(value):
-                    continue
-                start = row_offset + positions[column_index] + cells[column_index].find(cells[column_index].strip())
-                end = start + len(cells[column_index].strip())
-                entities.append(Entity(type=_refine_rif_cell_type(entity_type, value), text=text[start:end], start=start, end=end, source="regex"))
-            row_offset += len(row)
-        break
+        return _detect_rif_rows(text, lines[index + 1 :], offset + len(line), delimiter, sensitive_columns)
 
-        offset += len(line)
+    return []
 
+
+def _detect_rif_rows(
+    text: str,
+    rows: list[str],
+    row_offset: int,
+    delimiter: str,
+    sensitive_columns: dict[int, EntityType],
+) -> list[Entity]:
+    entities: list[Entity] = []
+    for row in rows:
+        if delimiter not in row:
+            break
+        cells = row.rstrip("\r\n").split(delimiter)
+        positions = _cell_positions(row, delimiter)
+        for column_index, entity_type in sensitive_columns.items():
+            if column_index >= len(cells) or column_index >= len(positions):
+                continue
+            raw_cell = cells[column_index]
+            value = raw_cell.strip().strip('"')
+            if not _is_sensitive_rif_cell(value):
+                continue
+            start = row_offset + positions[column_index] + raw_cell.find(raw_cell.strip())
+            end = start + len(raw_cell.strip())
+            entities.append(Entity(type=_refine_rif_cell_type(entity_type, value), text=text[start:end], start=start, end=end, source="regex"))
+        row_offset += len(row)
     return entities
 
 
@@ -270,3 +266,4 @@ def _deduplicate(entities: list[Entity]) -> list[Entity]:
         seen.add(key)
         unique.append(entity)
     return unique
+

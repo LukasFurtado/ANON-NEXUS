@@ -72,6 +72,7 @@ class AuditInfo(BaseModel):
     ocr_used: bool
     structure_preserved: bool
     validation_status: str
+    anon_version: str | None = None
 
 
 class AnonymizationResult(BaseModel):
@@ -97,7 +98,7 @@ class BatchAnonymizationResult(BaseModel):
 
 class AnonymizeOptions(BaseModel):
     document_kind: DocumentKind = DocumentKind.auto
-    model: str = "NEXUS-anon:latest"
+    model: str = "qwen3:32b"
     use_ollama: bool = True
     preserve_layout: bool = True
     request_title: str | None = None

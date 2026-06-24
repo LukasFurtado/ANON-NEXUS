@@ -1,6 +1,7 @@
 import re
 
 from app.models.schemas import DocumentKind, Entity, EntityType
+from app.pipeline.delos_rules import documento_e_delos, should_preserve_entity
 from app.pipeline.profile_strategy import profile_output_terms, profile_protected_patterns
 
 
@@ -32,9 +33,15 @@ def validate_entities(
     preserved_dates = 0
     preserved_values = 0
     warnings: list[str] = []
+    delos_active = document_kind == DocumentKind.extrato_bancario and documento_e_delos(text)
 
     for entity in entities:
         fragment = text[entity.start : entity.end]
+        if delos_active:
+            preserve, reason = should_preserve_entity(fragment, _line_context(text, entity.start, entity.end), entity.type)
+            if preserve:
+                warnings.append(f"Marcacao preservada no perfil extrato_bancario: {reason}.")
+                continue
         if DATE_PATTERN.fullmatch(fragment.strip()):
             preserved_dates += 1
             continue
@@ -81,3 +88,11 @@ def validate_output(original: str, anonymized: str, document_kind: DocumentKind 
 
 def _match_texts(pattern: re.Pattern[str], text: str) -> set[str]:
     return {match.group(0) for match in pattern.finditer(text)}
+
+
+def _line_context(text: str, start: int, end: int) -> str:
+    line_start = text.rfind("\n", 0, start) + 1
+    line_end = text.find("\n", end)
+    if line_end == -1:
+        line_end = len(text)
+    return text[line_start:line_end]

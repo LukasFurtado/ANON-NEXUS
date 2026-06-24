@@ -14,6 +14,7 @@ from app.pipeline.regex_rules import detect_entities_by_regex
 from app.pipeline.validator import validate_entities, validate_output
 from app.services.database import save_job
 from app.services.ollama import OllamaDetectionError, detect_entities_with_ollama
+from app.version import APP_VERSION
 
 
 def run_pipeline(
@@ -64,6 +65,7 @@ def run_pipeline(
         original_filename,
         {
             "model": options.model,
+            "anon_version": APP_VERSION,
             "request_title": options.request_title,
             "document_kind": options.document_kind.value,
             "processing_time_seconds": elapsed_for_summary,
@@ -118,6 +120,7 @@ def run_pipeline(
             ocr_used=ocr_used,
             structure_preserved=options.preserve_layout,
             validation_status=validation_status,
+            anon_version=APP_VERSION,
         ),
         export_paths=export_paths,
     )
@@ -143,6 +146,7 @@ def run_batch_pipeline(
                 f"Numero IP / Nome solicitacao: {options.request_title or 'Nao informado'}",
                 f"Data e hora do registro: {started_at.strftime('%d/%m/%Y %H:%M:%S')}",
                 f"Modelo local: {options.model}",
+                f"Versao do ANON: {APP_VERSION}",
                 f"Perfil documental: {options.document_kind.value}",
                 f"Quantidade de arquivos: {len(results)}",
                 f"Host cliente: {client_host or 'Nao identificado'}",
@@ -157,6 +161,7 @@ def run_batch_pipeline(
                     "docx_sha256": result.audit.export_sha256.get("docx", ""),
                     "pdf_sha256": result.audit.export_sha256.get("pdf", ""),
                     "csv_sha256": result.audit.export_sha256.get("csv", ""),
+                    "anon_version": result.audit.anon_version or APP_VERSION,
                 }
                 for result in results
             ],

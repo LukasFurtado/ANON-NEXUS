@@ -3,6 +3,8 @@ from pathlib import Path
 from textwrap import wrap
 from typing import Any
 
+from app.models.schemas import DocumentKind
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_DIR = PROJECT_ROOT / "resources" / "templates"
@@ -24,6 +26,14 @@ def export_text(
     pdf_path = export_dir / "anonimizado.pdf"
 
     metadata = metadata or {}
+    is_pdf_bank_statement = (
+        metadata.get("document_kind") == DocumentKind.extrato_bancario.value
+        and Path(original_filename).suffix.lower() == ".pdf"
+    )
+    if is_pdf_bank_statement:
+        _export_pdf(pdf_path, anonymized_text, original_filename, metadata)
+        return {"pdf": str(pdf_path)}
+
     _export_txt(txt_path, anonymized_text, original_filename, metadata)
     _export_docx(docx_path, anonymized_text, original_filename, metadata)
     _export_pdf(pdf_path, anonymized_text, original_filename, metadata)
@@ -45,6 +55,7 @@ def _summary_lines(original_filename: str, metadata: dict[str, Any]) -> list[str
         f"Arquivo de origem: {original_filename}",
         f"Perfil documental: {metadata.get('document_kind') or 'auto'}",
         f"Modelo: {metadata.get('model') or 'Nao informado'}",
+        f"Versao do ANON: {metadata.get('anon_version') or 'Nao informada'}",
         f"Tempo de processamento: {metadata.get('processing_time_seconds', 'Nao informado')} s",
         f"OCR: {'Utilizado' if metadata.get('ocr_used') else 'Nao utilizado'}",
         f"Estrutura: {'Preservada' if metadata.get('structure_preserved') else 'Nao preservada'}",
@@ -591,11 +602,12 @@ def _export_log_pdf(path: Path, metadata: dict[str, Any]) -> None:
     if file_rows:
         story.append(Spacer(1, 0.25 * cm))
         story.append(Paragraph("Arquivos e hashes registrados", title_style))
-        table_data = [["Arquivo", "Hash original", "TXT", "DOCX", "PDF", "CSV"]]
+        table_data = [["Arquivo", "Versao", "Hash original", "TXT", "DOCX", "PDF", "CSV"]]
         for item in file_rows:
             table_data.append(
                 [
                     Paragraph(_escape_pdf_text(_compact_cell(item.get("filename", ""), 80)), body_style),
+                    Paragraph(_escape_pdf_text(_compact_cell(item.get("anon_version", ""), 24)), body_style),
                     Paragraph(_escape_pdf_text(_compact_cell(item.get("source_sha256", ""), 72)), body_style),
                     Paragraph(_escape_pdf_text(_compact_cell(item.get("txt_sha256", ""), 72)), body_style),
                     Paragraph(_escape_pdf_text(_compact_cell(item.get("docx_sha256", ""), 72)), body_style),
@@ -603,7 +615,7 @@ def _export_log_pdf(path: Path, metadata: dict[str, Any]) -> None:
                     Paragraph(_escape_pdf_text(_compact_cell(item.get("csv_sha256", ""), 72)), body_style),
                 ]
             )
-        table = Table(table_data, colWidths=[3.4 * cm, 3.6 * cm, 2.8 * cm, 2.8 * cm, 2.8 * cm, 2.8 * cm], repeatRows=1)
+        table = Table(table_data, colWidths=[3.0 * cm, 1.4 * cm, 3.2 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm], repeatRows=1)
         table.setStyle(
             TableStyle(
                 [
