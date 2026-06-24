@@ -4,7 +4,7 @@ Aplicacao desktop profissional, local e offline, para anonimização inteligente
 
 ## Principios
 
-- Nenhum documento e enviado para a internet.
+- Nenhum documento é enviado para a internet.
 - O processamento roda localmente em Python, FastAPI, SQLite e Ollama.
 - Regex e validacao protegem datas, valores, percentuais, fundamentacao juridica e analise tecnica.
 - A IA local atua como motor auxiliar de reconhecimento de entidades, nao como chatbot.
