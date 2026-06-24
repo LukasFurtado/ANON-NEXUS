@@ -875,22 +875,33 @@ pre {
   font-weight: 800;
 }
 
-.deleteRequestButton {
+.deleteRequestButton,
+.logDownloadButton {
   min-height: 30px;
-  border: 1px solid rgba(240, 96, 96, 0.34);
   border-radius: 999px;
   padding: 0 10px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #ffd0d0;
-  background: rgba(240, 96, 96, 0.12);
   font-size: 11px;
   font-weight: 900;
   cursor: pointer;
 }
 
-.deleteRequestButton:disabled {
+.deleteRequestButton {
+  border: 1px solid rgba(240, 96, 96, 0.34);
+  color: #ffd0d0;
+  background: rgba(240, 96, 96, 0.12);
+}
+
+.logDownloadButton {
+  border: 1px solid var(--blue-strong);
+  color: #d9eeff;
+  background: var(--blue-dim);
+}
+
+.deleteRequestButton:disabled,
+.logDownloadButton:disabled {
   opacity: 0.38;
   cursor: not-allowed;
 }
@@ -1320,11 +1331,38 @@ pre {
   margin: 0;
 }
 
+.usageRulesIntro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 18px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.usageRulesIntro img {
+  width: 100%;
+  max-height: 92px;
+  object-fit: contain;
+  justify-self: end;
+}
+
 .usageRulesBody ol {
   margin: 0;
   padding-left: 22px;
   display: grid;
   gap: 10px;
+}
+
+.usageRulesBody li.criticalRule {
+  border: 1px solid rgba(240, 96, 96, 0.48);
+  border-radius: 7px;
+  padding: 10px 12px;
+  color: #ffd1d1;
+  background: rgba(240, 96, 96, 0.14);
+  font-weight: 800;
 }
 
 .usageRulesWarning {

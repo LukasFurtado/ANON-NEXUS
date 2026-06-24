@@ -57,6 +57,13 @@ class AnonymizationStats(BaseModel):
     validation_warnings: list[str] = []
 
 
+class AnonymizationControlRow(BaseModel):
+    original_value: str
+    entity_type: str
+    anonymous_id: str
+    occurrences: int
+
+
 class AuditInfo(BaseModel):
     source_sha256: str
     export_sha256: dict[str, str]
@@ -74,9 +81,17 @@ class AnonymizationResult(BaseModel):
     original_text: str
     anonymized_text: str
     entities: list[Entity]
+    control_table: list[AnonymizationControlRow] = []
     stats: AnonymizationStats
     audit: AuditInfo
     export_paths: dict[str, str]
+
+
+class BatchAnonymizationResult(BaseModel):
+    group_id: str
+    request_title: str | None = None
+    results: list[AnonymizationResult]
+    log_sha256: str | None = None
 
 
 class AnonymizeOptions(BaseModel):

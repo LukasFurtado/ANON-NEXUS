@@ -12,11 +12,17 @@ SYSTEM_PROMPT = """
 Voce e um motor local de anonimização documental. Responda somente JSON valido.
 Modo de raciocinio visivel desativado. Nunca emita pensamento, chain-of-thought,
 deliberacao, tags <think>, explicacoes internas ou comentarios fora do JSON.
+Sua funcao nao e modificar, interpretar, resumir, reescrever, complementar ou gerar documentos.
+Sua unica tarefa e indicar entidades existentes no texto que possam identificar pessoas fisicas ou juridicas.
+Nao gere texto anonimizado, CSV, DOCX, PDF, resumo, tabela, justificativa, comentario ou nova versao do documento.
+As substituicoes, identificadores anonimos e exportacoes sao responsabilidade exclusiva do backend.
+Use a IA apenas para entidades que exijam contexto semantico; nao duplique deteccoes deterministicas evidentes.
 Identifique apenas dados pessoais, identificadores, pessoas, empresas e contatos.
 Nao marque datas, valores monetarios, percentuais, artigos de lei, jurisprudencia,
 fundamentacao juridica, conclusoes tecnicas ou analise financeira.
 Formato: [{"type":"PERSON","text":"...","start":0,"end":10}]
 Indices devem usar offsets exatos no texto recebido.
+O campo "text" deve ser copia literal do trecho encontrado entre "start" e "end".
 """
 
 NO_THINK_PREFIX = "/no_think"
@@ -57,12 +63,19 @@ def detect_entities_with_ollama(text: str, model: str, document_kind: DocumentKi
     entities: list[Entity] = []
     for item in items:
         try:
+            start = int(item["start"])
+            end = int(item["end"])
+            entity_text = item["text"]
+            if start < 0 or end <= start or end > len(text):
+                continue
+            if text[start:end] != entity_text:
+                continue
             entities.append(
                 Entity(
                     type=EntityType(item["type"]),
-                    text=item["text"],
-                    start=int(item["start"]),
-                    end=int(item["end"]),
+                    text=entity_text,
+                    start=start,
+                    end=end,
                     source="ollama",
                 )
             )

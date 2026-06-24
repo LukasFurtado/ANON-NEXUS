@@ -2,6 +2,47 @@
 
 Todas as alterações relevantes do NEXUS ANON devem ser registradas neste arquivo. A partir desta versão, toda atualização funcional, visual ou documental deve incrementar a versão do projeto.
 
+## [1.6.2] - 2026-06-24
+
+### Alterado
+
+- Contrato do Ollama reforcado: a IA local passa a ser orientada explicitamente a atuar apenas como detector de entidades sensiveis, sem reescrever, resumir, interpretar, gerar documentos ou produzir texto anonimizado.
+- Backend passa a descartar entidades retornadas pela IA quando `text`, `start` e `end` nao correspondem exatamente ao trecho literal do documento original.
+- Arquitetura documentada em changelog como fluxo de substituicao controlada: deterministico primeiro, IA apenas para contexto semantico residual, substituicao/exportacao sempre pelo backend.
+
+## [1.6.1] - 2026-06-24
+
+### Adicionado
+
+- Arquivos de entrada `.csv` agora tambem geram produto anonimizado em `.csv`, preservando o conteudo tabular anonimizado sem cabecalho institucional ou tabela de controle.
+- Botao **CSV** passa a aparecer automaticamente apenas quando o backend informa que o produto CSV existe.
+- Log PDF do conjunto passa a registrar tambem o hash SHA-256 do produto CSV quando aplicavel.
+
+## [1.6.0] - 2026-06-24
+
+### Adicionado
+
+- Processamento em lote real para ate 3 arquivos, com dicionario unico de substituicoes para manter a mesma entidade com o mesmo identificador anonimo em todos os arquivos da solicitacao.
+- Tabela de Controle de Anonimizacao ao final dos produtos internos TXT, DOCX e PDF, listando valor original, tipo, identificador anonimo e quantidade de ocorrencias efetivamente substituidas.
+- Log PDF do conjunto processado, com numero IP/nome da solicitacao, arquivos tratados, hashes SHA-256 originais e hashes dos produtos TXT, DOCX e PDF, registro de data/hora, host cliente e identificacao da maquina local quando disponivel.
+- Botao **Log PDF** no historico da solicitacao, com validacao de SHA-256 antes do download.
+
+### Alterado
+
+- Janela de regras passa a se chamar **⚠ Regras institucionais de uso e Avisos ⚠**, com lista reduzida de avisos essenciais, alerta vermelho sobre fase de testes e recomendacao expressa de anonimizacao manual quando houver falha automatica.
+- Quadro de regras passa a exibir a logo da PCPE na lateral direita.
+
+### Corrigido
+
+- Logo da PCPE no PDF exportado agora e centralizada no cabecalho.
+
+## [1.5.8] - 2026-06-24
+
+### Corrigido
+
+- Exportação TXT deixa de quebrar linhas delimitadas de CSV/RIF, preservando cabeçalhos e linhas com ponto e vírgula.
+- Detector CSV do perfil RIF passa a ter prioridade sobre regex genéricas, evitando que contas bancárias em coluna `contaEnvolvido` sejam classificadas como telefone.
+
 ## [1.5.7] - 2026-06-23
 
 ### Adicionado

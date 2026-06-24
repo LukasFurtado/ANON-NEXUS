@@ -27,6 +27,12 @@ type Result = {
   original_text: string;
   anonymized_text: string;
   export_paths: Record<string, string>;
+  control_table: Array<{
+    original_value: string;
+    entity_type: string;
+    anonymous_id: string;
+    occurrences: number;
+  }>;
   stats: {
     entities_found: number;
     replacements_applied: number;
@@ -54,11 +60,20 @@ type ProcessedFile = {
 
 type RequestGroup = {
   id: string;
+  backendGroupId?: string;
   title: string;
   createdAt: string;
   model: string;
   documentKind: string;
+  logSha256?: string;
   files: ProcessedFile[];
+};
+
+type BatchResult = {
+  group_id: string;
+  request_title?: string;
+  results: Result[];
+  log_sha256?: string;
 };
 
 type ViewMode = "processamento" | "solicitacoes";
@@ -226,6 +241,104 @@ export function App() {
     }
   }
 
+  async function anonymizeBatch() {
+    if (files.length === 0 || !requestName.trim()) return;
+
+    const controller = new AbortController();
+    const groupId = crypto.randomUUID();
+    const initialGroup: RequestGroup = {
+      id: groupId,
+      title: requestName.trim() || `Solicitacao ${requests.length + 1}`,
+      createdAt: new Date().toISOString(),
+      model,
+      documentKind,
+      files: files.map((file) => ({
+        id: crypto.randomUUID(),
+        name: file.name,
+        status: "pendente"
+      }))
+    };
+
+    abortControllerRef.current = controller;
+    setRequests((items) => [initialGroup, ...items]);
+    setSelectedGroupId(groupId);
+    setSelectedFileId(initialGroup.files[0]?.id ?? null);
+    setActiveView("solicitacoes");
+    setLoading(true);
+    setError(null);
+    setRequestName("");
+
+    try {
+      setCurrentFileName(files.map((file) => file.name).join(", "));
+      setCurrentFileIndex(1);
+      setProcessingStep("Preparando lote e dicionario unico de substituicoes.");
+      initialGroup.files.forEach((file) => updateFile(groupId, file.id, { status: "processando" }));
+
+      const form = new FormData();
+      files.forEach((file) => form.append("files", file));
+      form.append("document_kind", documentKind);
+      form.append("model", model);
+      form.append("use_ollama", String(useOllama));
+      form.append("request_title", initialGroup.title);
+
+      setProcessingStep("Executando extracao, regex e IA local com consistencia entre arquivos.");
+      const response = await fetch(`${API_URL}/api/anonymize-batch`, {
+        method: "POST",
+        body: form,
+        signal: controller.signal
+      });
+      setProcessingStep("Conferindo hashes, exportacoes e log de auditoria do conjunto.");
+      if (!response.ok) {
+        const payload = await response.json();
+        throw new Error(payload.detail || "Falha ao anonimizar.");
+      }
+
+      const payload = (await response.json()) as BatchResult;
+      setRequests((groups) =>
+        groups.map((group) =>
+          group.id !== groupId
+            ? group
+            : {
+                ...group,
+                backendGroupId: payload.group_id,
+                logSha256: payload.log_sha256,
+                files: group.files.map((item, index) => ({
+                  ...item,
+                  status: payload.results[index] ? "concluído" : "erro",
+                  result: payload.results[index],
+                  error: payload.results[index] ? undefined : "Resultado nao retornado pelo processamento em lote."
+                }))
+              }
+        )
+      );
+      setSelectedFileId(initialGroup.files[0]?.id ?? null);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        initialGroup.files.forEach((file) => updateFile(groupId, file.id, { status: "cancelado" }));
+        setError("Processamento cancelado pelo usuario.");
+      } else {
+        initialGroup.files.forEach((file) =>
+          updateFile(groupId, file.id, {
+            status: "erro",
+            error: err instanceof Error ? err.message : "Erro inesperado."
+          })
+        );
+        setError(err instanceof Error ? err.message : "Erro inesperado.");
+      }
+    } finally {
+      abortControllerRef.current = null;
+      setLoading(false);
+      setCurrentFileName("");
+      setCurrentFileIndex(0);
+      setProcessingStep("Preparando processamento local.");
+      setFiles([]);
+      setFileHashes({});
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }
+
   function updateFile(groupId: string, fileId: string, patch: Partial<ProcessedFile>) {
     setRequests((groups) =>
       groups.map((group) =>
@@ -317,6 +430,34 @@ export function App() {
     });
   }
 
+  async function downloadGroupLog(group: RequestGroup) {
+    if (!group.backendGroupId || !group.logSha256) {
+      window.alert("Log de processamento ainda nao disponivel para esta solicitacao.");
+      return;
+    }
+    const response = await fetch(`${API_URL}/api/exports/groups/${group.backendGroupId}/log`);
+    if (!response.ok) {
+      window.alert("Nao foi possivel baixar o log do conjunto.");
+      return;
+    }
+    const blob = await response.blob();
+    const buffer = await blob.arrayBuffer();
+    const actualHash = await sha256Buffer(buffer);
+    if (actualHash !== group.logSha256.toUpperCase()) {
+      window.alert("O hash do log nao corresponde ao registro informado. Download bloqueado.");
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([buffer], { type: blob.type || "application/pdf" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${sanitizeFileBase(group.title)}-log-processamento.pdf`;
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   async function detectLocalModels() {
     setModelsLoading(true);
     try {
@@ -361,7 +502,7 @@ export function App() {
       )}
 
       {rulesModalOpen && (
-        <UsageRulesDialog
+        <UsageRulesDialogV2
           onAccept={() => {
             setUseOllama(true);
             setRulesModalOpen(false);
@@ -506,7 +647,7 @@ export function App() {
           </label>
         </section>
 
-        <button className="primary" disabled={files.length === 0 || !requestName.trim() || !useOllama || loading} onClick={anonymize}>
+        <button className="primary" disabled={files.length === 0 || !requestName.trim() || !useOllama || loading} onClick={anonymizeBatch}>
           <Play size={18} />
           Anonimizar
         </button>
@@ -556,6 +697,7 @@ export function App() {
             onSelectFile={setSelectedFileId}
             onRenameGroup={renameGroup}
             onDeleteGroup={deleteGroup}
+            onDownloadLog={(group) => void downloadGroupLog(group)}
           />
         )}
 
@@ -646,7 +788,8 @@ function RequestsPage({
   onSelectGroup,
   onSelectFile,
   onRenameGroup,
-  onDeleteGroup
+  onDeleteGroup,
+  onDownloadLog
 }: {
   requests: RequestGroup[];
   selectedGroup?: RequestGroup;
@@ -655,6 +798,7 @@ function RequestsPage({
   onSelectFile: (fileId: string) => void;
   onRenameGroup: (groupId: string, title: string) => void;
   onDeleteGroup: (groupId: string) => void;
+  onDownloadLog: (group: RequestGroup) => void;
 }) {
   if (requests.length === 0) {
     return (
@@ -704,6 +848,16 @@ function RequestsPage({
           <div className="summaryPills">
             <span>{selectedGroup?.model}</span>
             <span>{selectedGroup?.files.length ?? 0} arquivo(s)</span>
+            <button
+              type="button"
+              className="logDownloadButton"
+              disabled={!selectedGroup?.backendGroupId || !selectedGroup?.logSha256}
+              onClick={() => selectedGroup && onDownloadLog(selectedGroup)}
+              title={selectedGroup?.logSha256 ? `SHA-256 do log: ${selectedGroup.logSha256}` : undefined}
+            >
+              <Download size={14} />
+              Log PDF
+            </button>
             <button
               type="button"
               className="deleteRequestButton"
@@ -830,6 +984,58 @@ function ProcessingDialog({
           <button className="cancelButton" onClick={onCancel}>
             <XCircle size={18} />
             Cancelar
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function UsageRulesDialogV2({ onAccept, onClose }: { onAccept: () => void; onClose: () => void }) {
+  return (
+    <div className="processingOverlay" role="dialog" aria-modal="true" aria-labelledby="usage-rules-title">
+      <section className="usageRulesWindow">
+        <header>
+          <div>
+            <span className="panelLabel">Ciencia obrigatoria</span>
+            <h2 id="usage-rules-title">⚠ Regras institucionais de uso e Avisos ⚠</h2>
+          </div>
+          <ShieldCheck size={26} />
+        </header>
+
+        <div className="usageRulesBody">
+          <div className="usageRulesIntro">
+            <p>
+              O NEXUS ANON e uma ferramenta local de apoio a anonimizacao documental para uso institucional, interno
+              e controlado. A ciencia abaixo reforca deveres de sigilo, protecao de dados, rastreabilidade, revisao
+              humana e uso responsavel de sistemas de inteligencia artificial.
+            </p>
+            <img src="/logo_pcpe_header.png" alt="Policia Civil de Pernambuco" />
+          </div>
+
+          <ol>
+            <li>Utilizar o sistema somente para finalidade institucional legitima, necessaria, proporcional e vinculada a atividade funcional autorizada.</li>
+            <li>Manter o tratamento de documentos em ambiente local, controlado e compativel com o grau de sigilo, sem envio de dados sensiveis a servicos externos nao homologados.</li>
+            <li>Preservar hashes, historico, registros de processamento e demais elementos necessarios a rastreabilidade, auditoria e cadeia de custodia.</li>
+            <li>Reconhecer que a IA possui natureza auxiliar, preliminar e nao decisoria, nao substituindo analise juridica, tecnica ou funcional humana.</li>
+            <li>Revisar o produto anonimizado antes de compartilhar, juntar, imprimir, remeter ou utilizar oficialmente, conferindo se nao houve exposicao residual ou alteracao indevida de conteudo preservado.</li>
+            <li className="criticalRule">O programa ainda esta em fase de testes e pode apresentar erros de identificacao, omissao ou classificacao. A revisao humana qualificada e imprescindivel.</li>
+            <li>Quando a IA ou as regras automaticas nao anonimizarem determinado dado sensivel, a anonimizacao manual deve ser realizada antes de qualquer uso externo ou oficial do produto.</li>
+          </ol>
+
+          <div className="usageRulesWarning">
+            O processamento local reduz riscos de exposicao, mas nao elimina a responsabilidade funcional do operador
+            pela conferencia, validacao e seguranca do documento final.
+          </div>
+        </div>
+
+        <footer>
+          <button className="secondaryButton" type="button" onClick={onClose}>
+            Voltar
+          </button>
+          <button className="primary acceptRulesButton" type="button" onClick={onAccept}>
+            <ShieldCheck size={17} />
+            Declaro ciencia e concordo
           </button>
         </footer>
       </section>
@@ -1036,6 +1242,8 @@ function AuditHash({ label, value }: { label: string; value: string }) {
 }
 
 function ExportBar({ result, fileName }: { result?: Result; fileName?: string }) {
+  const availableFormats = result ? Object.keys(result.audit.export_sha256) : ["pdf", "docx", "txt"];
+
   async function downloadExport(format: string) {
     if (!result) return;
     const expectedHash = result.audit.export_sha256[format]?.toUpperCase();
@@ -1079,7 +1287,7 @@ function ExportBar({ result, fileName }: { result?: Result; fileName?: string })
         </span>
       </div>
       <div className="exportButtons">
-        {["pdf", "docx", "txt"].map((format) => (
+        {availableFormats.map((format) => (
           <button
             key={format}
             type="button"
@@ -1100,7 +1308,7 @@ function InstitutionalFooter() {
   return (
     <footer className="institutionalFooter">
       <span>© 2026 NEXUS ANON · Uso institucional e interno · Criador: Lukas Furtado - Polícia Civil do Estado de Pernambuco.</span>
-      <strong>Versão 1.5.7</strong>
+      <strong>Versão 1.6.2</strong>
     </footer>
   );
 }
@@ -1135,8 +1343,12 @@ async function sha256Buffer(buffer: ArrayBuffer) {
 }
 
 function buildDownloadName(fileName: string, format: string) {
-  const cleanBase = fileName.replace(/\.[^.]+$/, "").replace(/[\\/:*?"<>|]+/g, "-").trim() || "anonimizado";
+  const cleanBase = sanitizeFileBase(fileName.replace(/\.[^.]+$/, "")) || "anonimizado";
   return `${cleanBase}-anonimizado.${format}`;
+}
+
+function sanitizeFileBase(value: string) {
+  return value.replace(/[\\/:*?"<>|]+/g, "-").trim() || "nexus-anon";
 }
 
 function formatDate(value: string) {

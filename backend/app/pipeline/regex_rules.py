@@ -58,6 +58,9 @@ TRANSACTION_FRAGMENT_BLOCKLIST = ("transferência", "transferencia", " pix", " t
 
 def detect_entities_by_regex(text: str, document_kind: DocumentKind = DocumentKind.auto) -> list[Entity]:
     entities: list[Entity] = []
+    if document_kind == DocumentKind.rif:
+        entities.extend(_detect_rif_csv_entities(text))
+
     for entity_type, pattern in [*PATTERNS, *profile_regex_patterns(document_kind)]:
         for match in pattern.finditer(text):
             entities.append(
@@ -98,9 +101,6 @@ def detect_entities_by_regex(text: str, document_kind: DocumentKind = DocumentKi
                 source="regex",
             )
         )
-
-    if document_kind == DocumentKind.rif:
-        entities.extend(_detect_rif_csv_entities(text))
 
     return _deduplicate(entities)
 

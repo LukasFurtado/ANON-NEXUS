@@ -1,6 +1,6 @@
 {
   "name": "nexus-anon-frontend",
-  "version": "1.5.7",
+  "version": "1.6.2",
   "private": true,
   "type": "module",
   "scripts": {

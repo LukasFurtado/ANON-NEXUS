@@ -4,12 +4,12 @@ from tempfile import NamedTemporaryFile
 import urllib.error
 import urllib.request
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.models.schemas import AnonymizeOptions, DocumentKind
-from app.pipeline.runner import run_pipeline
+from app.pipeline.runner import run_batch_pipeline, run_pipeline
 from app.services.database import list_jobs
 
 router = APIRouter()
@@ -85,9 +85,59 @@ async def anonymize(
     return result.model_dump()
 
 
+@router.post("/anonymize-batch")
+async def anonymize_batch(
+    request: Request,
+    files: list[UploadFile] = File(...),
+    document_kind: DocumentKind = Form(DocumentKind.auto),
+    model: str = Form("NEXUS-anon:latest"),
+    use_ollama: bool = Form(True),
+    request_title: str | None = Form(None),
+) -> dict:
+    if not files:
+        raise HTTPException(status_code=400, detail="Nenhum arquivo enviado.")
+    if len(files) > 3:
+        raise HTTPException(status_code=400, detail="Limite de 3 arquivos por solicitacao.")
+
+    temporary_files: list[tuple[Path, str]] = []
+    try:
+        for file in files:
+            suffix = Path(file.filename or "documento.txt").suffix
+            with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                tmp.write(await file.read())
+                tmp_path = Path(tmp.name)
+            temporary_files.append((tmp_path, file.filename or tmp_path.name))
+
+        result = run_batch_pipeline(
+            temporary_files,
+            options=AnonymizeOptions(
+                document_kind=document_kind,
+                model=model,
+                use_ollama=use_ollama,
+                request_title=request_title,
+            ),
+            client_host=request.client.host if request.client else None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        for tmp_path, _ in temporary_files:
+            tmp_path.unlink(missing_ok=True)
+
+    return result.model_dump()
+
+
 @router.get("/exports/{job_id}/{format_name}")
 def export(job_id: str, format_name: str) -> FileResponse:
     export_path = Path("data") / "exports" / job_id / f"anonimizado.{format_name}"
     if not export_path.exists():
         raise HTTPException(status_code=404, detail="Arquivo exportado nao encontrado.")
     return FileResponse(export_path)
+
+
+@router.get("/exports/groups/{group_id}/log")
+def export_group_log(group_id: str) -> FileResponse:
+    export_path = Path("data") / "exports" / group_id / "log_processamento.pdf"
+    if not export_path.exists():
+        raise HTTPException(status_code=404, detail="Log de processamento nao encontrado.")
+    return FileResponse(export_path, filename="log_processamento_nexus_anon.pdf")
