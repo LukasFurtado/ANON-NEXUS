@@ -1,6 +1,6 @@
-# NEXUS ANONs
+# NEXUS ANON
 
-Aplicacao desktop profissional, local e offline, para anonimização inteligente de documentos policiais, juridicos e administrativos, com foco inicial em Relatorios de Inteligencia Financeira (RIF/COAF).
+Aplicação desktop profissional, local e offline, para anonimização inteligente de documentos policiais, juridicos e administrativos, com foco inicial em Relatorios de Inteligencia Financeira (RIF/COAF).
 
 ## Principios
 
