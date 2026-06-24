@@ -163,3 +163,5 @@ Toda atualização funcional, visual ou documental deve incrementar a versão e 
 5. Perfis especializados por documento.
 6. Tela de revisão humana com aceite/rejeição de entidades.
 7. Empacotamento com instalador e verificador de dependências locais.
+
+

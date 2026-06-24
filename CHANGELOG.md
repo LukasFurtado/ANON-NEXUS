@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.8.7] - 2026-06-24
+
+### Alterado
+
+- Removidos os perfis documentais `Inquerito policial`, `Relatorio`, `Oficio`, `Administrativo` e `Automatico` do contrato do backend e da interface.
+- O ANON passa a exigir escolha explicita do perfil documental antes de liberar a anonimizacao.
+- Historicos locais com perfis documentais removidos deixam de ser carregados como grupos validos na interface.
+- Adicionado o perfil `Relatorio investigativo`, com prompt, regras regex e criterios de validacao proprios.
+
+### Adicionado
+
+- Perfil `Relatorio investigativo` orientado a relatorios policiais, ministeriais, administrativos e de controle, preservando estrutura, fundamentos, datas, valores, referencias procedimentais, orgaos publicos, unidades, bancos/plataformas como fontes de dados, municipios, estados e dados tecnicos nao pessoais.
+- Regras especificas para anonimizar pessoas, autoridades individualizadas, matriculas, CPF, RG, CNH, passaporte, CNPJ de empresas privadas investigadas, telefones, e-mails, enderecos, contas, PIX, placas, usuarios de redes sociais e IPs individuais.
+
+## [1.8.6] - 2026-06-24
+
+### Corrigido
+
+- Corrigida acentuação da interface principal, janela de regras, avisos, histórico, mensagens de processamento e alertas.
+- Removidos trechos com mojibake visual, como `ç`, `ã`, `ó` e variações semelhantes, preservando UTF-8 correto.
+
 ## [1.8.5] - 2026-06-24
 
 ### Alterado

@@ -53,7 +53,7 @@ def _summary_lines(original_filename: str, metadata: dict[str, Any]) -> list[str
         "RESUMO OPERACIONAL",
         f"Solicitacao: {metadata.get('request_title') or 'Nao informada'}",
         f"Arquivo de origem: {original_filename}",
-        f"Perfil documental: {metadata.get('document_kind') or 'auto'}",
+        f"Perfil documental: {metadata.get('document_kind') or 'Nao informado'}",
         f"Modelo: {metadata.get('model') or 'Nao informado'}",
         f"Versao do ANON: {metadata.get('anon_version') or 'Nao informada'}",
         f"Tempo de processamento: {metadata.get('processing_time_seconds', 'Nao informado')} s",

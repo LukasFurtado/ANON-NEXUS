@@ -27,7 +27,7 @@ PROFILE_ENTITY_TYPES_ALLOWED_WITH_TERMS = {
 def validate_entities(
     text: str,
     entities: list[Entity],
-    document_kind: DocumentKind = DocumentKind.auto,
+    document_kind: DocumentKind,
 ) -> tuple[list[Entity], int, int, list[str]]:
     valid: list[Entity] = []
     preserved_dates = 0
@@ -65,7 +65,7 @@ def validate_entities(
     return valid, preserved_dates, preserved_values, warnings
 
 
-def validate_output(original: str, anonymized: str, document_kind: DocumentKind = DocumentKind.auto) -> list[str]:
+def validate_output(original: str, anonymized: str, document_kind: DocumentKind) -> list[str]:
     warnings: list[str] = []
     original_values = set(VALUE_PATTERN.findall(original))
     anonymized_values = set(VALUE_PATTERN.findall(anonymized))

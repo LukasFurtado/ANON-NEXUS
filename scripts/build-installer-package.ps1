@@ -1,6 +1,6 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot\.."
-$version = "1.8.5"
+$version = "1.8.7"
 $packageRoot = Join-Path $root "dist-installer"
 $stage = Join-Path $packageRoot "NEXUS_ANON_$version"
 $zipPath = Join-Path $packageRoot "NEXUS_ANON_instalador_local_v$version.zip"
@@ -85,3 +85,5 @@ Write-Host "Pacote gerado:" -ForegroundColor Green
 Write-Host $zipPath
 Write-Host ""
 Write-Host "Observacao: o pacote nao inclui qwen3:32b, .venv nem node_modules. O instalador prepara esses itens na maquina de destino."
+
+

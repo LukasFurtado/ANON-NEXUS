@@ -37,7 +37,7 @@ class OllamaDetectionError(RuntimeError):
     pass
 
 
-def detect_entities_with_ollama(text: str, model: str, document_kind: DocumentKind = DocumentKind.auto) -> list[Entity]:
+def detect_entities_with_ollama(text: str, model: str, document_kind: DocumentKind) -> list[Entity]:
     if not text.strip():
         return []
 

@@ -56,7 +56,7 @@ def jobs() -> list[dict]:
 @router.post("/anonymize")
 async def anonymize(
     file: UploadFile = File(...),
-    document_kind: DocumentKind = Form(DocumentKind.auto),
+    document_kind: DocumentKind = Form(...),
     model: str = Form("qwen3:32b"),
     use_ollama: bool = Form(True),
     request_title: str | None = Form(None),
@@ -89,7 +89,7 @@ async def anonymize(
 async def anonymize_batch(
     request: Request,
     files: list[UploadFile] = File(...),
-    document_kind: DocumentKind = Form(DocumentKind.auto),
+    document_kind: DocumentKind = Form(...),
     model: str = Form("qwen3:32b"),
     use_ollama: bool = Form(True),
     request_title: str | None = Form(None),

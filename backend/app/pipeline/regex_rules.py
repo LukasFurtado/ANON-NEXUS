@@ -48,7 +48,7 @@ NAME_AFTER_TRANSACTION = re.compile(
 TRANSACTION_FRAGMENT_BLOCKLIST = ("transferencia", " pix", " ted", " doc", "realizou", "pagamento")
 
 
-def detect_entities_by_regex(text: str, document_kind: DocumentKind = DocumentKind.auto) -> list[Entity]:
+def detect_entities_by_regex(text: str, document_kind: DocumentKind) -> list[Entity]:
     entities: list[Entity] = []
     if document_kind == DocumentKind.rif:
         entities.extend(_detect_rif_csv_entities(text))
@@ -266,4 +266,3 @@ def _deduplicate(entities: list[Entity]) -> list[Entity]:
         seen.add(key)
         unique.append(entity)
     return unique
-

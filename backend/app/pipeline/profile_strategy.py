@@ -10,7 +10,6 @@ Trate RIF como produto de inteligencia financeira, inclusive exportacoes tabular
 Priorize contrapartes financeiras, pessoas comunicadas, comunicantes, envolvidos, empresas, CPF, CNPJ, contas, agencias, chaves PIX, instituicoes financeiras, boletos, cartoes, protocolos operacionais, idComunicacao, idOcorrencia, NumeroOcorrenciaBC e enderecos.
 Preserve integralmente valores monetarios, datas, percentuais, quantidades, indicadores de atipicidade, classificacoes operacionais, tipoEnvolvido, bitPepCitado, bitPessoaObrigadaCitado, intServidorCitado, CodigoSegmento, natureza da operacao financeira e termos como PIX, TED, DOC, saque, deposito, transferencia, credito, debito, fracionamento e analise financeira.
 Se o documento for CSV ou tabela, preserve nomes de colunas, delimitadores, ordem das colunas, quantidade de linhas, quebras de linha e campos vazios; nao converta CSV em Markdown, nao alinhe colunas e nao troque ponto e virgula por virgula.
-Campos de alto risco em RIF/Siscoaf: informacoesAdicionais, Ocorrencia, cpfCnpjComunicante, nomeComunicante, cpfCnpjEnvolvido, nomeEnvolvido, agenciaEnvolvido, contaEnvolvido, NomeAgencia, NumeroAgencia, idComunicacao, idOcorrencia e NumeroOcorrenciaBC.
 Nao substitua a expressao tecnica da operacao; anonimize apenas a pessoa, empresa, conta, chave ou identificador vinculado.
 """,
     DocumentKind.extrato_bancario: """
@@ -22,29 +21,14 @@ Em extratos DELOS, preserve SEMPRE a coluna Doc., os identificadores Requisicao 
 Anonimize o titular extraido do cabecalho em todas as ocorrencias posteriores, inclusive em Nome Benef/Depos, Observacoes, padrao "POR [NOME]" e variacoes eleitorais ou abreviadas.
 A IA deve identificar somente entidades sensiveis. Nao reescreva lancamentos, nao interprete movimentacoes, nao resuma, nao altere ordem de linhas, nao altere valores e nao altere a classificacao credito/debito.
 """,
-    DocumentKind.inquerito: """
-Perfil documental ativo: Inquerito policial.
-Priorize investigados, vitimas, testemunhas, comunicantes, policiais, delegados, promotores, juizes, advogados, enderecos, contatos, BO, IP, procedimentos, protocolos e documentos pessoais.
-Preserve capitulacao, narrativa tecnica, datas, horarios, valores, fundamentos legais, conclusoes e determinacoes.
-""",
-    DocumentKind.relatorio: """
-Perfil documental ativo: Relatorio.
-Priorize nomes de pessoas, empresas, unidades sensiveis, contatos, enderecos, protocolos, placas, dados digitais e identificadores citados no corpo narrativo.
-Preserve titulos, topicos, conclusoes, analise tecnica, datas, valores, percentuais e enumeracoes.
-""",
-    DocumentKind.oficio: """
-Perfil documental ativo: Oficio.
-Priorize destinatarios individualizados, remetentes individualizados, referencias, protocolos, procedimentos, enderecos, contatos, matriculas e dados funcionais.
-Preserve assunto, vocativo institucional, fundamentos, requisicoes, prazos, datas e estrutura formal do expediente.
-""",
-    DocumentKind.administrativo: """
-Perfil documental ativo: Documento administrativo.
-Priorize SEI, protocolos, processos administrativos, matriculas funcionais, servidores, unidades especificas, assinaturas, contatos, enderecos e identificadores cadastrais.
-Preserve fundamentos administrativos, datas, prazos, despachos, determinacoes e estrutura tabular.
-""",
-    DocumentKind.auto: """
-Perfil documental ativo: Automatico.
-Identifique o tipo documental pelo conteudo e aplique a estrategia mais conservadora de anonimizacao, preservando valores, datas, fundamentacao e analise tecnica.
+    DocumentKind.relatorio_investigativo: """
+Perfil documental ativo: Relatorio investigativo.
+Trate o documento como relatorio investigativo policial, ministerial, administrativo ou de controle, em PDF ou DOCX, com foco exclusivo em desidentificacao.
+Preserve integralmente a estrutura textual, ordem de paragrafos, numeracao, tabelas, cabecalhos, rodapes, titulos, fundamentos, analise tecnica, conclusoes, valores, datas, horarios, percentuais, referencias a folhas, numeros de IP, BO, processo, SEI, relatorio, oficio, portaria e demais referencias procedimentais.
+Preserve nomes de orgaos publicos, unidades policiais, delegacias, ministerios, tribunais, bancos, plataformas digitais citadas como fonte de dados, municipios, estados, marcas/modelos de veiculos, tipificacoes penais, artigos de lei, jurisprudencia, IMEI, ERB e referencias tecnicas que nao identifiquem diretamente pessoa fisica ou juridica privada investigada.
+Anonimize nomes de pessoas fisicas, investigados, vitimas, testemunhas, comunicantes, autoridades assinantes ou individualizadas, peritos, servidores identificaveis, matriculas funcionais, CPF, RG, CNH, passaporte, CNPJ de empresas privadas investigadas, telefones, e-mails, enderecos completos, CEP, contas bancarias, agencias quando vinculadas ao titular investigado, chaves PIX, placas, usuarios/perfis de redes sociais, IPs individuais e qualquer identificador pessoal.
+Quando o papel estiver claro, prefira marcadores semanticamente uteis como [INVESTIGADO_001], [VITIMA_001], [TESTEMUNHA_001] ou [AUTORIDADE_001]. Quando o papel for ambiguo, use [PESSOA_001]. Mantenha o mesmo identificador para a mesma entidade em todo o documento e em todo o conjunto processado.
+Em citacoes, transcricoes, tabelas e documentos reproduzidos dentro do relatorio, anonimize apenas os dados pessoais internos e preserve o texto tecnico ao redor. Nao resuma, nao reescreva, nao interprete e nao crie nova narrativa.
 """,
 }
 
@@ -68,21 +52,14 @@ PROFILE_REGEX_PATTERNS: dict[DocumentKind, list[tuple[EntityType, re.Pattern[str
         (EntityType.cnpj, re.compile(r"\bCPF/CNPJ\s*:\s*\d{14}\b", re.I)),
         (EntityType.person, re.compile(r"\bTitular\s*:\s*([A-ZÀ-ÖØ-Ý][A-ZÀ-ÖØ-Ý '\.-]{5,120}?)(?=\s*\()", re.I)),
     ],
-    DocumentKind.inquerito: [
-        (EntityType.protocol, re.compile(r"\b(?:INQUERITO|IP|BO|B\.O\.|TCO|APFD)\s*(?:N[O.]*)?\s*[:\-]?\s*[\w./-]{3,}\b", re.I)),
-        (EntityType.functional_id, re.compile(r"\b(?:MATRICULA|MF)\s*(?:FUNCIONAL)?\s*[:\-]?\s*\d{3,12}\b", re.I)),
-    ],
-    DocumentKind.relatorio: [
-        (EntityType.protocol, re.compile(r"\b(?:RELATORIO|PROTOCOLO|REFERENCIA)\s*(?:N[O.]*)?\s*[:\-]?\s*[\w./-]{4,}\b", re.I)),
-    ],
-    DocumentKind.oficio: [
-        (EntityType.protocol, re.compile(r"\b(?:OFICIO|MEMORANDO|CIRCULAR)\s*(?:N[O.]*)?\s*[:\-]?\s*[\w./-]{3,}\b", re.I)),
-        (EntityType.functional_id, re.compile(r"\b(?:MATRICULA|SIAPE|ID\s+FUNCIONAL)\s*[:\-]?\s*\d{3,12}\b", re.I)),
-    ],
-    DocumentKind.administrativo: [
-        (EntityType.proceeding, re.compile(r"\bSEI\s*(?:N[O.]*)?\s*[:\-]?\s*[\d./-]{5,}\b", re.I)),
-        (EntityType.protocol, re.compile(r"\b(?:PROCESSO\s+ADMINISTRATIVO|PROTOCOLO|PA)\s*(?:N[O.]*)?\s*[:\-]?\s*[\w./-]{4,}\b", re.I)),
-        (EntityType.functional_id, re.compile(r"\b(?:MATRICULA|SIAPE|ID\s+FUNCIONAL)\s*[:\-]?\s*\d{3,12}\b", re.I)),
+    DocumentKind.relatorio_investigativo: [
+        (EntityType.functional_id, re.compile(r"\b(?:MATRICULA|MAT\.|MF|ID\s+FUNCIONAL)\s*(?:N[O.]*)?\s*[:\-]?\s*\d{3,12}(?:-\d)?\b", re.I)),
+        (EntityType.pix, re.compile(r"\b(?:CHAVE\s+PIX|PIX)\s*(?:CPF|CNPJ|E-?MAIL|TELEFONE|ALEATORIA|EVP)?\s*[:\-]\s*[\w.@+\-/]{5,}\b", re.I)),
+        (EntityType.email, re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)),
+        (EntityType.vehicle_plate, re.compile(r"\b[A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}\b", re.I)),
+        (EntityType.address, re.compile(r"\b(?:Rua|Avenida|Av\.|Travessa|Estrada|Rodovia|Alameda)\s+[^,\n;]{3,80}(?:,\s*(?:n[ºo.]?\s*)?\d+[A-Za-z0-9\-]*)?(?:,\s*[^,\n;]{2,80})?(?:,\s*CEP\s*\d{5}-?\d{3})?", re.I)),
+        (EntityType.bank_account, re.compile(r"\b(?:Ag(?:encia|\.)?\s*\d{1,6}(?:-\d)?\s*/?\s*)?(?:CC|C/C|Conta(?:\s+Corrente)?|Conta)\s*[:\-]?\s*\d{3,14}(?:-\d)?\b", re.I)),
+        (EntityType.other_identifier, re.compile(r"(?<!\w)@[A-Z0-9._-]{3,40}\b", re.I)),
     ],
 }
 
@@ -97,14 +74,11 @@ PROFILE_PROTECTED_PATTERNS: dict[DocumentKind, list[re.Pattern[str]]] = {
         re.compile(r"\b(?:VALOR\s*\(R\$\)|HISTORICO|OBSERVACOES|QTD\.?\s+MOV|TOTAL|PAGINA|D/C)\b", re.I),
         re.compile(r"\b(?:BANCO|BCO|CAIXA\s+ECONOMICA|SICOOB|S\.A\.|CONTA\s+CORRENTE|CONTA\s+POUPANCA)\b", re.I),
     ],
-    DocumentKind.inquerito: [
-        re.compile(r"\b(?:ART\.?|ARTIGO|LEI|CODIGO\s+PENAL|CPP|CONSTITUICAO)\b", re.I),
-    ],
-    DocumentKind.oficio: [
-        re.compile(r"\b(?:ASSUNTO|REFERENCIA|PRAZO|REQUISICAO|ENCAMINHAMENTO)\b", re.I),
-    ],
-    DocumentKind.administrativo: [
-        re.compile(r"\b(?:DESPACHO|PORTARIA|PRAZO|PUBLICACAO|D.O.)\b", re.I),
+    DocumentKind.relatorio_investigativo: [
+        re.compile(r"\b(?:IP|BO|B\.O\.|SEI|PROC\.?|PROCESSO|PORTARIA|OFICIO|RELATORIO|RI)\s*(?:N[ºO.]*)?\s*[:\-]?\s*[\w./-]{2,}\b", re.I),
+        re.compile(r"\b(?:ART\.?|ARTIGO|LEI|DECRETO|CPP|CP|CONSTITUICAO|JURISPRUDENCIA|TIPIFICACAO)\b", re.I),
+        re.compile(r"\b(?:POLICIA|MINISTERIO PUBLICO|TRIBUNAL|DELEGACIA|GARRAF|DRACO|COAF|BACEN|RECEITA FEDERAL|PCPE|PF)\b", re.I),
+        re.compile(r"\b(?:IMEI|IMSI|ERB|ESTACAO RADIO BASE|WHATSAPP|INSTAGRAM|MERCADO PAGO|BANCO DO BRASIL|CAIXA|NUBANK|BRADESCO|SANTANDER)\b", re.I),
     ],
 }
 
@@ -124,14 +98,17 @@ PROFILE_OUTPUT_TERMS: dict[DocumentKind, list[re.Pattern[str]]] = {
         re.compile(r"\b(?:Agencia|Conta|Tipo Conta|Instituicao|Debitos|Creditos|Historico|Observacoes|Total)\b", re.I),
         re.compile(r"\b(?:SAQUE|DEPOSITO|TRANSFERENCIA|CREDITO|DEBITO|APLICACAO|RESGATE|TARIFA|PIX|TED|DOC)\b", re.I),
     ],
-    DocumentKind.inquerito: [
-        re.compile(r"\b(?:art\.|artigo|lei)\b", re.I),
+    DocumentKind.relatorio_investigativo: [
+        re.compile(r"\bR\$\s?\d{1,3}(?:\.\d{3})*,\d{2}\b"),
+        re.compile(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b"),
+        re.compile(r"\b(?:IP|BO|B\.O\.|SEI|PROC\.?|PROCESSO|PORTARIA|OFICIO|RELATORIO|RI)\s*(?:N[ºO.]*)?\s*[:\-]?\s*[\w./-]{2,}\b", re.I),
+        re.compile(r"\b(?:ART\.?|ARTIGO|LEI|CPP|CP|FLS?\.?|ITEM|ANEXO)\b", re.I),
     ],
 }
 
 
 def profile_prompt(document_kind: DocumentKind) -> str:
-    return PROFILE_PROMPTS.get(document_kind, PROFILE_PROMPTS[DocumentKind.auto]).strip()
+    return PROFILE_PROMPTS[document_kind].strip()
 
 
 def profile_regex_patterns(document_kind: DocumentKind) -> list[tuple[EntityType, re.Pattern[str]]]:

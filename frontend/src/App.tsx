@@ -1,4 +1,4 @@
-﻿import {
+import {
   AlertCircle,
   Archive,
   Clock,
@@ -92,6 +92,7 @@ const REQUESTS_STORAGE_KEY = "nexus-anon.requests.v1";
 const REQUESTS_RECOVERY_KEY = "nexus-anon.requests.recovery.v1";
 const FALLBACK_MODELS = ["qwen3:32b", "NEXUS-anon:latest", "gemma4:31b"];
 const MAX_FILES = 3;
+const VALID_DOCUMENT_KINDS = new Set(["rif", "extrato_bancario", "relatorio_investigativo"]);
 
 function fileKey(file: File) {
   return `${file.name}:${file.size}:${file.lastModified}`;
@@ -100,7 +101,7 @@ function fileKey(file: File) {
 export function App() {
   const [files, setFiles] = useState<File[]>([]);
   const [model, setModel] = useState("qwen3:32b");
-  const [documentKind, setDocumentKind] = useState("rif");
+  const [documentKind, setDocumentKind] = useState("");
   const [requestName, setRequestName] = useState("");
   const [fileHashes, setFileHashes] = useState<Record<string, string>>({});
   const [localModels, setLocalModels] = useState<string[]>(FALLBACK_MODELS);
@@ -146,12 +147,15 @@ export function App() {
   }, []);
 
   const progressLabel = useMemo(() => {
-    if (loading) return "Processando solicita?o localmente";
+    if (loading) return "Processando solicitação localmente";
     return "Aguardando documentos";
   }, [loading]);
 
   async function anonymize() {
-    if (files.length === 0 || !requestName.trim()) return;
+    if (files.length === 0 || !requestName.trim() || !documentKind) {
+      setError("Selecione o perfil documental antes de anonimizar.");
+      return;
+    }
 
     const controller = new AbortController();
     const groupId = crypto.randomUUID();
@@ -243,7 +247,10 @@ export function App() {
   }
 
   async function anonymizeBatch() {
-    if (files.length === 0 || !requestName.trim()) return;
+    if (files.length === 0 || !requestName.trim() || !documentKind) {
+      setError("Selecione o perfil documental antes de anonimizar.");
+      return;
+    }
 
     const controller = new AbortController();
     const groupId = crypto.randomUUID();
@@ -621,13 +628,10 @@ export function App() {
           <label>
             Perfil documental estratégico
             <select value={documentKind} onChange={(event) => setDocumentKind(event.target.value)}>
+              <option value="" disabled>Selecione o perfil documental</option>
               <option value="rif">RIF / COAF</option>
               <option value="extrato_bancario">Extrato bancário</option>
-              <option value="inquerito">Inquérito policial</option>
-              <option value="relatorio">Relatório</option>
-              <option value="oficio">Ofício</option>
-              <option value="administrativo">Administrativo</option>
-              <option value="auto">Automático</option>
+              <option value="relatorio_investigativo">Relatório investigativo</option>
             </select>
             <small className="modelStatus">Altera prompt local, regras regex e critérios de validação.</small>
           </label>
@@ -648,7 +652,7 @@ export function App() {
           </label>
         </section>
 
-        <button className="primary" disabled={files.length === 0 || !requestName.trim() || !useOllama || loading} onClick={anonymizeBatch}>
+        <button className="primary" disabled={files.length === 0 || !requestName.trim() || !documentKind || !useOllama || loading} onClick={anonymizeBatch}>
           <Play size={18} />
           Anonimizar
         </button>
@@ -1301,7 +1305,7 @@ function InstitutionalFooter() {
         {" "}- Polícia Civil do Estado de Pernambuco.
       </span>
       <strong>
-        <a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noreferrer">Versão 1.8.5</a>
+        <a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noreferrer">Versão 1.8.7</a>
       </strong>
     </footer>
   );
@@ -1449,6 +1453,7 @@ function isValidRequestGroup(value: unknown): value is RequestGroup {
     typeof group.createdAt === "string" &&
     typeof group.model === "string" &&
     typeof group.documentKind === "string" &&
+    VALID_DOCUMENT_KINDS.has(group.documentKind) &&
     Array.isArray(group.files) &&
     group.files.every(isValidProcessedFile)
   );
@@ -1459,3 +1464,5 @@ function isValidProcessedFile(value: unknown): value is ProcessedFile {
   const file = value as Partial<ProcessedFile>;
   return typeof file.id === "string" && typeof file.name === "string" && typeof file.status === "string";
 }
+
+

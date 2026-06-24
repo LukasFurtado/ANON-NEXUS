@@ -3,13 +3,9 @@ from pydantic import BaseModel, Field
 
 
 class DocumentKind(str, Enum):
-    auto = "auto"
     rif = "rif"
     extrato_bancario = "extrato_bancario"
-    inquerito = "inquerito"
-    relatorio = "relatorio"
-    oficio = "oficio"
-    administrativo = "administrativo"
+    relatorio_investigativo = "relatorio_investigativo"
 
 
 class EntityType(str, Enum):
@@ -97,7 +93,7 @@ class BatchAnonymizationResult(BaseModel):
 
 
 class AnonymizeOptions(BaseModel):
-    document_kind: DocumentKind = DocumentKind.auto
+    document_kind: DocumentKind
     model: str = "qwen3:32b"
     use_ollama: bool = True
     preserve_layout: bool = True
