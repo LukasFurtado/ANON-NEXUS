@@ -38,11 +38,14 @@ body,
 #root {
   width: 100%;
   min-height: 100%;
+  min-height: 100dvh;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   min-height: 100%;
+  min-height: 100dvh;
   overflow: auto;
   background:
     radial-gradient(at 85% 5%, rgba(91, 154, 224, 0.07) 0, transparent 52%),
@@ -81,16 +84,75 @@ input {
   font: inherit;
 }
 
+.bootRecovery {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  color: var(--text);
+}
+
+.bootRecovery section {
+  width: min(620px, 100%);
+  padding: 26px;
+  border: 1px solid var(--blue-strong);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(0, 75, 141, 0.28), rgba(255, 255, 255, 0.03)),
+    var(--surface);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+}
+
+.bootRecovery strong {
+  display: block;
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+}
+
+.bootRecovery h1 {
+  margin: 10px 0;
+}
+
+.bootRecovery p {
+  color: var(--text-dim);
+}
+
+.bootRecovery pre {
+  max-height: 120px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  color: #ffd0d0;
+  white-space: pre-wrap;
+}
+
+.bootRecovery button {
+  min-height: 42px;
+  border: 1px solid var(--blue-strong);
+  border-radius: 6px;
+  padding: 0 14px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--blue-deep), var(--navy));
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .shell {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 368px minmax(0, 1fr);
+  grid-template-columns: clamp(300px, 24vw, 368px) minmax(0, 1fr);
   align-items: stretch;
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   height: auto;
   min-width: 0;
+  overflow-x: clip;
 }
 
 .sidebar {
@@ -105,6 +167,7 @@ input {
   border-right: 1px solid var(--border);
   box-shadow: 18px 0 50px rgba(0, 0, 0, 0.22);
   min-height: 100%;
+  min-width: 0;
   align-self: stretch;
   overflow-y: visible;
   overflow-x: hidden;
@@ -493,6 +556,8 @@ select:focus {
   gap: 18px;
   min-width: 0;
   min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
   overflow-x: hidden;
 }
 
@@ -502,6 +567,7 @@ select:focus {
   gap: 24px;
   align-items: center;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .eyebrow {
@@ -1274,8 +1340,9 @@ pre {
 }
 
 .usageRulesWindow {
-  width: min(760px, 100%);
-  max-height: min(86vh, 760px);
+  width: min(940px, 100%);
+  max-height: min(900px, calc(100vh - 28px));
+  max-height: min(900px, calc(100dvh - 28px));
   border: 1px solid var(--blue-strong);
   border-radius: 8px;
   display: grid;
@@ -1293,7 +1360,7 @@ pre {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 20px 22px;
+  padding: 18px 22px;
 }
 
 .usageRulesWindow header {
@@ -1307,23 +1374,23 @@ pre {
 .usageRulesWindow h2 {
   margin: 6px 0 0;
   font-family: "Space Grotesk", Inter, sans-serif;
-  font-size: 26px;
+  font-size: 24px;
   letter-spacing: 0;
 }
 
 .usageRulesBody {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   min-height: 0;
   overflow: auto;
-  padding: 22px;
+  padding: 18px 22px;
 }
 
 .usageRulesBody p,
 .usageRulesBody li {
   color: var(--text-dim);
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.5;
   text-align: justify;
 }
 
@@ -1344,13 +1411,13 @@ pre {
   align-items: center;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 14px;
+  padding: 12px 14px;
   background: rgba(255, 255, 255, 0.035);
 }
 
 .usageRulesIntro img {
   width: 100%;
-  max-height: 92px;
+  max-height: 82px;
   object-fit: contain;
   justify-self: end;
 }
@@ -1359,13 +1426,13 @@ pre {
   margin: 0;
   padding-left: 22px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .usageRulesBody li.criticalRule {
   border: 1px solid rgba(240, 96, 96, 0.48);
   border-radius: 7px;
-  padding: 10px 12px;
+  padding: 9px 12px;
   color: #ffd1d1;
   background: rgba(240, 96, 96, 0.14);
   font-weight: 800;
@@ -1374,7 +1441,7 @@ pre {
 .usageRulesWarning {
   border: 1px solid rgba(240, 96, 96, 0.38);
   border-radius: 7px;
-  padding: 12px;
+  padding: 10px 12px;
   color: #ffd1d1;
   background:
     linear-gradient(135deg, rgba(240, 96, 96, 0.16), rgba(240, 96, 96, 0.08)),
@@ -1607,7 +1674,7 @@ pre {
   }
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1180px) {
   .shell {
     grid-template-columns: 1fr;
     min-height: auto;

@@ -2,6 +2,40 @@
 
 Todas as alterações relevantes do NEXUS ANON devem ser registradas neste arquivo. A partir desta versão, toda atualização funcional, visual ou documental deve incrementar a versão do projeto.
 
+## [1.7.5] - 2026-06-24
+
+### Alterado
+
+- Janela **Regras institucionais de uso e Avisos** ampliada para ocupar melhor a altura disponivel da tela.
+- Espacamentos internos da janela de regras compactados para reduzir rolagem sem perder legibilidade.
+- Pacote de instalacao passa a ser gerado como versao 1.7.5.
+## [1.7.4] - 2026-06-24
+
+### Corrigido
+
+- Corrigida falha que podia deixar o Chrome exibindo apenas o fundo da aplicacao quando o bundle JavaScript quebrava por operadores internos corrompidos.
+- Adicionada tela de recuperacao de carregamento com opcao para limpar dados locais antigos do Chrome e recarregar a interface.
+- Historico salvo no navegador passa por validacao antes de ser usado, evitando tela vazia por dados locais antigos ou incompletos.
+- Pacote de instalacao passa a ser gerado como versao 1.7.4.
+## [1.7.3] - 2026-06-24
+
+### Corrigido
+
+- Layout principal ajustado para melhor compatibilidade com Google Chrome, evitando corte visual em larguras intermediarias e zoom diferente de 100%.
+- Sidebar passa a ter largura adaptavel, viewport usa `100dvh` e o modo responsivo e ativado mais cedo.
+- Pacote de instalacao passa a ser gerado como versao 1.7.3.
+## [1.7.2] - 2026-06-24
+
+### Alterado
+
+- Titulo do bloco inicial do guia de instalacao alterado para **Tutorial simplificado de instalacao NEXUS ANON**.
+- Pacote de instalacao passa a ser gerado como versao 1.7.2.
+## [1.7.1] - 2026-06-24
+
+### Alterado
+
+- Guia `INSTALACAO_NEXUS_ANON.html` atualizado com links oficiais para Python, Node.js, Ollama, qwen3:32b, Tesseract OCR e LibreOffice.
+- Pacote de instalacao passa a ser gerado como versao 1.7.1.
 ## [1.7.0] - 2026-06-24
 
 ### Adicionado

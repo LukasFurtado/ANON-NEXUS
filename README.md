@@ -148,7 +148,7 @@ Esta versao entrega:
 
 ## Versionamento
 
-Versão atual: **1.7.0**.
+Versão atual: **1.7.5**.
 
 Toda atualizacao funcional, visual ou documental deve incrementar a versao e registrar a mudanca em `CHANGELOG.md`.
 

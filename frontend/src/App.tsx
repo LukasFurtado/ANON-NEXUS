@@ -1251,7 +1251,7 @@ function InstitutionalFooter() {
   return (
     <footer className="institutionalFooter">
       <span>© 2026 NEXUS ANON · Uso institucional e interno · Criador: Lukas Furtado - Polícia Civil do Estado de Pernambuco.</span>
-      <strong>Versão 1.7.0</strong>
+      <strong>Versão 1.7.5</strong>
     </footer>
   );
 }
@@ -1332,8 +1332,34 @@ function loadStoredRequests(): RequestGroup[] {
     const stored = localStorage.getItem(REQUESTS_STORAGE_KEY);
     if (!stored) return [];
     const parsed = JSON.parse(stored) as RequestGroup[];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) {
+      localStorage.removeItem(REQUESTS_STORAGE_KEY);
+      return [];
+    }
+
+    return parsed.filter(isValidRequestGroup);
   } catch {
+    localStorage.removeItem(REQUESTS_STORAGE_KEY);
     return [];
   }
+}
+
+function isValidRequestGroup(value: unknown): value is RequestGroup {
+  if (!value || typeof value !== "object") return false;
+  const group = value as Partial<RequestGroup>;
+  return (
+    typeof group.id === "string" &&
+    typeof group.title === "string" &&
+    typeof group.createdAt === "string" &&
+    typeof group.model === "string" &&
+    typeof group.documentKind === "string" &&
+    Array.isArray(group.files) &&
+    group.files.every(isValidProcessedFile)
+  );
+}
+
+function isValidProcessedFile(value: unknown): value is ProcessedFile {
+  if (!value || typeof value !== "object") return false;
+  const file = value as Partial<ProcessedFile>;
+  return typeof file.id === "string" && typeof file.name === "string" && typeof file.status === "string";
 }
