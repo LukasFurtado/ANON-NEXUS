@@ -2,14 +2,17 @@ import json
 import re
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 
 from app.core.config import settings
+from app.core.profile_loader import profile_context_prompt
 from app.models.schemas import DocumentKind, Entity, EntityType
 from app.pipeline.profile_strategy import profile_prompt
+from app.services.knowledge_base import compact_profile_guidance, json_contract_prompt
 
 
 SYSTEM_PROMPT = """
-Voce e um motor local obrigatorio de anonimização documental. Responda somente JSON valido.
+Voce e um motor local obrigatorio de anonimizacao documental. Responda somente JSON valido.
 Modo de raciocinio visivel desativado. Nunca emita pensamento, chain-of-thought,
 deliberacao, tags <think>, explicacoes internas ou comentarios fora do JSON.
 Sua funcao nao e modificar, interpretar, resumir, reescrever, complementar ou gerar documentos.
@@ -20,7 +23,8 @@ Analise todo o trecho recebido e indique tambem entidades evidentes, ainda que p
 Identifique apenas dados pessoais, identificadores, pessoas, empresas e contatos.
 Nao marque datas, valores monetarios, percentuais, artigos de lei, jurisprudencia,
 fundamentacao juridica, conclusoes tecnicas ou analise financeira.
-Formato: [{"type":"PERSON","text":"...","start":0,"end":10}]
+Formato obrigatorio: {"entities":[{"type":"PERSON","text":"...","start":0,"end":10}]}
+Se nenhuma entidade sensivel for localizada, responda exatamente: {"entities":[]}
 Types permitidos: PERSON, ORGANIZATION, CPF, CNPJ, RG, CNH, PASSPORT, PIS_NIS,
 FUNCTIONAL_ID, BANK_ACCOUNT, BANK_BRANCH, PIX, BOLETO, CARD, PHONE, EMAIL,
 ADDRESS, CEP, VEHICLE_PLATE, RENAVAM, CHASSIS, IP, MAC, QR_CODE, PROTOCOL,
@@ -28,7 +32,6 @@ PROCEEDING, OTHER_IDENTIFIER.
 Indices devem usar offsets exatos no texto recebido.
 O campo "text" deve ser copia literal do trecho encontrado entre "start" e "end".
 """
-
 NO_THINK_PREFIX = "/no_think"
 THINK_BLOCK_PATTERN = re.compile(r"<think>.*?</think>", re.I | re.S)
 
@@ -37,14 +40,34 @@ class OllamaDetectionError(RuntimeError):
     pass
 
 
-def detect_entities_with_ollama(text: str, model: str, document_kind: DocumentKind) -> list[Entity]:
+class OllamaResponseFormatError(OllamaDetectionError):
+    pass
+
+
+@dataclass
+class OllamaDetectionResult:
+    entities: list[Entity]
+    chunks_processed: int = 0
+    json_rejected_chunks: int = 0
+    correction_attempts: int = 0
+    correction_successes: int = 0
+
+
+def detect_entities_with_ollama(text: str, model: str, document_kind: DocumentKind) -> OllamaDetectionResult:
     if not text.strip():
-        return []
+        return OllamaDetectionResult(entities=[])
 
     entities: list[Entity] = []
+    result = OllamaDetectionResult(entities=entities)
     for chunk_start, chunk in _iter_text_chunks(text):
-        entities.extend(_detect_entities_with_ollama_chunk(chunk, chunk_start, model, document_kind))
-    return _deduplicate_entities(entities)
+        chunk_result = _detect_entities_with_ollama_chunk(chunk, chunk_start, model, document_kind)
+        result.chunks_processed += 1
+        result.json_rejected_chunks += chunk_result.json_rejected_chunks
+        result.correction_attempts += chunk_result.correction_attempts
+        result.correction_successes += chunk_result.correction_successes
+        entities.extend(chunk_result.entities)
+    result.entities = _deduplicate_entities(entities)
+    return result
 
 
 def _detect_entities_with_ollama_chunk(
@@ -52,46 +75,54 @@ def _detect_entities_with_ollama_chunk(
     chunk_start: int,
     model: str,
     document_kind: DocumentKind,
-) -> list[Entity]:
+) -> OllamaDetectionResult:
     payload = {
         "model": model,
         "stream": False,
-        "prompt": f"{NO_THINK_PREFIX}\n{SYSTEM_PROMPT}\n\n{profile_prompt(document_kind)}\n\nTEXTO:\n{text}",
+        "format": "json",
+        "prompt": (
+            f"{NO_THINK_PREFIX}\n"
+            f"{SYSTEM_PROMPT}\n\n"
+            f"{json_contract_prompt()}\n\n"
+            f"{profile_context_prompt(document_kind.value)}\n\n"
+            f"{profile_prompt(document_kind)}\n\n"
+            f"{compact_profile_guidance(document_kind)}\n\n"
+            f"TEXTO:\n{text}"
+        ),
         "think": False,
         "options": {"temperature": 0},
     }
 
-    request = urllib.request.Request(
-        f"{settings.ollama_url}/api/generate",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
+    raw = _request_ollama_generate(payload)
+    json_rejected = 0
+    correction_attempts = 0
+    correction_successes = 0
     try:
-        with urllib.request.urlopen(request, timeout=120) as response:
-            raw = json.loads(response.read().decode("utf-8")).get("response", "[]")
-    except urllib.error.HTTPError as exc:
-        raise OllamaDetectionError(f"modelo local indisponivel ou recusado pelo Ollama ({exc.code}).") from exc
-    except (urllib.error.URLError, TimeoutError) as exc:
-        raise OllamaDetectionError("Ollama local nao respondeu dentro do tempo esperado.") from exc
-    except json.JSONDecodeError as exc:
-        raise OllamaDetectionError("Ollama retornou resposta sem JSON valido.") from exc
-
-    raw = _strip_thinking(raw)
-    try:
-        items = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise OllamaDetectionError("modelo local nao retornou a lista JSON de entidades esperada.") from exc
-    if not isinstance(items, list):
-        raise OllamaDetectionError("modelo local retornou formato inesperado; era esperada uma lista JSON.")
+        items = _load_entity_items(raw)
+    except OllamaResponseFormatError:
+        json_rejected = 1
+        correction_attempts = 1
+        corrected_raw = _request_ollama_generate(_correction_payload(raw, model))
+        try:
+            items = _load_entity_items(corrected_raw)
+            correction_successes = 1
+        except OllamaResponseFormatError:
+            return OllamaDetectionResult(
+                entities=[],
+                chunks_processed=1,
+                json_rejected_chunks=json_rejected,
+                correction_attempts=correction_attempts,
+                correction_successes=correction_successes,
+            )
 
     entities: list[Entity] = []
     for item in items:
         try:
-            start = int(item["start"])
-            end = int(item["end"])
-            entity_text = item["text"]
+            entity_text = str(item["text"]).strip()
+            if not entity_text:
+                continue
+            start = int(item.get("start", 0))
+            end = int(item.get("end", start + len(entity_text)))
             entity_type = _normalize_entity_type(str(item["type"]))
             if entity_type is None:
                 continue
@@ -110,7 +141,55 @@ def _detect_entities_with_ollama_chunk(
             )
         except (KeyError, ValueError, TypeError):
             continue
-    return entities
+    return OllamaDetectionResult(
+        entities=entities,
+        chunks_processed=1,
+        json_rejected_chunks=json_rejected,
+        correction_attempts=correction_attempts,
+        correction_successes=correction_successes,
+    )
+
+
+def _request_ollama_generate(payload: dict) -> str:
+    request = urllib.request.Request(
+        f"{settings.ollama_url}/api/generate",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=settings.ollama_timeout_seconds) as response:
+            return json.loads(response.read().decode("utf-8")).get("response", "[]")
+    except urllib.error.HTTPError as exc:
+        raise OllamaDetectionError(f"modelo local indisponivel ou recusado pelo Ollama ({exc.code}).") from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise OllamaDetectionError(
+            f"Ollama local nao respondeu em ate {settings.ollama_timeout_seconds} segundos. "
+            "Abra o Ollama, aguarde o modelo terminar de carregar e tente novamente."
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise OllamaDetectionError("Ollama retornou resposta sem JSON valido.") from exc
+
+
+def _correction_payload(raw_response: str, model: str) -> dict:
+    clipped = raw_response[:6000]
+    prompt = f"""{NO_THINK_PREFIX}
+Converta a resposta abaixo para JSON valido e estrito conforme o contrato do ANON.
+{json_contract_prompt()}
+Use somente types permitidos. Se nao houver entidades aproveitaveis, responda exatamente {{"entities":[]}}.
+Nao explique. Nao comente. Nao use Markdown.
+
+RESPOSTA_ANTERIOR:
+{clipped}
+"""
+    return {
+        "model": model,
+        "stream": False,
+        "format": "json",
+        "prompt": prompt,
+        "think": False,
+        "options": {"temperature": 0},
+    }
 
 
 def _normalize_entity_type(value: str) -> EntityType | None:
@@ -193,3 +272,130 @@ def _strip_thinking(value: str) -> str:
     elif cleaned.startswith("```"):
         cleaned = cleaned.removeprefix("```").removesuffix("```").strip()
     return cleaned
+
+
+def _load_entity_items(raw: str) -> list[dict]:
+    cleaned = _strip_thinking(raw)
+    candidates = [cleaned, *_json_substrings(cleaned)]
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        items = _extract_entity_items(parsed)
+        if items is not None:
+            return items
+    raise OllamaResponseFormatError(
+        "modelo local respondeu, mas nao retornou JSON de entidades aproveitavel."
+    )
+
+
+def _extract_entity_items(value: object) -> list[dict] | None:
+    if isinstance(value, list):
+        normalized_items: list[dict] = []
+        for item in value:
+            if isinstance(item, dict):
+                normalized_items.append(_normalize_item_keys(item))
+        return normalized_items
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(_strip_thinking(value))
+        except json.JSONDecodeError:
+            return None
+        return _extract_entity_items(parsed)
+    if not isinstance(value, dict):
+        return None
+    if not value:
+        return []
+    normalized = _normalize_item_keys(value)
+    if {"type", "text"}.issubset(normalized.keys()):
+        return [normalized]
+    category_items = _extract_category_map_items(value)
+    if category_items:
+        return category_items
+    preferred_keys = (
+        "entities",
+        "entidades",
+        "entidades_detectadas",
+        "detected_entities",
+        "detectedEntities",
+        "items",
+        "itens",
+        "data",
+        "dados",
+        "result",
+        "results",
+        "resultado",
+        "lista",
+        "records",
+        "registros",
+        "response",
+        "answer",
+    )
+    for key in preferred_keys:
+        if key in value:
+            items = _extract_entity_items(value[key])
+            if items is not None:
+                return items
+    for nested in value.values():
+        items = _extract_entity_items(nested)
+        if items:
+            return items
+    return None
+
+
+def _extract_category_map_items(value: dict) -> list[dict]:
+    items: list[dict] = []
+    for key, entry in value.items():
+        entity_type = _normalize_entity_type(str(key))
+        if entity_type is None:
+            continue
+        if isinstance(entry, str):
+            items.append({"type": entity_type.value, "text": entry})
+            continue
+        if isinstance(entry, list):
+            for item in entry:
+                if isinstance(item, str):
+                    items.append({"type": entity_type.value, "text": item})
+                elif isinstance(item, dict):
+                    normalized = _normalize_item_keys(item)
+                    normalized.setdefault("type", entity_type.value)
+                    items.append(normalized)
+    return items
+
+
+def _normalize_item_keys(item: dict) -> dict:
+    aliases = {
+        "tipo": "type",
+        "classe": "type",
+        "categoria": "type",
+        "entity_type": "type",
+        "entityType": "type",
+        "texto": "text",
+        "valor": "text",
+        "valor_original": "text",
+        "original": "text",
+        "entity": "text",
+        "entidade": "text",
+        "inicio": "start",
+        "início": "start",
+        "offset_start": "start",
+        "start_index": "start",
+        "fim": "end",
+        "offset_end": "end",
+        "end_index": "end",
+    }
+    normalized: dict = {}
+    for key, value in item.items():
+        normalized[aliases.get(str(key), str(key))] = value
+    return normalized
+
+
+def _json_substrings(value: str) -> list[str]:
+    candidates: list[str] = []
+    for open_char, close_char in (("[", "]"), ("{", "}")):
+        start = value.find(open_char)
+        end = value.rfind(close_char)
+        if start >= 0 and end > start:
+            candidates.append(value[start : end + 1].strip())
+    return candidates

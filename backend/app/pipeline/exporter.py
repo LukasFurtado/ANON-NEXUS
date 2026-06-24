@@ -24,6 +24,7 @@ def export_text(
     txt_path = export_dir / "anonimizado.txt"
     docx_path = export_dir / "anonimizado.docx"
     pdf_path = export_dir / "anonimizado.pdf"
+    warnings_path = export_dir / "avisos.pdf"
 
     metadata = metadata or {}
     is_pdf_bank_statement = (
@@ -32,7 +33,11 @@ def export_text(
     )
     if is_pdf_bank_statement:
         _export_pdf(pdf_path, anonymized_text, original_filename, metadata)
-        return {"pdf": str(pdf_path)}
+        exports = {"pdf": str(pdf_path)}
+        if _validation_warnings(metadata):
+            _export_warnings_pdf(warnings_path, original_filename, metadata)
+            exports["avisos"] = str(warnings_path)
+        return exports
 
     _export_txt(txt_path, anonymized_text, original_filename, metadata)
     _export_docx(docx_path, anonymized_text, original_filename, metadata)
@@ -43,13 +48,17 @@ def export_text(
         csv_path = export_dir / "anonimizado.csv"
         _export_csv(csv_path, anonymized_text)
         exports["csv"] = str(csv_path)
+    if _validation_warnings(metadata):
+        _export_warnings_pdf(warnings_path, original_filename, metadata)
+        exports["avisos"] = str(warnings_path)
 
     return exports
 
 
 def _summary_lines(original_filename: str, metadata: dict[str, Any]) -> list[str]:
     generated_at = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    return [
+    communication_summary = metadata.get("communication_summary") if isinstance(metadata.get("communication_summary"), dict) else {}
+    lines = [
         "RESUMO OPERACIONAL",
         f"Solicitacao: {metadata.get('request_title') or 'Nao informada'}",
         f"Arquivo de origem: {original_filename}",
@@ -63,8 +72,41 @@ def _summary_lines(original_filename: str, metadata: dict[str, Any]) -> list[str
         f"Hash SHA-256 original: {metadata.get('source_sha256') or 'Nao calculado'}",
         f"Entidades identificadas: {metadata.get('entities_found', 0)}",
         f"Substituicoes aplicadas: {metadata.get('replacements_applied', 0)}",
+        f"Eventos internos de comunicacao: {communication_summary.get('events', 0)}",
+        f"Ultimo estagio interno: {communication_summary.get('last_stage') or 'Nao informado'}",
         f"Gerado em: {generated_at}",
     ]
+    protection = _data_protection(metadata)
+    if protection.get("notice"):
+        lines.append(str(protection["notice"]))
+    return lines
+
+
+def _data_protection(metadata: dict[str, Any]) -> dict[str, str]:
+    value = metadata.get("data_protection")
+    return value if isinstance(value, dict) else {}
+
+
+def _validation_warnings(metadata: dict[str, Any]) -> list[str]:
+    warnings = metadata.get("validation_warnings") or []
+    return [str(warning) for warning in warnings if str(warning).strip()] if isinstance(warnings, list) else []
+
+
+def _warning_explanation(warning: str) -> str:
+    normalized = warning.lower()
+    if "nao retornou entidades aproveitaveis em json" in normalized:
+        return (
+            "Justificativa: o modelo local foi acionado e respondeu, mas a resposta nao apresentou lista JSON de "
+            "entidades suficientemente estruturada para auditoria automatica. O ANON preservou o fluxo com regras "
+            "locais de apoio e registrou este aviso para revisao humana."
+        )
+    if "termos protegidos do perfil" in normalized:
+        return "Justificativa: possivel alteracao em termo protegido do perfil documental; revisar estrutura, colunas, titulos e expressoes tecnicas."
+    if "valores possivelmente alterados" in normalized:
+        return "Justificativa: possivel divergencia em valores monetarios; conferir quantias e formatacao financeira."
+    if "datas possivelmente alteradas" in normalized:
+        return "Justificativa: possivel divergencia em datas; conferir datas de registro, emissao, movimentacao ou periodo."
+    return "Justificativa: aviso automatico de validacao; revisar o ponto indicado antes de uso externo ou oficial."
 
 
 def _control_rows(metadata: dict[str, Any]) -> list[Any]:
@@ -155,6 +197,7 @@ def _export_docx(path: Path, text: str, original_filename: str, metadata: dict[s
     document = Document(DOCX_TEMPLATE) if DOCX_TEMPLATE.exists() else Document()
     _clear_docx_body_preserving_section(document)
     _apply_docx_source_layout(document, metadata, WD_ORIENT)
+    _apply_docx_protection_metadata(document, metadata)
 
     title = document.add_paragraph()
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -245,6 +288,17 @@ def _export_docx(path: Path, text: str, original_filename: str, metadata: dict[s
                         run.font.size = Pt(7)
 
     document.save(path)
+
+
+def _apply_docx_protection_metadata(document, metadata: dict[str, Any]) -> None:
+    protection = _data_protection(metadata)
+    marker = protection.get("marker")
+    if not marker:
+        return
+    properties = document.core_properties
+    properties.category = "Protecao de dados"
+    properties.keywords = "ANON; Protecao de dados; Integridade documental"
+    properties.comments = f"Protecao de dados institucional ativa: {marker}"
 
 
 def _clear_docx_body_preserving_section(document) -> None:
@@ -387,6 +441,7 @@ def _export_pdf(path: Path, text: str, original_filename: str, metadata: dict[st
         story.append(control_table)
 
     doc.build(story)
+    _apply_pdf_protection_metadata(path, metadata)
 
 
 def _try_export_pdf_facsimile(path: Path, original_filename: str, metadata: dict[str, Any]) -> bool:
@@ -446,6 +501,7 @@ def _try_export_pdf_facsimile(path: Path, original_filename: str, metadata: dict
 
         document.save(path, garbage=4, deflate=True)
         document.close()
+        _apply_pdf_protection_metadata(path, metadata)
         return True
     except Exception:
         try:
@@ -532,6 +588,124 @@ def _export_pdf_audit_appendix(path: Path, original_filename: str, metadata: dic
     )
     story.append(control_table)
     doc.build(story)
+    _apply_pdf_protection_metadata(path, metadata)
+
+
+def _export_warnings_pdf(path: Path, original_filename: str, metadata: dict[str, Any]) -> None:
+    warnings = _validation_warnings(metadata)
+    if not warnings:
+        return
+    from app.services.knowledge_base import json_contract_prompt
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+
+    doc = SimpleDocTemplate(
+        str(path),
+        pagesize=A4,
+        rightMargin=1.8 * cm,
+        leftMargin=1.8 * cm,
+        topMargin=1.8 * cm,
+        bottomMargin=1.8 * cm,
+        title="Avisos de Validacao - ANON",
+        author="ANON",
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "WarningsTitle",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=14,
+        alignment=1,
+        textColor=colors.HexColor("#003B73"),
+        spaceAfter=10,
+    )
+    body_style = ParagraphStyle(
+        "WarningsBody",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=9,
+        leading=12,
+        alignment=0,
+        spaceAfter=7,
+    )
+
+    metrics = metadata.get("ollama_metrics") or {}
+    story: list[Any] = [
+        Paragraph("AVISOS DE VALIDACAO - REVISAO OBRIGATORIA", title_style),
+        Paragraph("Documento complementar de auditoria operacional do ANON.", body_style),
+        Spacer(1, 0.2 * cm),
+        Paragraph("<br/>".join(_escape_pdf_text(line) for line in _summary_lines(original_filename, metadata)), body_style),
+        Spacer(1, 0.25 * cm),
+        Paragraph("Avaliacao da resposta JSON da IA local", title_style),
+        Paragraph(
+            _escape_pdf_text(
+                "Blocos enviados a IA: "
+                f"{metrics.get('chunks_processed', 0)} | "
+                "Blocos recusados por JSON nao aproveitavel: "
+                f"{metrics.get('json_rejected_chunks', 0)} | "
+                "Tentativas de correcao: "
+                f"{metrics.get('correction_attempts', 0)} | "
+                "Correcoes aproveitadas: "
+                f"{metrics.get('correction_successes', 0)}"
+            ),
+            body_style,
+        ),
+        Paragraph(_escape_pdf_text(json_contract_prompt()).replace("\n", "<br/>"), body_style),
+        Spacer(1, 0.25 * cm),
+        Paragraph("Avisos registrados", title_style),
+    ]
+
+    for index, warning in enumerate(warnings, start=1):
+        text = f"{index}. {warning}<br/>{_warning_explanation(warning)}"
+        story.append(Paragraph(_escape_pdf_text(text).replace("&lt;br/&gt;", "<br/>"), body_style))
+    story.extend(
+        [
+            Spacer(1, 0.25 * cm),
+            Paragraph("Consideracoes finais", title_style),
+            Paragraph(
+                "Os avisos nao invalidam automaticamente o produto anonimizado, mas indicam pontos que exigem revisao humana antes de uso externo, juntada formal ou compartilhamento institucional. Quando houver JSON nao aproveitavel da IA local, o ANON registra a ocorrencia, preserva o processamento com regras locais de apoio e destaca a necessidade de conferencia qualificada.",
+                body_style,
+            ),
+        ]
+    )
+    doc.build(story)
+    _apply_pdf_protection_metadata(path, metadata)
+
+
+def _apply_pdf_protection_metadata(path: Path, metadata: dict[str, Any]) -> None:
+    protection = _data_protection(metadata)
+    marker = protection.get("marker")
+    if not marker or not path.exists():
+        return
+    try:
+        from pypdf import PdfReader, PdfWriter
+    except ImportError:
+        return
+
+    temp_path = path.with_suffix(".metadata.tmp.pdf")
+    try:
+        reader = PdfReader(str(path))
+        writer = PdfWriter()
+        for page in reader.pages:
+            writer.add_page(page)
+        existing = reader.metadata or {}
+        writer.add_metadata(
+            {
+                **{str(key): str(value) for key, value in existing.items() if value is not None},
+                "/Subject": "Protecao de dados institucional",
+                "/Keywords": f"ANON; Protecao de dados; {marker}",
+                "/Creator": "ANON - Protecao de dados",
+                "/Producer": "ANON",
+            }
+        )
+        with temp_path.open("wb") as file:
+            writer.write(file)
+        temp_path.replace(path)
+    except Exception:
+        temp_path.unlink(missing_ok=True)
 
 
 def _escape_pdf_text(value: str) -> str:
@@ -602,7 +776,7 @@ def _export_log_pdf(path: Path, metadata: dict[str, Any]) -> None:
     if file_rows:
         story.append(Spacer(1, 0.25 * cm))
         story.append(Paragraph("Arquivos e hashes registrados", title_style))
-        table_data = [["Arquivo", "Versao", "Hash original", "TXT", "DOCX", "PDF", "CSV"]]
+        table_data = [["Arquivo", "Versao", "Hash original", "TXT", "DOCX", "PDF", "CSV/Avisos"]]
         for item in file_rows:
             table_data.append(
                 [
@@ -612,7 +786,7 @@ def _export_log_pdf(path: Path, metadata: dict[str, Any]) -> None:
                     Paragraph(_escape_pdf_text(_compact_cell(item.get("txt_sha256", ""), 72)), body_style),
                     Paragraph(_escape_pdf_text(_compact_cell(item.get("docx_sha256", ""), 72)), body_style),
                     Paragraph(_escape_pdf_text(_compact_cell(item.get("pdf_sha256", ""), 72)), body_style),
-                    Paragraph(_escape_pdf_text(_compact_cell(item.get("csv_sha256", ""), 72)), body_style),
+                    Paragraph(_escape_pdf_text(_compact_cell(item.get("csv_sha256") or item.get("avisos_sha256", ""), 72)), body_style),
                 ]
             )
         table = Table(table_data, colWidths=[3.0 * cm, 1.4 * cm, 3.2 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm], repeatRows=1)

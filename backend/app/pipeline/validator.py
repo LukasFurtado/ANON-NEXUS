@@ -3,6 +3,7 @@ import re
 from app.models.schemas import DocumentKind, Entity, EntityType
 from app.pipeline.delos_rules import documento_e_delos, should_preserve_entity
 from app.pipeline.profile_strategy import profile_output_terms, profile_protected_patterns
+from app.services.knowledge_base import protected_terms_for_profile
 
 
 DATE_PATTERN = re.compile(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b")
@@ -34,9 +35,11 @@ def validate_entities(
     preserved_values = 0
     warnings: list[str] = []
     delos_active = document_kind == DocumentKind.extrato_bancario and documento_e_delos(text)
+    knowledge_protected_terms = [item.lower() for item in protected_terms_for_profile(document_kind)]
 
     for entity in entities:
         fragment = text[entity.start : entity.end]
+        normalized_fragment = fragment.lower()
         if delos_active:
             preserve, reason = should_preserve_entity(fragment, _line_context(text, entity.start, entity.end), entity.type)
             if preserve:
@@ -59,6 +62,12 @@ def validate_entities(
             and any(pattern.search(fragment) for pattern in profile_protected_patterns(document_kind))
         ):
             warnings.append(f"Marcacao descartada por conter termo protegido do perfil {document_kind.value}: {fragment[:40]}")
+            continue
+        if (
+            entity.type not in PROFILE_ENTITY_TYPES_ALLOWED_WITH_TERMS
+            and any(term and term in normalized_fragment for term in knowledge_protected_terms)
+        ):
+            warnings.append(f"Marcacao descartada por conter termo protegido da base operacional {document_kind.value}: {fragment[:40]}")
             continue
         valid.append(entity)
 

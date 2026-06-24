@@ -1,0 +1,59 @@
+{
+  "profile_id": "relatorio_investigativo",
+  "display_name": "Relatorio investigativo",
+  "preserve_always": [
+    "fundamentacao_juridica",
+    "artigos_de_lei",
+    "jurisprudencia",
+    "conclusoes",
+    "datas_relevantes",
+    "valores",
+    "percentuais",
+    "titulos"
+  ],
+  "anonymize_always": [
+    "nome_investigado",
+    "nome_vitima",
+    "nome_testemunha",
+    "cpf",
+    "cnpj",
+    "rg",
+    "telefone",
+    "email",
+    "endereco",
+    "placa",
+    "conta_bancaria",
+    "chave_pix"
+  ],
+  "ambiguous_fields": [
+    "nome_de_autoridade_publica",
+    "nome_de_orgao",
+    "nome_de_empresa_nao_suspeita",
+    "referencia_procedimental"
+  ],
+  "ambiguity_resolution": "conservador",
+  "entity_patterns": [
+    "qualificacao_pessoal",
+    "documentos_pessoais",
+    "contatos",
+    "enderecos",
+    "veiculos"
+  ],
+  "false_positive_guards": [
+    "Policia Civil",
+    "Ministerio Publico",
+    "Poder Judiciario",
+    "Delegacia",
+    "Inquerito Policial",
+    "Boletim de Ocorrencia",
+    "Relatorio"
+  ],
+  "validation_rules": [
+    "preservar_fundamentacao",
+    "preservar_conclusoes",
+    "preservar_datas",
+    "preservar_valores",
+    "exigir_revisao_humana"
+  ],
+  "notes": "Perfil geral para relatorios investigativos, mantendo rigor de preservacao juridica e tecnica."
+}

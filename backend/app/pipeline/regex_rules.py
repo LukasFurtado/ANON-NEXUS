@@ -31,6 +31,12 @@ PATTERNS: list[tuple[EntityType, re.Pattern[str]]] = [
     (EntityType.pis_nis, re.compile(r"\b(?:PIS|NIS)\s*[:\-]?\s*\d{3}\.?\d{5}\.?\d{2}-?\d\b", re.I)),
 ]
 
+RIF_SUSPECT_COMPANY_CONTEXT = re.compile(
+    rf"\b(?:empresa|envolvid[ao]|titular|favorecid[ao]|beneficiari[ao]|comunicante)\s*[:\-]?\s*([{NAME_CHARS}0-9][{WORD_CHARS}0-9 '&\.-]{{4,90}}?(?:LTDA|S/A|S\.A\.|ME|EPP|EIRELI)?)\b",
+    re.I,
+)
+PIX_EMAIL_HINT = re.compile(r"\b(?:PIX|CHAVE PIX|CHAVE)\s*[:\-]?\s*([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\b", re.I)
+
 PERSON_HINT = re.compile(
     rf"\b(?:INVESTIGADO|VITIMA|TESTEMUNHA|DELEGADO|PROMOTOR|JUIZ|ADVOGADO|POLICIAL)\s*[:\-]\s*([{NAME_CHARS}][{WORD_CHARS}'\-]+(?:\s+[{NAME_CHARS}][{WORD_CHARS}'\-]+){{1,5}})",
     re.I,
@@ -52,6 +58,20 @@ def detect_entities_by_regex(text: str, document_kind: DocumentKind) -> list[Ent
     entities: list[Entity] = []
     if document_kind == DocumentKind.rif:
         entities.extend(_detect_rif_csv_entities(text))
+        for match in RIF_SUSPECT_COMPANY_CONTEXT.finditer(text):
+            fragment = match.group(1).strip()
+            if len(fragment) >= 5 and not fragment.upper().startswith(("CPF", "CNPJ", "VALOR", "DATA")):
+                entities.append(
+                    Entity(
+                        type=_bank_counterparty_type(fragment),
+                        text=match.group(1),
+                        start=match.start(1),
+                        end=match.end(1),
+                        source="regex",
+                    )
+                )
+        for match in PIX_EMAIL_HINT.finditer(text):
+            entities.append(Entity(type=EntityType.pix, text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
     if document_kind == DocumentKind.extrato_bancario:
         entities.extend(_detect_bank_statement_entities(text))
 

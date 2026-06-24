@@ -150,7 +150,7 @@ Esta versão entrega:
 
 ## Versionamento
 
-Versão atual: **1.8.5**.
+Versão atual: **1.8.34**.
 
 Toda atualização funcional, visual ou documental deve incrementar a versão e registrar a mudança em `CHANGELOG.md`.
 
@@ -163,5 +163,4 @@ Toda atualização funcional, visual ou documental deve incrementar a versão e 
 5. Perfis especializados por documento.
 6. Tela de revisão humana com aceite/rejeição de entidades.
 7. Empacotamento com instalador e verificador de dependências locais.
-
 

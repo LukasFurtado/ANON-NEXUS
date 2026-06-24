@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   ListChecks,
   Lock,
+  MessageCircle,
   Play,
   RefreshCw,
   Trash2,
@@ -39,6 +40,27 @@ type Result = {
     preserved_dates: number;
     preserved_values: number;
     validation_warnings: string[];
+    ollama_chunks_processed?: number;
+    ollama_json_rejected_chunks?: number;
+    ollama_correction_attempts?: number;
+    ollama_correction_successes?: number;
+    communication_events?: Array<{
+      timestamp?: string;
+      cell?: string;
+      stage?: string;
+      level?: string;
+      message?: string;
+      data?: Record<string, unknown>;
+    }>;
+    communication_summary?: {
+      events?: number;
+      levels?: Record<string, number>;
+      cells?: Record<string, number>;
+      last_stage?: string;
+    };
+    quality_status?: string;
+    quality_score?: number;
+    quality_reasons?: string[];
   };
   audit: {
     source_sha256: string;
@@ -48,6 +70,30 @@ type Result = {
     structure_preserved: boolean;
     validation_status: string;
     anon_version?: string;
+    safe_summary_id?: string;
+    pipeline_state_id?: string;
+  };
+  safe_summary?: {
+    document_id?: string;
+    profile?: string;
+    total_entities_detected?: number;
+    entities_by_type?: Record<string, number>;
+    warnings_raised?: string[];
+    pipeline_stages_ok?: string[];
+    quality_status?: string;
+    quality_score?: number;
+    quality_reasons?: string[];
+  };
+  pipeline_state?: {
+    pipeline_id?: string;
+    overall_status?: string;
+    total_duration_ms?: number;
+    stages?: Array<{
+      name: string;
+      status: string;
+      duration_ms?: number;
+      note?: string;
+    }>;
   };
 };
 
@@ -111,6 +157,7 @@ export function App() {
   const [rulesModalOpen, setRulesModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(null);
   const [currentFileName, setCurrentFileName] = useState("");
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [processingStep, setProcessingStep] = useState("Preparando processamento local.");
@@ -130,17 +177,25 @@ export function App() {
   const selectedResult = selectedProcessedFile?.result;
 
   useEffect(() => {
-    if (!loading) return;
-    setElapsedSeconds(0);
+    if (!loading || !processingStartedAt) return;
+    const updateElapsed = () => {
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - processingStartedAt) / 1000)));
+    };
+    updateElapsed();
     const timer = window.setInterval(() => {
-      setElapsedSeconds((value) => value + 1);
+      updateElapsed();
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [loading]);
+  }, [loading, processingStartedAt]);
 
   useEffect(() => {
     localStorage.setItem(REQUESTS_STORAGE_KEY, JSON.stringify(requests));
   }, [requests]);
+
+  useEffect(() => {
+    if (loading) return;
+    setRequests((groups) => recoverInterruptedProcessing(groups));
+  }, [loading]);
 
   useEffect(() => {
     void detectLocalModels();
@@ -177,6 +232,8 @@ export function App() {
     setSelectedGroupId(groupId);
     setSelectedFileId(initialGroup.files[0]?.id ?? null);
     setActiveView("solicitacoes");
+    setProcessingStartedAt(Date.now());
+    setElapsedSeconds(0);
     setLoading(true);
     setError(null);
     setRequestName("");
@@ -235,6 +292,7 @@ export function App() {
     } finally {
       abortControllerRef.current = null;
       setLoading(false);
+      setProcessingStartedAt(null);
       setCurrentFileName("");
       setCurrentFileIndex(0);
       setProcessingStep("Preparando processamento local.");
@@ -272,6 +330,8 @@ export function App() {
     setSelectedGroupId(groupId);
     setSelectedFileId(initialGroup.files[0]?.id ?? null);
     setActiveView("solicitacoes");
+    setProcessingStartedAt(Date.now());
+    setElapsedSeconds(0);
     setLoading(true);
     setError(null);
     setRequestName("");
@@ -335,6 +395,7 @@ export function App() {
     } finally {
       abortControllerRef.current = null;
       setLoading(false);
+      setProcessingStartedAt(null);
       setCurrentFileName("");
       setCurrentFileIndex(0);
       setProcessingStep("Preparando processamento local.");
@@ -465,6 +526,24 @@ export function App() {
     URL.revokeObjectURL(url);
   }
 
+  async function downloadErrorLog() {
+    const response = await fetch(`${API_URL}/api/logs/errors`);
+    if (!response.ok) {
+      window.alert("NÃ£o foi possÃ­vel baixar o log de erros local.");
+      return;
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "ANON_log_erros.txt";
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   async function detectLocalModels() {
     setModelsLoading(true);
     try {
@@ -517,6 +596,18 @@ export function App() {
           onClose={() => setRulesModalOpen(false)}
         />
       )}
+
+      <FloatingNexusAssistant
+        loading={loading}
+        processingStep={processingStep}
+        elapsedSeconds={elapsedSeconds}
+        fileName={currentFileName || selectedProcessedFile?.name || "Documento"}
+        currentFileIndex={currentFileIndex}
+        totalFiles={files.length || selectedGroup?.files.length || 1}
+        selectedResult={selectedResult}
+        selectedFile={selectedProcessedFile}
+        selectedGroup={selectedGroup}
+      />
 
       <aside className="sidebar">
         <div className="pcpeHeader">
@@ -672,10 +763,14 @@ export function App() {
           {loading ? <div className="status active">{progressLabel}</div> : null}
         </header>
 
-        {error && (
+        {error && activeView === "processamento" && (
           <div className="alert">
             <AlertCircle size={18} />
-            {error}
+            <span>{error}</span>
+            <button type="button" onClick={() => void downloadErrorLog()}>
+              <Download size={14} />
+              Baixar log de erros
+            </button>
           </div>
         )}
 
@@ -695,14 +790,19 @@ export function App() {
             selectedGroup={selectedGroup}
             selectedFile={selectedProcessedFile}
             onSelectGroup={(groupId) => {
+              setError(null);
               setSelectedGroupId(groupId);
               const group = requests.find((item) => item.id === groupId);
               setSelectedFileId(group?.files[0]?.id ?? null);
             }}
-            onSelectFile={setSelectedFileId}
+            onSelectFile={(fileId) => {
+              setError(null);
+              setSelectedFileId(fileId);
+            }}
             onRenameGroup={renameGroup}
             onDeleteGroup={deleteGroup}
             onDownloadLog={(group) => void downloadGroupLog(group)}
+            onDownloadErrorLog={() => void downloadErrorLog()}
           />
         )}
 
@@ -794,7 +894,8 @@ function RequestsPage({
   onSelectFile,
   onRenameGroup,
   onDeleteGroup,
-  onDownloadLog
+  onDownloadLog,
+  onDownloadErrorLog
 }: {
   requests: RequestGroup[];
   selectedGroup?: RequestGroup;
@@ -804,7 +905,14 @@ function RequestsPage({
   onRenameGroup: (groupId: string, title: string) => void;
   onDeleteGroup: (groupId: string) => void;
   onDownloadLog: (group: RequestGroup) => void;
+  onDownloadErrorLog: () => void;
 }) {
+  const [qualityModal, setQualityModal] = useState<{
+    status: string;
+    score?: number;
+    reasons: string[];
+  } | null>(null);
+
   if (requests.length === 0) {
     return (
       <section className="emptyState">
@@ -851,17 +959,18 @@ function RequestsPage({
             </div>
           </div>
           <div className="summaryPills">
-            <span>{selectedGroup?.model}</span>
-            <span>{selectedGroup?.files.length ?? 0} arquivo(s)</span>
             <button
               type="button"
               className="logDownloadButton"
               disabled={!selectedGroup?.backendGroupId || !selectedGroup?.logSha256}
               onClick={() => selectedGroup && onDownloadLog(selectedGroup)}
-              title={selectedGroup?.logSha256 ? `SHA-256 do log: ${selectedGroup.logSha256}` : undefined}
+              title={selectedGroup?.logSha256 ? "Log de auditoria do conjunto processado gerado." : undefined}
             >
               <Download size={14} />
-              Log PDF
+              <span>
+                <strong>Log PDF</strong>
+                <small>Auditoria do conjunto</small>
+              </span>
             </button>
             <button
               type="button"
@@ -887,6 +996,22 @@ function RequestsPage({
                 <div>
                   <strong>{item.name}</strong>
                   <span className={`fileStatus ${item.status}`}>{item.status}</span>
+                  {item.result?.stats.quality_status ? (
+                    <button
+                      type="button"
+                      className={`qualityBadge ${qualityCssClass(item.result.stats.quality_status)}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setQualityModal({
+                          status: item.result?.stats.quality_status || "REVISAR",
+                          score: item.result?.stats.quality_score,
+                          reasons: item.result?.stats.quality_reasons || []
+                        });
+                      }}
+                    >
+                      {qualityLabel(item.result.stats.quality_status)}
+                    </button>
+                  ) : null}
                 </div>
               </button>
             ))}
@@ -896,7 +1021,11 @@ function RequestsPage({
             {selectedFile?.error && (
               <div className="alert compact">
                 <AlertCircle size={17} />
-                {selectedFile.error}
+                <span>{selectedFile.error}</span>
+                <button type="button" onClick={onDownloadErrorLog}>
+                  <Download size={14} />
+                  Baixar log de erros
+                </button>
               </div>
             )}
 
@@ -907,12 +1036,51 @@ function RequestsPage({
               requestTitle={selectedGroup?.title}
               requestCreatedAt={selectedGroup?.createdAt}
             />
+            <DiagnosticChatPanel result={result} selectedGroup={selectedGroup} selectedFile={selectedFile} />
 
             <ExportBar result={result} fileName={selectedFile?.name} />
           </div>
         </div>
       </section>
+      {qualityModal ? <QualityModal data={qualityModal} onClose={() => setQualityModal(null)} /> : null}
     </section>
+  );
+}
+
+function QualityModal({
+  data,
+  onClose
+}: {
+  data: { status: string; score?: number; reasons: string[] };
+  onClose: () => void;
+}) {
+  return (
+    <div className="qualityModalBackdrop" role="dialog" aria-modal="true">
+      <section className="qualityModal">
+        <header>
+          <div>
+            <span className="panelLabel">Classificação automática</span>
+            <h3>{qualityLabel(data.status)}</h3>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar classificação">
+            <XCircle size={18} />
+          </button>
+        </header>
+        <p>
+          Este selo resume a conferência automática do ANON. Ele não substitui a revisão humana obrigatória,
+          mas indica se o produto exige atenção adicional antes de qualquer uso institucional.
+        </p>
+        <div className="qualityScore">
+          <span>Pontuação</span>
+          <strong>{typeof data.score === "number" ? `${data.score}/100` : "Não informada"}</strong>
+        </div>
+        <ul>
+          {(data.reasons.length ? data.reasons : ["Nenhum motivo específico informado."]).map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      </section>
+    </div>
   );
 }
 
@@ -994,6 +1162,278 @@ function ProcessingDialog({
       </section>
     </div>
   );
+}
+
+type NexusAssistantMessage = {
+  role: "nexus" | "user";
+  text: string;
+  tone?: "info" | "warning" | "success";
+};
+
+function FloatingNexusAssistant({
+  loading,
+  processingStep,
+  elapsedSeconds,
+  fileName,
+  currentFileIndex,
+  totalFiles,
+  selectedResult,
+  selectedFile,
+  selectedGroup
+}: {
+  loading: boolean;
+  processingStep: string;
+  elapsedSeconds: number;
+  fileName: string;
+  currentFileIndex: number;
+  totalFiles: number;
+  selectedResult?: Result;
+  selectedFile?: ProcessedFile;
+  selectedGroup?: RequestGroup;
+}) {
+  const [open, setOpen] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [messages, setMessages] = useState<NexusAssistantMessage[]>([]);
+  const [answering, setAnswering] = useState(false);
+  const [fontScale, setFontScale] = useState(1.1);
+  const wasLoadingRef = useRef(false);
+  const lastStepRef = useRef("");
+  const nexusMessagesRef = useRef<HTMLDivElement | null>(null);
+  const nexusAnswerAbortRef = useRef<AbortController | null>(null);
+  const nexusAnswerCanceledByOperatorRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const scrollToBottom = () => {
+      if (nexusMessagesRef.current) {
+        nexusMessagesRef.current.scrollTop = nexusMessagesRef.current.scrollHeight;
+      }
+    };
+    scrollToBottom();
+    const frame = window.requestAnimationFrame(scrollToBottom);
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, messages, answering, fontScale]);
+
+  useEffect(() => {
+    if (loading && !wasLoadingRef.current) {
+      setOpen(true);
+      setMessages([
+        {
+          role: "nexus",
+          text: "IA NEXUS ativa. Aguarde a conclusão da solicitação e realize revisão humana antes de qualquer uso externo.",
+          tone: "info"
+        }
+      ]);
+    }
+    if (!loading && wasLoadingRef.current) {
+      setOpen(false);
+      setQuestion("");
+      setMessages([]);
+    }
+    wasLoadingRef.current = loading;
+  }, [loading]);
+
+  useEffect(() => {
+    if (!loading || !processingStep || lastStepRef.current === processingStep) return;
+    lastStepRef.current = processingStep;
+    pushNexusMessage(processingStepToNexusText(processingStep, fileName, currentFileIndex, totalFiles), "info");
+  }, [processingStep, loading, fileName, currentFileIndex, totalFiles]);
+
+  function pushNexusMessage(text: string, tone: NexusAssistantMessage["tone"] = "info") {
+    setMessages((items) => {
+      const last = items[items.length - 1];
+      if (last?.role === "nexus" && last.text === text) return items;
+      return [...items.slice(-7), { role: "nexus", text, tone }];
+    });
+  }
+
+  function cancelNexusAnswer() {
+    nexusAnswerCanceledByOperatorRef.current = true;
+    nexusAnswerAbortRef.current?.abort();
+  }
+
+  async function askNexus(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setMessages((items) => [...items.slice(-7), { role: "user", text: trimmed }]);
+    setQuestion("");
+    setAnswering(true);
+
+    const localAnswer = nexusLocalAnswer(trimmed, {
+      loading,
+      processingStep,
+      elapsedSeconds,
+      fileName,
+      selectedResult,
+      selectedFile,
+      selectedGroup
+    });
+    if (localAnswer) {
+      setMessages((items) => [...items.slice(-7), { role: "nexus", text: localAnswer, tone: "info" }]);
+      setAnswering(false);
+      return;
+    }
+
+    const timeoutController = new AbortController();
+    nexusAnswerCanceledByOperatorRef.current = false;
+    nexusAnswerAbortRef.current = timeoutController;
+    const timeoutId = window.setTimeout(() => timeoutController.abort(), 25000);
+    try {
+      const response = await fetch(`${API_URL}/api/diagnostics/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: timeoutController.signal,
+        body: JSON.stringify({ question: trimmed })
+      });
+      const payload = await response.json();
+      setMessages((items) => [...items.slice(-7), { role: "nexus", text: payload.answer || "Orientação institucional indisponível neste momento.", tone: "info" }]);
+    } catch {
+      const canceledByOperator = timeoutController.signal.aborted && nexusAnswerCanceledByOperatorRef.current;
+      setMessages((items) => [
+        ...items.slice(-7),
+        {
+          role: "nexus",
+          text: canceledByOperator
+            ? "Envio da última mensagem cancelado pelo operador."
+            : "Este canal é restrito a orientações institucionais de uso, revisão e finalidade da anonimização.",
+          tone: "warning"
+        }
+      ]);
+    } finally {
+      window.clearTimeout(timeoutId);
+      if (nexusAnswerAbortRef.current === timeoutController) {
+        nexusAnswerAbortRef.current = null;
+        nexusAnswerCanceledByOperatorRef.current = false;
+      }
+      setAnswering(false);
+    }
+  }
+
+  if (!loading) return null;
+
+  return (
+    <aside className={`nexusFloatingAssistant ${open ? "open" : "collapsed"}`} aria-live="polite">
+      <button type="button" className="nexusAssistantToggle" onClick={() => setOpen((value) => !value)}>
+        <MessageCircle size={18} />
+        <span>IA NEXUS</span>
+      </button>
+
+      {open && (
+        <div className="nexusAssistantPanel" style={{ "--nexus-font-scale": fontScale } as React.CSSProperties}>
+          <header>
+            <div>
+              <span className="panelLabel">Observação operacional</span>
+              <h3>IA NEXUS</h3>
+            </div>
+            <div className="nexusAssistantHeaderTools" aria-label="Controles da IA NEXUS">
+              <button type="button" onClick={() => setFontScale((value) => Math.max(0.95, Number((value - 0.1).toFixed(2))))}>
+                A-
+              </button>
+              <button type="button" onClick={() => setFontScale(1.1)}>
+                A
+              </button>
+              <button type="button" onClick={() => setFontScale((value) => Math.min(1.5, Number((value + 0.1).toFixed(2))))}>
+                A+
+              </button>
+              <ShieldCheck size={20} />
+            </div>
+          </header>
+
+          <div className="nexusAssistantStatus">
+            <strong>{loading ? "Acompanhando solicitação" : "Orientação institucional"}</strong>
+            <span>{loading ? `Tempo decorrido: ${formatElapsed(elapsedSeconds)}` : "Canal restrito a finalidade, sigilo e revisão humana."}</span>
+          </div>
+
+          <div className="nexusAssistantMessages" ref={nexusMessagesRef}>
+            {messages.length === 0 ? (
+              <p>Estou pronta para orientar sobre finalidade da anonimização, sigilo, preservação documental e revisão humana.</p>
+            ) : (
+              messages.map((message, index) => (
+                <div key={`${message.role}-${index}`} className={`nexusMessage ${message.role} ${message.tone || "info"}`}>
+                  {message.role === "user" ? <img className="anonymousInlineAvatar" src="/anonymous-avatar.png" alt="Anonymous" /> : null}
+                  <strong>{message.role === "user" ? "Anonymous" : "IA NEXUS"}</strong>
+                  <span>{message.text}</span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <form
+            className="nexusAssistantForm"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void askNexus(question);
+            }}
+          >
+            <input
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="Fale com a IA NEXUS."
+            />
+            <button type="submit" disabled={answering || !question.trim()}>
+              {answering ? <TypingDots label="Processando resposta" /> : "Enviar"}
+            </button>
+            {answering && (
+              <button type="button" className="nexusCancelSend" onClick={cancelNexusAnswer}>
+                Cancelar
+              </button>
+            )}
+          </form>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function processingStepToNexusText(step: string, _fileName: string, _currentFileIndex: number, _totalFiles: number) {
+  const normalized = step.toLowerCase();
+  if (normalized.includes("preparando")) {
+    return "A solicitação foi recebida. Aguarde a conclusão e mantenha a revisão humana como etapa obrigatória.";
+  }
+  if (normalized.includes("ia local")) {
+    return "A anonimização está em andamento. O tempo pode variar conforme o tamanho do material e a capacidade do computador.";
+  }
+  if (normalized.includes("hash") || normalized.includes("export")) {
+    return "A solicitação está sendo finalizada para disponibilização do produto de revisão.";
+  }
+  if (normalized.includes("hist")) {
+    return "O resultado será disponibilizado no histórico da solicitação para conferência institucional.";
+  }
+  return "A solicitação permanece em andamento. Aguarde a conclusão antes de revisar o produto final.";
+}
+
+function nexusLocalAnswer(
+  question: string,
+  _context: {
+    loading: boolean;
+    processingStep: string;
+    elapsedSeconds: number;
+    fileName: string;
+    selectedResult?: Result;
+    selectedFile?: ProcessedFile;
+    selectedGroup?: RequestGroup;
+  }
+) {
+  const normalized = question.toLowerCase();
+  if (normalized.includes("erro") || normalized.includes("problema") || normalized.includes("json") || normalized.includes("log") || normalized.includes("intern")) {
+    return "Este canal é restrito a orientações institucionais de uso, revisão e finalidade da anonimização. Questões técnicas devem ser tratadas pelos instrumentos formais de auditoria e suporte.";
+  }
+  if (normalized.includes("rif") || normalized.includes("coaf") || normalized.includes("financeir")) {
+    return "Em RIF e dados financeiros, o objetivo é substituir identificadores sensíveis mantendo valores, datas, movimentações, estrutura e coerência analítica.";
+  }
+  if (normalized.includes("extrato") || normalized.includes("banc")) {
+    return "Em extratos bancários, revise se a sequência dos lançamentos, datas, valores e saldos permaneceu preservada, com substituição apenas de identificadores sensíveis.";
+  }
+  if (normalized.includes("revis") || normalized.includes("confer") || normalized.includes("compartilh")) {
+    return "Antes de compartilhar, confira manualmente se nomes, documentos, contas, endereços, contatos e demais identificadores foram substituídos sem alteração indevida do conteúdo preservado.";
+  }
+  if (normalized.includes("sigilo") || normalized.includes("seguran") || normalized.includes("uso")) {
+    return "O uso deve permanecer institucional, local e controlado, observando sigilo, finalidade, necessidade, rastreabilidade e revisão humana qualificada.";
+  }
+  if (normalized.includes("objetivo") || normalized.includes("serve") || normalized.includes("finalidade") || normalized.includes("anon")) {
+    return "A finalidade do ANON é apoiar a anonimização documental, substituindo identificadores sensíveis por marcadores consistentes e preservando o conteúdo técnico, jurídico e financeiro.";
+  }
+  return null;
 }
 
 function UsageRulesDialogV3({ onAccept, onClose }: { onAccept: () => void; onClose: () => void }) {
@@ -1158,6 +1598,141 @@ function ValidationWarningCard({ warning, count }: { warning: string; count: num
   );
 }
 
+function DiagnosticChatPanel({
+  result,
+  selectedGroup,
+  selectedFile
+}: {
+  result?: Result;
+  selectedGroup?: RequestGroup;
+  selectedFile?: ProcessedFile;
+}) {
+  const [question, setQuestion] = useState("");
+  const [messages, setMessages] = useState<Array<{ role: "user" | "anon"; text: string; source?: string }>>([]);
+  const [loadingAnswer, setLoadingAnswer] = useState(false);
+  const diagnosticMessagesRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const element = diagnosticMessagesRef.current;
+    if (!element) return;
+    element.scrollTop = element.scrollHeight;
+  }, [messages, loadingAnswer]);
+
+  if (!result) return null;
+
+  const quickQuestions = ["Qual é a finalidade?", "O que devo revisar?", "Se surgir erro, o que fazer?", "Como conferir RIF ou extrato?"];
+
+  async function askDiagnostic(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setMessages((items) => [...items, { role: "user", text: trimmed }]);
+    setQuestion("");
+    setLoadingAnswer(true);
+    const timeoutController = new AbortController();
+    const timeoutId = window.setTimeout(() => timeoutController.abort(), 25000);
+    try {
+      const response = await fetch(API_URL + "/api/diagnostics/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: timeoutController.signal,
+        body: JSON.stringify({ question: trimmed })
+      });
+      const payload = await response.json();
+      setMessages((items) => [...items, { role: "anon", text: payload.answer || "Orientação institucional indisponível neste momento.", source: payload.source }]);
+    } catch {
+      setMessages((items) => [...items, { role: "anon", text: "Este canal permanece restrito a orientações institucionais de uso, sigilo e revisão." }]);
+    } finally {
+      window.clearTimeout(timeoutId);
+      setLoadingAnswer(false);
+    }
+  }
+
+  return (
+    <section className="diagnosticChat">
+      <header>
+        <div className="diagnosticIdentity">
+          <div className="diagnosticAvatar">
+            <ShieldCheck size={22} />
+          </div>
+          <div>
+            <span className="panelLabel">Orientação institucional</span>
+            <h3>IA NEXUS</h3>
+            <p>Canal individual desta solicitação, vinculado à IA local, para finalidade, sigilo, preservação documental e revisão humana.</p>
+          </div>
+        </div>
+        <div className="diagnosticStatusBadge">
+          <span />
+          IA local
+        </div>
+      </header>
+      <div className="diagnosticQuick">
+        {quickQuestions.map((item) => (
+          <button key={item} type="button" onClick={() => void askDiagnostic(item)} disabled={loadingAnswer}>
+            {item}
+          </button>
+        ))}
+      </div>
+      <div className="diagnosticMessages" ref={diagnosticMessagesRef}>
+        {messages.length === 0 ? (
+          <div className="chatAnon emptyChat">
+            <div className="messageAvatar">
+              <MessageCircle size={16} />
+            </div>
+            <div>
+              <strong>IA NEXUS</strong>
+              <span>Estou conectada à IA local para orientar esta solicitação sobre o ANON, o produto anonimizado e a revisão humana obrigatória.</span>
+            </div>
+          </div>
+        ) : (
+          messages.map((message, index) => (
+            <div key={index} className={message.role === "user" ? "chatUser" : "chatAnon"}>
+              <div className="messageAvatar">
+                {message.role === "user" ? <img className="anonymousAvatarImage" src="/anonymous-avatar.png" alt="Anonymous" /> : <MessageCircle size={16} />}
+              </div>
+              <div>
+                <strong>{message.role === "user" ? "Anonymous" : "IA NEXUS"}</strong>
+                <span>{message.text}</span>
+              </div>
+            </div>
+          ))
+        )}
+        {loadingAnswer ? (
+          <div className="chatAnon thinking">
+            <div className="messageAvatar">
+              <MessageCircle size={16} />
+            </div>
+            <div>
+              <strong>IA NEXUS</strong>
+              <span><TypingDots label="IA NEXUS respondendo" /></span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+      <form
+        className="diagnosticForm"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void askDiagnostic(question);
+        }}
+      >
+        <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Fale com a IA NEXUS." />
+        <button type="submit" disabled={loadingAnswer || !question.trim()}>
+          {loadingAnswer ? <TypingDots label="Analisando resposta" /> : "Enviar"}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+function TypingDots({ label }: { label: string }) {
+  return (
+    <span className="typingDots" aria-label={label} role="status">
+      <span />
+      <span />
+      <span />
+    </span>
+  );
+}
 function AuditSeal({ result }: { result: Result }) {
   const exportEntries = Object.entries(result.audit.export_sha256);
 
@@ -1222,7 +1797,7 @@ function AuditHash({ label, value }: { label: string; value: string }) {
 }
 
 function DownloadFormatsInfo({ formats }: { formats: string[] }) {
-  const normalizedFormats = formats.map((format) => format.toUpperCase());
+  const normalizedFormats = formats.map(formatExportLabel);
 
   return (
     <div className="downloadFormatsInfo">
@@ -1274,8 +1849,8 @@ function ExportBar({ result, fileName }: { result?: Result; fileName?: string })
       <div>
         <FileText size={18} />
         <span>
-          <strong>{fileName || "Nenhum produto selecionado"}</strong>
-          <small>Produto final disponível para download auditado por SHA-256.</small>
+          <strong>Produtos gerados para download</strong>
+          <small>{fileName ? `Arquivos anonimizados de ${fileName}` : "Selecione um arquivo processado para baixar o produto final."}</small>
         </span>
       </div>
       <div className="exportButtons">
@@ -1285,10 +1860,13 @@ function ExportBar({ result, fileName }: { result?: Result; fileName?: string })
             type="button"
             disabled={!result}
             onClick={() => void downloadExport(format)}
-            title={result ? `Verifica SHA-256 antes de baixar ${format.toUpperCase()}` : undefined}
+            title={result ? formatExportTitle(format) : undefined}
           >
             <Download size={16} />
-            {format.toUpperCase()}
+            <span>
+              <strong>{formatExportLabel(format)}</strong>
+              <small>{format === "avisos" ? "Documento complementar" : "Arquivo anonimizado"}</small>
+            </span>
           </button>
         ))}
       </div>
@@ -1305,7 +1883,7 @@ function InstitutionalFooter() {
         {" "}- Polícia Civil do Estado de Pernambuco.
       </span>
       <strong>
-        <a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noreferrer">Versão 1.8.7</a>
+        <a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noreferrer">Versão 1.8.34</a>
       </strong>
     </footer>
   );
@@ -1318,7 +1896,7 @@ function formatElapsed(totalSeconds: number) {
 
 function formatRequestError(err: unknown) {
   if (err instanceof TypeError && err.message.toLowerCase().includes("fetch")) {
-    return "Backend local não respondeu. Reinicie o backend e tente processar novamente.";
+    return "Serviço local do ANON não respondeu. Reinicie o módulo local e tente processar novamente.";
   }
   return err instanceof Error ? err.message : "Erro inesperado.";
 }
@@ -1393,7 +1971,22 @@ async function sha256Buffer(buffer: ArrayBuffer) {
 
 function buildDownloadName(fileName: string, format: string) {
   const cleanBase = sanitizeFileBase(fileName.replace(/\.[^.]+$/, "")) || "anonimizado";
+  if (format === "avisos") return `${cleanBase}-avisos.pdf`;
   return `${cleanBase}-anonimizado.${format}`;
+}
+
+function formatExportLabel(format: string) {
+  return format === "avisos" ? "AVISOS" : format.toUpperCase();
+}
+
+function formatExportTitle(format: string) {
+  return format === "avisos" ? "Arquivo de avisos e validacao gerado." : `Arquivo ${format.toUpperCase()} anonimizado gerado.`;
+}
+
+function formatStageName(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function sanitizeFileBase(value: string) {
@@ -1425,7 +2018,7 @@ function loadStoredRequests(): RequestGroup[] {
       return [];
     }
 
-    const validRequests = parsed.filter(isValidRequestGroup);
+    const validRequests = recoverInterruptedProcessing(parsed.filter(isValidRequestGroup));
     if (!localStorage.getItem(REQUESTS_STORAGE_KEY) && validRequests.length) {
       localStorage.setItem(REQUESTS_STORAGE_KEY, JSON.stringify(validRequests));
     }
@@ -1442,6 +2035,27 @@ function quarantineStoredRequests(rawValue: string) {
   sessionStorage.setItem(REQUESTS_RECOVERY_KEY, rawValue);
   localStorage.setItem(backupKey, rawValue);
   localStorage.removeItem(REQUESTS_STORAGE_KEY);
+}
+
+function recoverInterruptedProcessing(groups: RequestGroup[]) {
+  let changed = false;
+  const nextGroups = groups.map((group) => {
+    let groupChanged = false;
+    const files = group.files.map((file) => {
+      if (file.status !== "processando") return file;
+      changed = true;
+      groupChanged = true;
+      return {
+        ...file,
+        status: "erro" as const,
+        error:
+          file.error ||
+          "O processamento foi interrompido antes de retornar resultado ao ANON. Reprocesse o arquivo; se persistir, baixe o log de erros para auditoria."
+      };
+    });
+    return groupChanged ? { ...group, files } : group;
+  });
+  return changed ? nextGroups : groups;
 }
 
 function isValidRequestGroup(value: unknown): value is RequestGroup {
@@ -1464,5 +2078,3 @@ function isValidProcessedFile(value: unknown): value is ProcessedFile {
   const file = value as Partial<ProcessedFile>;
   return typeof file.id === "string" && typeof file.name === "string" && typeof file.status === "string";
 }
-
-

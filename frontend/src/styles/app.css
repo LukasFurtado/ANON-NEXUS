@@ -626,11 +626,32 @@ h1 {
   display: flex;
   gap: 10px;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   background: rgba(240, 96, 96, 0.1);
   color: #ffb8b8;
   border: 1px solid rgba(240, 96, 96, 0.28);
   border-radius: 8px;
   padding: 12px 14px;
+}
+
+.alert span {
+  flex: 1;
+  min-width: 220px;
+}
+
+.alert button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255, 184, 184, 0.38);
+  background: rgba(255, 184, 184, 0.1);
+  color: #ffd8d8;
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .stats {
@@ -791,11 +812,17 @@ pre {
 }
 
 .exports {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-  min-height: 54px;
+  min-height: 74px;
+  padding: 14px;
+  border: 1px solid rgba(90, 170, 230, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(71, 197, 255, 0.08), rgba(255, 255, 255, 0.018)),
+    rgba(13, 26, 45, 0.54);
   color: var(--text-dim);
 }
 
@@ -837,9 +864,10 @@ pre {
 .exportButtons button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 38px;
-  padding: 0 12px;
+  gap: 10px;
+  min-height: 52px;
+  min-width: 132px;
+  padding: 8px 12px;
   border-radius: 6px;
   color: var(--text);
   text-decoration: none;
@@ -848,6 +876,26 @@ pre {
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.exportButtons button span {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.exportButtons button strong {
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.exportButtons button small {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-transform: uppercase;
 }
 
 .exportButtons button:disabled {
@@ -995,27 +1043,53 @@ pre {
 
 .deleteRequestButton,
 .logDownloadButton {
-  min-height: 30px;
-  border-radius: 999px;
-  padding: 0 10px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 8px;
   font-weight: 900;
   cursor: pointer;
 }
 
 .deleteRequestButton {
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 11px;
   border: 1px solid rgba(240, 96, 96, 0.34);
   color: #ffd0d0;
   background: rgba(240, 96, 96, 0.12);
 }
 
 .logDownloadButton {
+  min-height: 48px;
+  border-radius: 8px;
+  padding: 8px 14px;
   border: 1px solid var(--blue-strong);
   color: #d9eeff;
-  background: var(--blue-dim);
+  background:
+    linear-gradient(180deg, rgba(71, 197, 255, 0.2), rgba(71, 197, 255, 0.08)),
+    rgba(18, 53, 85, 0.72);
+  box-shadow: 0 12px 28px rgba(42, 117, 189, 0.16);
+}
+
+.logDownloadButton span {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.logDownloadButton strong {
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.logDownloadButton small {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-transform: uppercase;
 }
 
 .deleteRequestButton:disabled,
@@ -1799,6 +1873,466 @@ pre {
   cursor: pointer;
 }
 
+.diagnosticChat {
+  border: 1px solid rgba(74, 169, 255, 0.28);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at top left, rgba(71, 197, 255, 0.16), transparent 34%),
+    linear-gradient(135deg, rgba(8, 55, 92, 0.34), rgba(255, 255, 255, 0.018)),
+    var(--surface);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
+}
+
+.diagnosticChat header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diagnosticIdentity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.diagnosticAvatar,
+.messageAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.diagnosticAvatar {
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(103, 183, 255, 0.42);
+  border-radius: 999px;
+  color: #d9eeff;
+  background:
+    linear-gradient(145deg, rgba(71, 197, 255, 0.26), rgba(0, 75, 141, 0.36)),
+    rgba(12, 29, 50, 0.86);
+  box-shadow: 0 0 0 5px rgba(71, 197, 255, 0.06);
+}
+
+.diagnosticChat h3 {
+  margin: 3px 0 0;
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.diagnosticChat header p {
+  margin: 4px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.diagnosticStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(36, 196, 126, 0.3);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #d7ffe8;
+  background: rgba(36, 196, 126, 0.1);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.diagnosticStatusBadge span {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #3cf0a0;
+  box-shadow: 0 0 12px rgba(60, 240, 160, 0.76);
+}
+
+.diagnosticMetrics,
+.diagnosticQuick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.diagnosticMetrics span,
+.diagnosticQuick button {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text);
+  padding: 8px 11px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.diagnosticQuick button {
+  cursor: pointer;
+  border-color: rgba(103, 183, 255, 0.28);
+  background: rgba(74, 169, 255, 0.08);
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.diagnosticQuick button:hover:not(:disabled) {
+  border-color: rgba(103, 183, 255, 0.56);
+  background: rgba(74, 169, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+.diagnosticMessages {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 220px;
+  max-height: 430px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 14px;
+  background:
+    linear-gradient(180deg, rgba(3, 12, 23, 0.58), rgba(4, 7, 13, 0.68)),
+    rgba(255, 255, 255, 0.018);
+}
+
+.chatUser,
+.chatAnon {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: min(82%, 760px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 13px;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: justify;
+}
+
+.chatUser {
+  justify-self: end;
+  border-color: rgba(200, 160, 32, 0.34);
+  background: rgba(200, 160, 32, 0.09);
+}
+
+.chatAnon {
+  justify-self: start;
+  border-color: rgba(74, 169, 255, 0.32);
+  background:
+    linear-gradient(135deg, rgba(29, 122, 194, 0.17), rgba(255, 255, 255, 0.025)),
+    rgba(29, 122, 194, 0.08);
+}
+
+.emptyChat {
+  width: min(92%, 820px);
+}
+
+.thinking {
+  width: fit-content;
+  min-width: 156px;
+}
+
+.messageAvatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: #d9eeff;
+  background: rgba(74, 169, 255, 0.14);
+  overflow: hidden;
+}
+
+.chatUser .messageAvatar {
+  color: #ffe6a8;
+  background: rgba(200, 160, 32, 0.16);
+}
+
+.anonymousAvatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.anonymousInlineAvatar {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 999px;
+  float: left;
+  margin: 1px 8px 4px 0;
+  border: 1px solid rgba(200, 160, 32, 0.32);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chatUser strong,
+.chatAnon strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+
+.diagnosticForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  border: 1px solid rgba(103, 183, 255, 0.18);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.diagnosticForm input {
+  min-height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text);
+  padding: 0 14px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.diagnosticForm button {
+  border: 1px solid var(--blue-strong);
+  border-radius: 7px;
+  background:
+    linear-gradient(180deg, rgba(71, 197, 255, 0.22), rgba(29, 122, 194, 0.18)),
+    rgba(29, 122, 194, 0.24);
+  color: var(--text);
+  padding: 0 18px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.nexusFloatingAssistant {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 42;
+  width: min(560px, calc(100vw - 36px));
+  color: var(--text);
+}
+
+.nexusAssistantToggle {
+  min-height: 44px;
+  border: 1px solid rgba(103, 183, 255, 0.46);
+  border-radius: 999px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  float: right;
+  color: #f5fbff;
+  background:
+    linear-gradient(135deg, rgba(0, 75, 141, 0.94), rgba(11, 30, 52, 0.96)),
+    var(--surface);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.nexusAssistantToggle svg {
+  color: var(--accent);
+}
+
+.nexusAssistantPanel {
+  clear: both;
+  margin-bottom: 10px;
+  --nexus-font-scale: 1.1;
+  border: 1px solid rgba(103, 183, 255, 0.36);
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(0, 75, 141, 0.36), rgba(8, 13, 24, 0.98) 36%),
+    var(--surface);
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.5);
+}
+
+.nexusAssistantPanel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.nexusAssistantPanel header svg {
+  color: var(--accent);
+}
+
+.nexusAssistantHeaderTools {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.nexusAssistantHeaderTools button {
+  min-width: 34px;
+  min-height: 30px;
+  border: 1px solid rgba(103, 183, 255, 0.32);
+  border-radius: 6px;
+  color: var(--text);
+  background: rgba(103, 183, 255, 0.1);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.nexusAssistantPanel h3 {
+  margin: 2px 0 0;
+  font-family: "Space Grotesk", Inter, sans-serif;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.nexusAssistantStatus {
+  display: grid;
+  gap: 4px;
+  margin: 12px;
+  border: 1px solid rgba(74, 169, 255, 0.24);
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: rgba(74, 169, 255, 0.08);
+}
+
+.nexusAssistantStatus strong {
+  color: #e8f6ff;
+  font-size: calc(14px * var(--nexus-font-scale));
+}
+
+.nexusAssistantStatus span {
+  color: var(--text-dim);
+  font-size: calc(13px * var(--nexus-font-scale));
+  overflow-wrap: anywhere;
+}
+
+.nexusAssistantMessages {
+  max-height: min(430px, 46vh);
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.nexusAssistantMessages p,
+.nexusMessage {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: calc(14px * var(--nexus-font-scale));
+  line-height: 1.55;
+  text-align: justify;
+}
+
+.nexusMessage.nexus {
+  border-color: rgba(74, 169, 255, 0.28);
+  background: rgba(29, 122, 194, 0.11);
+}
+
+.nexusMessage.user {
+  border-color: rgba(200, 160, 32, 0.34);
+  background: rgba(200, 160, 32, 0.08);
+}
+
+.nexusMessage.warning {
+  border-color: rgba(200, 160, 32, 0.44);
+  background:
+    linear-gradient(135deg, rgba(200, 160, 32, 0.13), rgba(255, 255, 255, 0.025)),
+    rgba(4, 6, 9, 0.2);
+}
+
+.nexusMessage.success {
+  border-color: rgba(36, 196, 126, 0.38);
+  background: rgba(36, 196, 126, 0.1);
+}
+
+.nexusMessage strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 4px;
+  font-size: calc(11px * var(--nexus-font-scale));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nexusAssistantForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  background: rgba(4, 6, 9, 0.28);
+}
+
+.nexusAssistantForm input {
+  min-height: 44px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0 11px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.045);
+  font-size: calc(14px * var(--nexus-font-scale));
+  font-weight: 700;
+}
+
+.nexusAssistantForm button {
+  min-height: 44px;
+  border: 1px solid var(--blue-strong);
+  border-radius: 7px;
+  padding: 0 12px;
+  color: var(--text);
+  background: rgba(29, 122, 194, 0.24);
+  font-size: calc(13px * var(--nexus-font-scale));
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.nexusAssistantForm button.nexusCancelSend {
+  border-color: rgba(255, 104, 104, 0.72);
+  color: #ffd6d6;
+  background: rgba(148, 35, 45, 0.34);
+}
+
+.typingDots {
+  min-width: 34px;
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.typingDots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: typingDotPulse 0.95s ease-in-out infinite;
+}
+
+.typingDots span:nth-child(2) {
+  animation-delay: 0.14s;
+}
+
+.typingDots span:nth-child(3) {
+  animation-delay: 0.28s;
+}
+
 @keyframes processingBar {
   from {
     transform: translateX(-20%);
@@ -1811,6 +2345,19 @@ pre {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes typingDotPulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-4px);
   }
 }
 

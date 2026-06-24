@@ -1,0 +1,63 @@
+{
+  "profile_id": "rif",
+  "display_name": "Relatorio de Inteligencia Financeira (RIF/COAF)",
+  "preserve_always": [
+    "numero_rif",
+    "data_referencia",
+    "valor_total",
+    "tipologia_coaf",
+    "data_operacao",
+    "valor_operacao",
+    "instituicao_publica",
+    "fundamento_tecnico"
+  ],
+  "anonymize_always": [
+    "nome_pessoa_fisica",
+    "cpf",
+    "cnpj_suspeito",
+    "razao_social_suspeita",
+    "endereco",
+    "telefone",
+    "email",
+    "chave_pix",
+    "agencia",
+    "conta"
+  ],
+  "ambiguous_fields": [
+    "nome_empresa_parceira",
+    "nome_banco_correspondente",
+    "descricao_livre",
+    "historico_operacao"
+  ],
+  "ambiguity_resolution": "conservador",
+  "entity_patterns": [
+    "cpf_formatado",
+    "cpf_11_digitos_validado",
+    "cnpj_formatado",
+    "razao_social_contextual",
+    "agencia_conta_contextual",
+    "pix_email"
+  ],
+  "false_positive_guards": [
+    "Banco Central do Brasil",
+    "COAF",
+    "STR",
+    "Receita Federal",
+    "Bacen",
+    "DRCI",
+    "Real",
+    "Reais",
+    "USD",
+    "EUR",
+    "BTC",
+    "Tipologia"
+  ],
+  "validation_rules": [
+    "preservar_valores_monetarios",
+    "preservar_datas",
+    "preservar_tipologias",
+    "preservar_orgaos_publicos",
+    "exigir_revisao_humana"
+  ],
+  "notes": "Perfil prioritario. A anonimização deve preservar a analise financeira e substituir identificadores de pessoas, empresas suspeitas e contas."
+}

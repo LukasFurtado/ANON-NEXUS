@@ -1,5 +1,251 @@
 # Changelog
 
+## [1.8.34] - 2026-06-24
+
+### Alterado
+
+- Mensagens do usuário nos chats passam a ser identificadas como `Anonymous`.
+- Adicionado avatar local `anonymous-avatar.png` para representar o usuário Anonymous no chat da solicitação e no balão temporário da IA NEXUS.
+
+## [1.8.33] - 2026-06-24
+
+### Alterado
+
+- IA NEXUS volta a consultar o modelo local fixo definido em `NEXUS_ANON_NEXUS_ASSISTANT_MODEL`.
+- Chat da solicitação informa que está vinculado à IA local e passa a responder sobre ANON, características do produto anonimizado, revisão humana obrigatória e condutas gerais diante de erro.
+- Balão temporário durante processamento também pode consultar a IA local para orientações institucionais, mesmo antes de existir produto final.
+- Prompt da IA NEXUS foi restringido para não expor nomes de arquivos, caminhos, código, JSON, backend, eventos internos, logs internos ou estrutura interna do sistema.
+
+## [1.8.32] - 2026-06-24
+
+### Alterado
+
+- Balão flutuante da IA NEXUS passa a aparecer somente durante o processamento iniciado pelo botão `Anonimizar`.
+- Ao encerrar o carregamento/processamento, o balão flutuante da IA NEXUS é fechado automaticamente.
+- Conversas após o processamento ficam concentradas no chat individual de cada solicitação.
+- Chat da solicitação recebeu visual mais próximo de conversa com IA, com identidade da IA NEXUS, bolhas, atalhos institucionais, rolagem automática e campo de mensagem mais destacado.
+
+## [1.8.31] - 2026-06-24
+
+### Corrigido
+
+- Histórico passa a recuperar automaticamente arquivos presos em `processando` quando não há execução ativa.
+- Arquivos interrompidos antes de retornar resultado são marcados como `erro` com mensagem operacional para reprocessamento e auditoria.
+- IA NEXUS passa a responder somente orientações institucionais sobre finalidade, sigilo, preservação documental e revisão humana.
+- Chat deixa de expor JSON, eventos internos, nomes de arquivos, falhas técnicas, logs ou detalhes da estrutura interna do ANON.
+
+## [1.8.30] - 2026-06-24
+
+### Adicionado
+
+- Chat flutuante da IA NEXUS passa a exibir a opção `Cancelar` enquanto a última mensagem estiver em processamento.
+- Cancelamento interrompe a consulta local em andamento e registra aviso de cancelamento pelo operador.
+
+## [1.8.29] - 2026-06-24
+
+### Alterado
+
+- Campo de conversa do painel de diagnóstico passa a exibir `Fale com a IA NEXUS.`
+
+## [1.8.28] - 2026-06-24
+
+### Alterado
+
+- IA NEXUS passa a usar um modelo local fixo e próprio, definido por `NEXUS_ANON_NEXUS_ASSISTANT_MODEL`.
+- O modelo escolhido pelo operador para anonimização dos documentos não altera mais a IA que responde no chat.
+- Contexto técnico do diagnóstico mantém o modelo de anonimização apenas como informação do processamento, não como motor de resposta da IA NEXUS.
+
+## [1.8.27] - 2026-06-24
+
+### Alterado
+
+- Chat flutuante da IA NEXUS passa a rolar automaticamente para a última mensagem.
+- Janela da IA NEXUS foi ampliada para melhorar leitura de respostas longas.
+- Fonte padrão da conversa foi aumentada.
+- Adicionados controles `A-`, `A` e `A+` para ajustar o tamanho da fonte da conversa.
+- Removidas falas técnicas com o termo `backend` das respostas voltadas ao operador.
+
+## [1.8.26] - 2026-06-24
+
+### Corrigido
+
+- Timer da janela de processamento deixa de depender de incremento acumulado e passa a calcular o tempo pelo horário real de início.
+- Re-renderizações da interface durante a anonimização não reiniciam mais a contagem visual do tempo.
+
+## [1.8.25] - 2026-06-24
+
+### Alterado
+
+- Indicador de resposta da IA NEXUS deixa de exibir `...` estático e passa a usar pontos animados em sequência.
+- Painel técnico de diagnóstico usa o mesmo indicador animado durante análise de resposta.
+
+## [1.8.24] - 2026-06-24
+
+### Corrigido
+
+- IA NEXUS passa a responder localmente perguntas simples sobre tempo, duração e demora do processamento, sem encaminhar a consulta ao Ollama.
+- Chat flutuante passa a ter limite de espera na consulta técnica ao backend, evitando permanência indefinida no estado `...`.
+- Painel técnico formal também passa a enviar o tempo de processamento ao diagnóstico local.
+- Diagnóstico backend responde perguntas de tempo diretamente com os metadados do processamento quando disponíveis.
+
+## [1.8.23] - 2026-06-24
+
+### Adicionado
+
+- Criado barramento local de comunicação operacional entre as células do ANON.
+- Cada etapa do pipeline passa a registrar eventos seguros: arquivo recebido, hash de origem, extração textual, OCR, regex, IA local, validação, anonimização e exportação.
+- Resultado da anonimização passa a retornar `communication_events` e `communication_summary` para alimentar a IA NEXUS e o painel de diagnóstico.
+- Assistente IA NEXUS passa a informar quantos eventos internos foram registrados e qual foi o último estágio observado.
+- Diagnóstico local passa a responder perguntas sobre comunicação interna, células envolvidas e distribuição dos eventos.
+- Base operacional local passa a documentar o protocolo de células: o que cada uma precisa e o que cada uma oferece ao ecossistema ANON.
+
+### Alterado
+
+- Arquivos complementares de auditoria passam a incluir resumo da comunicação interna quando disponível.
+- Proteção de integridade passa a abranger o novo barramento de comunicação.
+
+## [1.8.22] - 2026-06-24
+
+### Adicionado
+
+- Chat flutuante **IA NEXUS** para acompanhar o processamento enquanto a anonimização está em andamento.
+- A IA NEXUS anuncia o início do processamento, explica a fase atual, orienta o operador a aguardar e permanece disponível para perguntas.
+- Ao final do processamento, a IA NEXUS resume substituições, avisos, produtos disponíveis e métricas de JSON recusado/correções aproveitadas.
+- Perguntas feitas durante o processamento recebem respostas operacionais locais sem expor o conteúdo dos documentos.
+- Base operacional local passa a documentar o papel, limites e condutas da IA NEXUS como observadora institucional do processamento.
+
+### Alterado
+
+- O fluxo visual de processamento passa a ter uma camada ativa de comunicação com o operador, sem substituir o painel formal de diagnóstico da solicitação.
+
+## [1.8.21] - 2026-06-24
+
+### Adicionado
+
+- Base operacional local `ANON-OPERATIONAL-KNOWLEDGE-v1` para alinhar contrato JSON, perfis documentais, termos protegidos, validação e diagnóstico técnico.
+- Serviço interno de conhecimento para reutilizar as mesmas regras entre prompt do Ollama, correção de JSON, validação e painel de diagnóstico.
+- Assistente técnico local na página da solicitação para explicar recusas de JSON, avisos, uso da IA local e métricas de comunicação ANON/Ollama.
+- Contrato JSON explícito nos prompts enviados ao Ollama e na chamada local de correção de resposta.
+- Arquivo `Avisos` passa a registrar também o contrato JSON operacional exigido da IA local.
+
+### Alterado
+
+- Validação por perfil passa a consultar a base operacional de termos protegidos além das regras fixas do código.
+- Proteção de integridade passa a incluir a base operacional e o serviço de conhecimento.
+- Textos novos do painel de comunicação ANON/IA local foram revisados com acentuação.
+
+## [1.8.20] - 2026-06-24
+
+### Alterado
+
+- Avisos de validação deixam de ser inseridos dentro dos documentos anonimizados TXT e PDF.
+- Quando houver avisos, o ANON gera um produto complementar para download chamado `Avisos`.
+- O arquivo `Avisos` referencia a solicitação, arquivo de origem, hashes, modelo, versão, avisos registrados e considerações finais.
+- O ANON passa a registrar métricas da resposta JSON da IA local: blocos processados, blocos recusados por JSON não aproveitável, tentativas de correção e correções aproveitadas.
+- Log PDF do conjunto passa a registrar também o hash do produto complementar de avisos quando existir.
+
+## [1.8.19] - 2026-06-24
+
+### Corrigido
+
+- Avisos de erro deixam de permanecer no topo global do `Histórico de anonimização` ao trocar de solicitação.
+- Erros de processamento passam a ficar vinculados ao arquivo/solicitação correspondente dentro do histórico.
+- Botão `Baixar log de erros` foi mantido dentro do aviso contextual do arquivo com falha.
+
+## [1.8.18] - 2026-06-24
+
+### Corrigido
+
+- Quando o Ollama responde em formato inadequado, o ANON realiza uma segunda chamada local solicitando a correção da resposta para JSON estruturado.
+- Parser de entidades ficou mais flexível para aceitar mapas por categoria, como `{"PERSON":["Nome"]}`, além de listas e objetos com `entities`.
+- Resposta da IA local ainda não aproveitável deixa de bloquear a solicitação e passa a gerar aviso de revisão.
+- Produtos TXT e PDF passam a incluir, ao final, a seção `Avisos de validação - revisão obrigatória`, com justificativa quando a resposta da IA não for aproveitável.
+
+## [1.8.17] - 2026-06-24
+
+### Corrigido
+
+- Resposta malformada do modelo local deixa de bloquear a solicitação quando o Ollama respondeu; o processamento segue com regras locais de apoio e aviso de revisão.
+- Prompt enviado ao Ollama passa a exigir objeto JSON com chave `entities`, formato mais estável para o modo JSON do Ollama.
+- Texto base do prompt da IA foi normalizado em ASCII para evitar instruções com acentuação corrompida.
+- Tempo limite padrão do Ollama ampliado para 3600 segundos, evitando falhas prematuras em modelos grandes sem criar espera infinita.
+
+## [1.8.16] - 2026-06-24
+
+### Adicionado
+
+- Criado mecanismo institucional de verificação de integridade por manifesto SHA-256 dos arquivos críticos do ANON.
+- Processamento e downloads passam a ser bloqueados quando a proteção de dados identifica alteração não autorizada em arquivos sensíveis do sistema.
+- Adicionada rota local `/api/integrity` para consulta do estado de integridade institucional.
+- O pacote de instalação passa a gerar o manifesto de integridade automaticamente antes da compactação.
+
+## [1.8.15] - 2026-06-24
+
+### Adicionado
+
+- Adicionada proteção técnica de dados e integridade nos produtos exportados, vinculada à versão do ANON, ao arquivo de origem e à solicitação processada.
+- DOCX e PDF passam a receber metadados internos de proteção de dados institucional.
+- TXT, PDF, DOCX e log PDF passam a indicar `Protecao de dados: ativa` no resumo operacional quando aplicável.
+- O log acumulativo de erros informa apenas a situação `Protecao de dados: ativa`, sem registrar detalhes internos do mecanismo.
+
+## [1.8.14] - 2026-06-24
+
+### Alterado
+
+- Log de erros reforçado como arquivo acumulativo único, mantendo registros sucessivos de diferentes solicitações.
+- Cada erro passa a registrar contexto técnico ampliado: rota local chamada, URL do Ollama, status de detecção do Ollama, modelos locais detectados e se o modelo selecionado estava instalado.
+- Erros de processamento passam a incluir diagnóstico dos arquivos temporários envolvidos, com nome, extensão, tamanho em bytes e hash SHA-256, sem gravar o conteúdo integral dos documentos.
+- O cabeçalho do log informa que o arquivo não substitui revisão humana e é destinado a suporte técnico e auditoria operacional local.
+
+## [1.8.13] - 2026-06-24
+
+### Adicionado
+
+- Criado log local permanente de erros em `data/logs/anon_erros.txt`, atualizado automaticamente quando uma falha ocorre.
+- Adicionada rota local `/api/logs/errors` para baixar o arquivo `ANON_log_erros.txt` pelo navegador.
+- A faixa de erro da interface passa a exibir o botão `Baixar log de erros`, facilitando o envio do diagnóstico para suporte.
+- O log registra data e hora, versão do ANON, etapa, modelo local, perfil documental, arquivos envolvidos, mensagem exibida e rastreamento técnico resumido.
+
+## [1.8.12] - 2026-06-24
+
+### Corrigido
+
+- Leitura da resposta do Ollama ficou mais flexível para aceitar entidades em campos como `resultado`, `dados`, `entidades_detectadas`, `response` e `answer`.
+- Itens de entidade retornados com nomes de campos em português, como `tipo`, `texto`, `valor`, `inicio` e `fim`, agora são normalizados antes da validação.
+- Entidades sem offsets explícitos passam a ser localizadas pelo próprio texto literal, reduzindo falhas quando o modelo identifica a informação sensível mas não informa posições exatas.
+- Versão exibida na interface, documentação e pacote de instalação atualizada para `1.8.12`.
+
+## [1.8.11] - 2026-06-24
+
+### Corrigido
+
+- Aumentado o tempo limite de resposta do Ollama para modelos locais grandes, reduzindo falhas em carregamento/inferencia do Qwen 32B.
+- Resposta do Ollama passa a aceitar lista JSON pura, objeto com `entities`, bloco `json` e JSON embutido em texto, evitando erro quando o modelo retorna a lista em formato envolvido.
+- Quando a IA local responde validamente com lista vazia, o processamento segue com regras locais de apoio e registra aviso para revisão, em vez de bloquear a solicitação.
+
+## [1.8.10] - 2026-06-24
+
+### Alterado
+
+- Removidos os indicadores laterais de modelo local e quantidade de arquivos do cabeçalho da solicitação.
+- Cabeçalho da solicitação passa a manter foco em renomeação, Log PDF e exclusão, sem chips redundantes.
+
+## [1.8.9] - 2026-06-24
+
+### Alterado
+
+- Tooltip dos produtos exportados deixa de exibir texto tecnico sobre verificacao de hash e passa a indicar `Arquivo [TIPO] anonimizado gerado.`
+- Area de exportacao passa a destacar `Produtos gerados para download`, identificando melhor que os botoes correspondem aos arquivos anonimizados do arquivo em consulta.
+- Botoes de download passam a mostrar tipo do arquivo e descricao `Arquivo anonimizado`.
+- Botao `Log PDF` fica maior, mais destacado e identificado como `Auditoria do conjunto`.
+
+## [1.8.8] - 2026-06-24
+
+### Corrigido
+
+- Removido BOM dos arquivos JSON do frontend, corrigindo falha do Vite/PostCSS com `Unexpected token` ao iniciar a interface.
+- Validado que `package.json`, `package-lock.json`, `tsconfig.json` e `tauri.conf.json` iniciam diretamente com `{` e podem ser lidos pelo Node sem erro.
+
 ## [1.8.7] - 2026-06-24
 
 ### Alterado

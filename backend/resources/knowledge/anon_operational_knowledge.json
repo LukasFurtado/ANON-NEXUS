@@ -1,0 +1,116 @@
+{
+  "schema": "ANON-OPERATIONAL-KNOWLEDGE-v1",
+  "purpose": "Base local para alinhar parser, regras, validacao, prompt da IA local e diagnostico tecnico.",
+  "json_contract": {
+    "required_root": "entities",
+    "required_entity_fields": ["type", "text"],
+    "recommended_entity_fields": ["start", "end"],
+    "accepted_empty_response": "{\"entities\":[]}",
+    "forbidden_outputs": [
+      "markdown",
+      "explicacao fora do JSON",
+      "texto anonimizado",
+      "reescrita de documento",
+      "resumo",
+      "CSV gerado pela IA",
+      "DOCX gerado pela IA",
+      "PDF gerado pela IA"
+    ],
+    "operator_summary": "A IA deve devolver somente entidades candidatas. O backend do ANON aplica as substituicoes, preserva a estrutura e gera os arquivos."
+  },
+  "communication_rules": [
+    "Nunca enviar documentos para a internet.",
+    "Usar Ollama local como motor semantico obrigatorio quando o operador concordar com as regras de uso.",
+    "Manter resposta da IA em JSON estrito e auditavel.",
+    "Reenviar uma chamada de correcao local quando o JSON vier incompleto, com texto fora do formato ou em estrutura nao aproveitavel.",
+    "Registrar metricas de blocos enviados, recusas JSON, tentativas de correcao e correcoes aproveitadas."
+  ],
+  "cell_protocol": {
+    "purpose": "Fazer cada celula informar o que precisa, o que recebeu, o que pode oferecer e onde precisou de apoio.",
+    "cells": {
+      "Parser": {
+        "needs": ["arquivo legivel", "extensao suportada", "codificacao interpretavel"],
+        "offers": ["texto extraido", "metadados basicos", "sinalizacao de OCR quando necessario"]
+      },
+      "OCR": {
+        "needs": ["arquivo com texto insuficiente", "motor OCR local disponivel"],
+        "offers": ["texto recuperado", "aviso quando nao houver retorno aproveitavel"]
+      },
+      "Regex": {
+        "needs": ["texto extraido", "perfil documental"],
+        "offers": ["entidades deterministicas", "ancoras estruturadas", "reduz dependencia exclusiva da IA"]
+      },
+      "IA local": {
+        "needs": ["prompt curto", "contrato JSON claro", "perfil documental", "Ollama em execucao"],
+        "offers": ["entidades semanticas candidatas", "apoio contextual", "sinais de falha JSON para correcao"]
+      },
+      "Validador": {
+        "needs": ["entidades candidatas", "termos protegidos", "perfil documental"],
+        "offers": ["entidades aprovadas", "avisos de preservacao", "bloqueio de alteracoes indevidas"]
+      },
+      "Anonimizador": {
+        "needs": ["entidades validadas", "dicionario de substituicao consistente"],
+        "offers": ["texto substituido", "tabela de controle", "consistencia entre arquivos do mesmo grupo"]
+      },
+      "Exportador": {
+        "needs": ["texto anonimizado", "metadados de auditoria", "hashes"],
+        "offers": ["produtos finais", "arquivo Avisos", "log PDF", "metadados de protecao"]
+      },
+      "IA NEXUS": {
+        "needs": ["eventos internos", "metricas", "avisos", "status do processamento"],
+        "offers": ["explicacao operacional", "orientacao ao usuario", "ponte entre celulas sem expor conteudo sensivel"]
+      }
+    }
+  },
+  "nexus_assistant": {
+    "role": "Observadora operacional da anonimização, sem acesso externo e sem reescrever documentos.",
+    "during_processing": [
+      "Informar ao operador que o processamento local foi iniciado.",
+      "Explicar fases gerais sem expor conteúdo sensível.",
+      "Avisar que documentos extensos podem exigir mais tempo.",
+      "Indicar que o Ollama local deve permanecer disponível."
+    ],
+    "after_processing": [
+      "Explicar recusas de JSON e tentativas de correção.",
+      "Resumir substituições, avisos, hashes e produtos disponíveis.",
+      "Orientar revisão humana quando houver avisos.",
+      "Responder apenas sobre funcionamento, auditoria e ocorrências do processamento."
+    ],
+    "forbidden": [
+      "Exibir conteúdo integral do documento.",
+      "Reescrever documento anonimizável.",
+      "Prometer validação absoluta sem revisão humana.",
+      "Enviar informações para serviços externos."
+    ]
+  },
+  "profiles": {
+    "rif": {
+      "focus": "Relatorio de Inteligencia Financeira, comunicacoes COAF e CSVs relacionados.",
+      "must_anonymize": ["pessoas", "empresas privadas sensiveis", "CPF", "CNPJ", "contas", "agencias", "PIX", "enderecos", "telefones", "emails"],
+      "must_preserve": ["valores", "datas", "percentuais", "tipoEnvolvido", "natureza da operacao", "colunas CSV", "ordem das linhas", "delimitador"],
+      "protected_terms": ["PIX", "TED", "DOC", "SAQUE", "DEPOSITO", "TRANSFERENCIA", "CREDITO", "DEBITO", "FRACIONAMENTO", "idComunicacao", "idOcorrencia", "NumeroOcorrenciaBC"],
+      "prompt_guidance": "Em RIF, a IA deve localizar entidades sensiveis sem alterar semantica financeira, colunas, valores, datas ou classificacoes operacionais."
+    },
+    "extrato_bancario": {
+      "focus": "Extrato bancario em PDF ou dados DELOS, com prioridade em preservar layout e movimentacoes.",
+      "must_anonymize": ["titular", "beneficiario", "depositante", "remetente", "contraparte", "CPF", "CNPJ", "conta vinculada a titular", "chave PIX sensivel"],
+      "must_preserve": ["Doc.", "Inst.", "datas", "valores", "saldo", "debito", "credito", "historico", "nomes de colunas", "codigos bancarios", "natureza da operacao"],
+      "protected_terms": ["PAGTO CARTAO CREDITO", "PAGAMENTO CONTA AGUA", "PAGAMENTO CONTA LUZ", "ESTORNO ACERTO-CREDITO", "SAQUE", "TARIFA", "JUROS", "DEPOSITO ONLINE"],
+      "prompt_guidance": "Em extrato bancario, a IA deve separar pessoa/empresa sensivel de historico operacional. Nao anonimizar coluna Doc. nem descricao tecnica da operacao."
+    },
+    "relatorio_investigativo": {
+      "focus": "Relatorio policial, ministerial, administrativo ou de controle.",
+      "must_anonymize": ["investigados", "vitimas", "testemunhas", "autoridades individualizadas", "matriculas", "documentos pessoais", "enderecos", "telefones", "emails", "chaves PIX"],
+      "must_preserve": ["fundamentacao", "artigos de lei", "jurisprudencia", "valores", "datas", "numeracao", "titulos", "conclusoes", "referencias procedimentais"],
+      "protected_terms": ["IP", "BO", "SEI", "PROCESSO", "PORTARIA", "OFICIO", "RELATORIO", "ARTIGO", "LEI", "CPP", "CP"],
+      "prompt_guidance": "Em relatorio investigativo, a IA deve anonimizar identificadores pessoais sem reescrever narrativa, conclusao, fundamento legal ou referencias tecnicas."
+    }
+  },
+  "diagnostic_guidance": {
+    "json_refusal": "JSON recusado significa que a IA respondeu, mas a estrutura nao permitiu auditoria automatica segura.",
+    "warnings_file": "O arquivo Avisos registra pontos de revisao sem contaminar o documento anonimizado.",
+    "bad_formatting": "Arquivos com colunas extraidas fora de ordem, tabelas quebradas ou texto visualmente dependente reduzem a interpretacao contextual.",
+    "fallback_rules": "Quando a IA falha no JSON, o ANON preserva a execucao com regras locais, mas marca revisao humana obrigatoria.",
+    "efficiency": "A comunicacao eficiente depende de prompt curto, contrato JSON claro e validacao objetiva do que a IA devolveu."
+  }
+}

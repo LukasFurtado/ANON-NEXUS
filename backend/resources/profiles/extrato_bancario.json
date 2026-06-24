@@ -1,0 +1,61 @@
+{
+  "profile_id": "extrato_bancario",
+  "display_name": "Extrato bancario",
+  "preserve_always": [
+    "data_lancamento",
+    "valor_lancamento",
+    "saldo",
+    "tipo_operacao",
+    "coluna_valor",
+    "coluna_saldo",
+    "coluna_data"
+  ],
+  "anonymize_always": [
+    "nome_titular",
+    "cpf_titular",
+    "cnpj_titular",
+    "beneficiario_pix",
+    "pagador_pix",
+    "agencia",
+    "conta",
+    "compe",
+    "ispb",
+    "chave_pix_email",
+    "contraparte_identificavel"
+  ],
+  "ambiguous_fields": [
+    "historico_livre",
+    "descricao_lancamento",
+    "nome_estabelecimento",
+    "documento_transacao"
+  ],
+  "ambiguity_resolution": "conservador",
+  "entity_patterns": [
+    "titular_header",
+    "cpf_cnpj_header",
+    "pix_nome_contextual",
+    "pix_email",
+    "agencia_conta",
+    "compe_ispb"
+  ],
+  "false_positive_guards": [
+    "SAQUE",
+    "TARIFA",
+    "SALDO",
+    "JUROS",
+    "RENDIMENTO",
+    "ESTORNO",
+    "PAGAMENTO CARTAO",
+    "VALOR",
+    "DATA",
+    "DOC."
+  ],
+  "validation_rules": [
+    "nao_anonimizar_coluna_data",
+    "nao_anonimizar_coluna_valor",
+    "nao_anonimizar_coluna_saldo",
+    "preservar_layout_pdf",
+    "exigir_revisao_humana"
+  ],
+  "notes": "Perfil prioritario. A exportacao preferencial e PDF preservando layout; campos numericos e de data nao devem sofrer NER."
+}

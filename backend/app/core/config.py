@@ -8,7 +8,9 @@ class Settings(BaseSettings):
     data_dir: Path = Path("data")
     database_path: Path = Path("data/nexus_anon.sqlite3")
     ollama_url: str = "http://127.0.0.1:11434"
+    ollama_timeout_seconds: int = 3600
     default_model: str = "NEXUS-anon:latest"
+    nexus_assistant_model: str = "NEXUS-anon:latest"
     allowed_origins: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",

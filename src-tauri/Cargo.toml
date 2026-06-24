@@ -1,6 +1,6 @@
-﻿[package]
+[package]
 name = "nexus-anon"
-version = "1.8.7"
+version = "1.8.34"
 description = "Anonimizacao documental local e offline"
 authors = ["NEXUS"]
 edition = "2021"
@@ -16,5 +16,4 @@ serde_json = "1"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
-
 

@@ -52,6 +52,15 @@ class AnonymizationStats(BaseModel):
     preserved_dates: int
     preserved_values: int
     validation_warnings: list[str] = []
+    ollama_chunks_processed: int = 0
+    ollama_json_rejected_chunks: int = 0
+    ollama_correction_attempts: int = 0
+    ollama_correction_successes: int = 0
+    communication_events: list[dict] = Field(default_factory=list)
+    communication_summary: dict = Field(default_factory=dict)
+    quality_status: str | None = None
+    quality_score: int | None = None
+    quality_reasons: list[str] = Field(default_factory=list)
 
 
 class AnonymizationControlRow(BaseModel):
@@ -69,6 +78,8 @@ class AuditInfo(BaseModel):
     structure_preserved: bool
     validation_status: str
     anon_version: str | None = None
+    safe_summary_id: str | None = None
+    pipeline_state_id: str | None = None
 
 
 class AnonymizationResult(BaseModel):
@@ -83,6 +94,8 @@ class AnonymizationResult(BaseModel):
     stats: AnonymizationStats
     audit: AuditInfo
     export_paths: dict[str, str]
+    safe_summary: dict = Field(default_factory=dict)
+    pipeline_state: dict = Field(default_factory=dict)
 
 
 class BatchAnonymizationResult(BaseModel):
