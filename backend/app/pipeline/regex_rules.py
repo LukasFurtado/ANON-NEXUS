@@ -60,6 +60,8 @@ def detect_entities_by_regex(text: str, document_kind: DocumentKind = DocumentKi
     entities: list[Entity] = []
     if document_kind == DocumentKind.rif:
         entities.extend(_detect_rif_csv_entities(text))
+    if document_kind == DocumentKind.extrato_bancario:
+        entities.extend(_detect_bank_statement_entities(text))
 
     for entity_type, pattern in [*PATTERNS, *profile_regex_patterns(document_kind)]:
         for match in pattern.finditer(text):
@@ -103,6 +105,71 @@ def detect_entities_by_regex(text: str, document_kind: DocumentKind = DocumentKi
         )
 
     return _deduplicate(entities)
+
+
+BANK_STATEMENT_TITULAR = re.compile(
+    r"\bTitular\s*:\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ '\.-]{5,120}?)(?=\s*\()",
+    re.I,
+)
+BANK_STATEMENT_HEADER_ID = re.compile(r"\bCPF/CNPJ\s*:\s*(\d{5,14})\b", re.I)
+BANK_STATEMENT_DETAILED_COUNTERPARTY = re.compile(
+    r"\b[CD]\s+(\d{5,14})\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9 '&\.-]{4,120}?)(?=\s+(?:\d+\s+){0,3}(?:SAQUE|TARIFA|TRANSFER|CONTRAPARTIDA|PAGAMENTO|PIX|TED|DOC|$))",
+    re.I,
+)
+BANK_STATEMENT_CONSOLIDATED_COUNTERPARTY = re.compile(
+    r"^\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9 '&\.-]{4,120}?)\s+(\d{5,14})\s+(?:\d+\s+){1,4}(?:Conta\s+(?:Corrente|Poupança)|R\$)",
+    re.I | re.M,
+)
+
+
+def _detect_bank_statement_entities(text: str) -> list[Entity]:
+    entities: list[Entity] = []
+
+    for match in BANK_STATEMENT_TITULAR.finditer(text):
+        entities.append(Entity(type=EntityType.person, text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
+
+    for match in BANK_STATEMENT_HEADER_ID.finditer(text):
+        entities.append(_typed_identifier_entity(text, match.start(1), match.end(1)))
+
+    for match in BANK_STATEMENT_DETAILED_COUNTERPARTY.finditer(text):
+        entities.append(_typed_identifier_entity(text, match.start(1), match.end(1)))
+        name = match.group(2).strip()
+        if _looks_like_bank_statement_counterparty(name):
+            entities.append(Entity(type=_bank_counterparty_type(name), text=match.group(2), start=match.start(2), end=match.end(2), source="regex"))
+
+    for match in BANK_STATEMENT_CONSOLIDATED_COUNTERPARTY.finditer(text):
+        name = match.group(1).strip()
+        if _looks_like_bank_statement_counterparty(name):
+            entities.append(Entity(type=_bank_counterparty_type(name), text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
+        entities.append(_typed_identifier_entity(text, match.start(2), match.end(2)))
+
+    return entities
+
+
+def _typed_identifier_entity(text: str, start: int, end: int) -> Entity:
+    value = text[start:end]
+    digits = re.sub(r"\D", "", value)
+    if len(digits) == 11:
+        entity_type = EntityType.cpf
+    elif len(digits) == 14:
+        entity_type = EntityType.cnpj
+    else:
+        entity_type = EntityType.other_identifier
+    return Entity(type=entity_type, text=value, start=start, end=end, source="regex")
+
+
+def _looks_like_bank_statement_counterparty(value: str) -> bool:
+    normalized = value.strip().upper()
+    if not normalized or normalized in {"BANCO DO BRASIL S.A.", "BCO DO BRASIL S.A.", "CAIXA ECONOMICA FEDERAL"}:
+        return False
+    protected_terms = ("SAQUE", "TARIFA", "RESGATE", "APLICACAO", "APLICAÇÃO", "TRANSFERENCIA", "TRANSFERÊNCIA")
+    return not any(term in normalized for term in protected_terms)
+
+
+def _bank_counterparty_type(value: str) -> EntityType:
+    normalized = value.upper()
+    company_terms = (" LTDA", " S/A", " S.A.", " EIRELI", " INDUSTRIA", " COMERCIO", " COMÉRCIO", " MINISTERIO", " MINISTÉRIO", " CCLA ")
+    return EntityType.organization if any(term in normalized for term in company_terms) else EntityType.person
 
 
 RIF_CSV_COLUMN_TYPES = {

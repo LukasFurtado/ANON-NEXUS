@@ -134,6 +134,7 @@ def _export_csv(path: Path, text: str) -> None:
 def _export_docx(path: Path, text: str, original_filename: str, metadata: dict[str, Any]) -> None:
     try:
         from docx import Document
+        from docx.enum.section import WD_ORIENT
         from docx.enum.text import WD_ALIGN_PARAGRAPH
         from docx.shared import Pt
     except ImportError:
@@ -142,6 +143,7 @@ def _export_docx(path: Path, text: str, original_filename: str, metadata: dict[s
 
     document = Document(DOCX_TEMPLATE) if DOCX_TEMPLATE.exists() else Document()
     _clear_docx_body_preserving_section(document)
+    _apply_docx_source_layout(document, metadata, WD_ORIENT)
 
     title = document.add_paragraph()
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -245,10 +247,19 @@ def _clear_docx_body_preserving_section(document) -> None:
         body.append(section_properties)
 
 
+def _apply_docx_source_layout(document, metadata: dict[str, Any], wd_orient) -> None:
+    if metadata.get("source_pdf_orientation") != "landscape":
+        return
+    for section in document.sections:
+        section.orientation = wd_orient.LANDSCAPE
+        if section.page_width < section.page_height:
+            section.page_width, section.page_height = section.page_height, section.page_width
+
+
 def _export_pdf(path: Path, text: str, original_filename: str, metadata: dict[str, Any]) -> None:
     try:
         from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.pagesizes import A4, landscape
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import cm
         from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -256,11 +267,16 @@ def _export_pdf(path: Path, text: str, original_filename: str, metadata: dict[st
         path.write_text(text, encoding="utf-8")
         return
 
+    if _try_export_pdf_facsimile(path, original_filename, metadata):
+        return
+
+    page_size = landscape(A4) if metadata.get("source_pdf_orientation") == "landscape" else A4
+
     doc = SimpleDocTemplate(
         str(path),
-        pagesize=A4,
-        rightMargin=2 * cm,
-        leftMargin=2 * cm,
+        pagesize=page_size,
+        rightMargin=1.6 * cm if metadata.get("source_pdf_orientation") == "landscape" else 2 * cm,
+        leftMargin=1.6 * cm if metadata.get("source_pdf_orientation") == "landscape" else 2 * cm,
         topMargin=2 * cm,
         bottomMargin=2 * cm,
         title="Documento Anonimizado",
@@ -359,6 +375,151 @@ def _export_pdf(path: Path, text: str, original_filename: str, metadata: dict[st
         )
         story.append(control_table)
 
+    doc.build(story)
+
+
+def _try_export_pdf_facsimile(path: Path, original_filename: str, metadata: dict[str, Any]) -> bool:
+    source_path = Path(str(metadata.get("source_path") or ""))
+    rows = _control_rows(metadata)
+    if Path(original_filename).suffix.lower() != ".pdf" or not source_path.exists() or not rows:
+        return False
+
+    try:
+        import fitz
+    except ImportError:
+        return False
+
+    try:
+        document = fitz.open(source_path)
+        total_hits = 0
+        replacements = sorted(
+            (
+                (str(_row_value(row, "original_value")), str(_row_value(row, "anonymous_id")))
+                for row in rows
+                if str(_row_value(row, "original_value")).strip() and str(_row_value(row, "anonymous_id")).strip()
+            ),
+            key=lambda item: len(item[0]),
+            reverse=True,
+        )
+
+        for page in document:
+            page_hits = 0
+            for original, anonymous_id in replacements:
+                rects = page.search_for(original)
+                if not rects:
+                    continue
+                for rect in rects:
+                    page.add_redact_annot(
+                        rect,
+                        text=anonymous_id,
+                        fill=(1, 1, 1),
+                        text_color=(0, 0, 0),
+                        fontsize=max(5, min(8, rect.height * 0.62)),
+                    )
+                    page_hits += 1
+            if page_hits:
+                page.apply_redactions()
+                total_hits += page_hits
+
+        if total_hits == 0:
+            document.close()
+            return False
+
+        appendix_path = path.with_name(f"{path.stem}_apendice.pdf")
+        _export_pdf_audit_appendix(appendix_path, original_filename, metadata)
+        if appendix_path.exists():
+            appendix = fitz.open(appendix_path)
+            document.insert_pdf(appendix)
+            appendix.close()
+            appendix_path.unlink(missing_ok=True)
+
+        document.save(path, garbage=4, deflate=True)
+        document.close()
+        return True
+    except Exception:
+        try:
+            if "document" in locals():
+                document.close()
+        except Exception:
+            pass
+        return False
+
+
+def _export_pdf_audit_appendix(path: Path, original_filename: str, metadata: dict[str, Any]) -> None:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    page_size = landscape(A4) if metadata.get("source_pdf_orientation") == "landscape" else A4
+    doc = SimpleDocTemplate(
+        str(path),
+        pagesize=page_size,
+        rightMargin=1.4 * cm,
+        leftMargin=1.4 * cm,
+        topMargin=1.5 * cm,
+        bottomMargin=1.5 * cm,
+        title="Apendice de Auditoria - NEXUS ANON",
+        author="NEXUS ANON",
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "AppendixTitle",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        alignment=1,
+        textColor=colors.HexColor("#003B73"),
+        spaceAfter=8,
+    )
+    meta_style = ParagraphStyle(
+        "AppendixMeta",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=8,
+        leading=10,
+        alignment=0,
+        textColor=colors.HexColor("#172026"),
+        spaceAfter=8,
+    )
+
+    story = [
+        Paragraph("APENDICE DE AUDITORIA DA ANONIMIZACAO", title_style),
+        Paragraph("As paginas anteriores preservam o PDF original com redacoes aplicadas diretamente sobre os dados sensiveis localizados.", meta_style),
+        Paragraph("<br/>".join(_escape_pdf_text(line) for line in _summary_lines(original_filename, metadata)), meta_style),
+        Spacer(1, 0.25 * cm),
+        Paragraph("TABELA DE CONTROLE DE ANONIMIZACAO - USO INTERNO", title_style),
+        Paragraph("Esta secao contem valores originais e deve ser usada apenas para auditoria, conferencia e revisao interna.", meta_style),
+    ]
+    table_data = [["Valor Original", "Tipo", "Identificador", "Ocorrencias"]]
+    for row in _control_rows(metadata):
+        table_data.append(
+            [
+                Paragraph(_escape_pdf_text(_compact_cell(_row_value(row, "original_value"), 180)), meta_style),
+                Paragraph(_escape_pdf_text(_compact_cell(_row_value(row, "entity_type"), 50)), meta_style),
+                Paragraph(_escape_pdf_text(_compact_cell(_row_value(row, "anonymous_id"), 50)), meta_style),
+                str(_row_value(row, "occurrences")),
+            ]
+        )
+    control_table = Table(table_data, colWidths=[8.8 * cm, 3.0 * cm, 4.0 * cm, 2.0 * cm], repeatRows=1)
+    control_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#003B73")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 7),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#B8C3CF")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]
+        )
+    )
+    story.append(control_table)
     doc.build(story)
 
 

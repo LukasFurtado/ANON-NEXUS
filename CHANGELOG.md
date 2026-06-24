@@ -1,5 +1,64 @@
 # Changelog
 
+## [1.8.4] - 2026-06-24
+
+### Alterado
+
+- IA local passa a ser obrigatória em todo processamento de anonimização.
+- O backend deixa de seguir apenas por regex quando Ollama/modelo local não estiver disponível.
+- Documentos longos passam a ser enviados ao Ollama em blocos, permitindo análise da íntegra do texto extraído, não apenas dos primeiros 12 mil caracteres.
+- Prompt do modelo foi ajustado para que a IA também indique entidades evidentes, ainda que possam ser detectadas por regras determinísticas.
+- Tela de processamento passa a indicar **IA local obrigatória**.
+
+### Corrigido
+
+- Caso a IA local não retorne entidades em documento onde regras de apoio detectaram dados sensíveis, o processamento é bloqueado com erro operacional claro.
+
+## [1.8.3] - 2026-06-24
+
+### Corrigido
+
+- Falhas de comunicação com Ollama/modelo local deixam de ser silenciosas.
+- Quando a IA local não responder, retornar JSON inválido ou o modelo estiver indisponível, o resultado passa a registrar aviso explícito de que a execução seguiu apenas com regras automáticas locais.
+- Interface passa a explicar esse aviso em linguagem operacional, orientando verificar Ollama aberto e modelo instalado.
+
+## [1.8.2] - 2026-06-24
+
+### Corrigido
+
+- Anonimização passa a executar uma segunda verificação determinística, substituindo ocorrências residuais dos valores já aprovados na tabela de controle pelo mesmo identificador anônimo.
+- Reduzido o risco de um mesmo nome ou identificador permanecer no corpo quando apenas parte das ocorrências foi detectada inicialmente por posição.
+
+### Adicionado
+
+- Exportação PDF passa a tentar modo **fac-símile redigido** para PDFs de origem: o arquivo original é usado como base e os dados sensíveis localizados são cobertos/substituídos diretamente nas páginas.
+- Quando o modo fac-símile é bem-sucedido, o PDF preserva a paginação e o layout original e recebe apêndice de auditoria ao final.
+- Caso o modo fac-símile não esteja disponível no ambiente local, a exportação recai automaticamente para o modo textual anterior.
+
+## [1.8.1] - 2026-06-24
+
+### Corrigido
+
+- Tela de recuperação do Chrome não apaga mais o histórico diretamente; agora oferece recarregamento sem exclusão e reparo com backup automático do histórico.
+- Histórico local inválido passa a ser colocado em quarentena antes de qualquer remoção, preservando possibilidade de recuperação.
+- Exportação DOCX passa a respeitar orientação paisagem quando o PDF original de entrada estiver deitado.
+- Avisos de validação passam a ficar agrupados em painel recolhível, com explicações resumidas para leitura leiga.
+
+## [1.8.0] - 2026-06-24
+
+### Adicionado
+
+- Perfil documental estratégico **Extrato bancário**, calibrado para anexos bancários detalhados e consolidados, com preservação de colunas, valores, datas, históricos, totais e estrutura operacional.
+- Regras determinísticas adicionais para titular, CPF/CNPJ, agência, conta, requisição, número de caso e contrapartes em extratos bancários.
+- Detecção da orientação do PDF original para exportar o PDF anonimizado em paisagem quando o documento de entrada estiver deitado.
+
+### Alterado
+
+- Título do navegador alterado para **ANON - ANONIMIZADOR**.
+- Rodapé passa a linkar **Lukas Furtado** ao GitHub do criador e a versão ao repositório do NEXUS ANON.
+- Removido o aviso superior **Produto disponível para consulta** quando a aplicação não está processando.
+- Pacote de instalação passa a ser gerado como versão 1.8.0.
+
 Todas as alterações relevantes do NEXUS ANON devem ser registradas neste arquivo. A partir desta versão, toda atualização funcional, visual ou documental deve incrementar a versão do projeto.
 
 ## [1.7.6] - 2026-06-24

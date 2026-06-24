@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get("/models")
 def models() -> dict[str, object]:
     installed = _list_ollama_models()
-    recommended = ["NEXUS-anon:latest", "qwen3:32b", "gemma4:31b"]
+    recommended = ["qwen3:32b", "NEXUS-anon:latest", "gemma4:31b"]
     merged = []
     for model in recommended + installed:
         if model not in merged:
@@ -57,7 +57,7 @@ def jobs() -> list[dict]:
 async def anonymize(
     file: UploadFile = File(...),
     document_kind: DocumentKind = Form(DocumentKind.auto),
-    model: str = Form("NEXUS-anon:latest"),
+    model: str = Form("qwen3:32b"),
     use_ollama: bool = Form(True),
     request_title: str | None = Form(None),
 ) -> dict:
@@ -90,7 +90,7 @@ async def anonymize_batch(
     request: Request,
     files: list[UploadFile] = File(...),
     document_kind: DocumentKind = Form(DocumentKind.auto),
-    model: str = Form("NEXUS-anon:latest"),
+    model: str = Form("qwen3:32b"),
     use_ollama: bool = Form(True),
     request_title: str | None = Form(None),
 ) -> dict:

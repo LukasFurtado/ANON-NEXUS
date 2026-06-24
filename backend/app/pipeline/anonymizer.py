@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import re
 
 from app.models.schemas import AnonymizationControlRow, Entity
 
@@ -118,6 +119,12 @@ def apply_anonymization(
             )
         applied_by_key[key].count += 1
 
+    for item in sorted(applied_by_key.values(), key=lambda row: row.first_start):
+        output, extra_count = _replace_remaining_occurrences(output, item.original, item.anonymous_id)
+        if extra_count:
+            item.count += extra_count
+            applied += extra_count
+
     control_rows = [
         AnonymizationControlRow(
             original_value=item.original,
@@ -130,3 +137,11 @@ def apply_anonymization(
     ]
 
     return output, applied, control_rows
+
+
+def _replace_remaining_occurrences(text: str, original: str, anonymous_id: str) -> tuple[str, int]:
+    if not original.strip() or original == anonymous_id:
+        return text, 0
+
+    pattern = re.compile(rf"(?<![\w\[\]]){re.escape(original)}(?![\w\[\]])")
+    return pattern.subn(anonymous_id, text)

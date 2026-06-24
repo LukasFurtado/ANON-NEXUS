@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 class DocumentKind(str, Enum):
     auto = "auto"
     rif = "rif"
+    extrato_bancario = "extrato_bancario"
     inquerito = "inquerito"
     relatorio = "relatorio"
     oficio = "oficio"

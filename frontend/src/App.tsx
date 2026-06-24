@@ -88,7 +88,8 @@ type ModelsResponse = {
 
 const API_URL = "http://127.0.0.1:8000";
 const REQUESTS_STORAGE_KEY = "nexus-anon.requests.v1";
-const FALLBACK_MODELS = ["NEXUS-anon:latest", "qwen3:32b", "gemma4:31b"];
+const REQUESTS_RECOVERY_KEY = "nexus-anon.requests.recovery.v1";
+const FALLBACK_MODELS = ["qwen3:32b", "NEXUS-anon:latest", "gemma4:31b"];
 const MAX_FILES = 3;
 
 function fileKey(file: File) {
@@ -97,7 +98,7 @@ function fileKey(file: File) {
 
 export function App() {
   const [files, setFiles] = useState<File[]>([]);
-  const [model, setModel] = useState("NEXUS-anon:latest");
+  const [model, setModel] = useState("qwen3:32b");
   const [documentKind, setDocumentKind] = useState("rif");
   const [requestName, setRequestName] = useState("");
   const [fileHashes, setFileHashes] = useState<Record<string, string>>({});
@@ -144,10 +145,9 @@ export function App() {
   }, []);
 
   const progressLabel = useMemo(() => {
-    if (loading) return "Processando solicitação localmente";
-    if (selectedResult) return "Produto disponível para consulta";
+    if (loading) return "Processando solicita??o localmente";
     return "Aguardando documentos";
-  }, [loading, selectedResult]);
+  }, [loading]);
 
   async function anonymize() {
     if (files.length === 0 || !requestName.trim()) return;
@@ -195,7 +195,7 @@ export function App() {
         form.append("request_title", initialGroup.title);
 
         try {
-          setProcessingStep("Executando extração textual e regras de pré-anonimização.");
+          setProcessingStep("Executando IA local obrigatória, extração textual e regras de apoio.");
           const response = await fetch(`${API_URL}/api/anonymize`, {
             method: "POST",
             body: form,
@@ -207,7 +207,7 @@ export function App() {
             throw new Error(payload.detail || "Falha ao anonimizar.");
           }
           const result = (await response.json()) as Result;
-          setProcessingStep("Registrando produto no histórico de anonimização.");
+          setProcessingStep("Registrando produto no Histórico de anonimização.");
           updateFile(groupId, fileId, { status: "concluído", result });
           setSelectedFileId(fileId);
         } catch (err) {
@@ -281,7 +281,7 @@ export function App() {
       form.append("use_ollama", String(useOllama));
       form.append("request_title", initialGroup.title);
 
-      setProcessingStep("Executando extracao, regex e IA local com consistencia entre arquivos.");
+      setProcessingStep("Executando IA local obrigatória com consistência entre arquivos e regras de apoio.");
       const response = await fetch(`${API_URL}/api/anonymize-batch`, {
         method: "POST",
         body: form,
@@ -518,8 +518,8 @@ export function App() {
         <div className="brand">
           <ShieldCheck size={28} />
           <div>
-            <strong>NEXUS ANON</strong>
-            <span>Anonimização institucional offline</span>
+            <strong>ANON</strong>
+            <span>Anonimização institucional de Arquivos offline</span>
           </div>
         </div>
 
@@ -621,6 +621,7 @@ export function App() {
             Perfil documental estratégico
             <select value={documentKind} onChange={(event) => setDocumentKind(event.target.value)}>
               <option value="rif">RIF / COAF</option>
+              <option value="extrato_bancario">Extrato bancário</option>
               <option value="inquerito">Inquérito policial</option>
               <option value="relatorio">Relatório</option>
               <option value="oficio">Ofício</option>
@@ -663,7 +664,7 @@ export function App() {
             <span className="eyebrow">{activeView === "solicitacoes" ? "Consulta de solicitações" : "Fluxo operacional"}</span>
             <h1>{activeView === "solicitacoes" ? "Histórico de anonimização" : "Anonimização Forense de Documentos"}</h1>
           </div>
-          <div className={`status ${loading ? "active" : ""}`}>{progressLabel}</div>
+          {loading ? <div className="status active">{progressLabel}</div> : null}
         </header>
 
         {error && (
@@ -956,7 +957,7 @@ function ProcessingDialog({
             <span>Identificação do formato</span>
             <span>Extração textual</span>
             <span>Reconhecimento por regex</span>
-            <span>IA local: {model}</span>
+            <span>IA local obrigatória: {model}</span>
             <span>Validação e exportação</span>
           </div>
 
@@ -1112,12 +1113,42 @@ function WorkSummary({
         </p>
       )}
       {result?.stats.validation_warnings.length ? (
-        <div className="summaryWarnings">
-          {result.stats.validation_warnings.map((warning) => (
-            <span key={warning}>{warning}</span>
-          ))}
-        </div>
+        <ValidationWarningsPanel warnings={result.stats.validation_warnings} />
       ) : null}
+    </article>
+  );
+}
+
+function ValidationWarningsPanel({ warnings }: { warnings: string[] }) {
+  const groupedWarnings = groupValidationWarnings(warnings);
+
+  return (
+    <details className="summaryWarnings">
+      <summary>
+        <div>
+          <strong>Avisos de validação automática</strong>
+          <span>
+            {warnings.length} ocorrência(s) reunida(s) em {groupedWarnings.length} tipo(s). Clique para consultar a
+            explicação e revisar os pontos indicados.
+          </span>
+        </div>
+      </summary>
+
+      <div className="validationWarningList">
+        {groupedWarnings.map(({ warning, count }) => (
+          <ValidationWarningCard key={warning} warning={warning} count={count} />
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function ValidationWarningCard({ warning, count }: { warning: string; count: number }) {
+  return (
+    <article className="validationWarningCard">
+      <strong>{warning}</strong>
+      {count > 1 ? <em>Repetido {count} vez(es) nesta solicitação.</em> : null}
+      <span>{explainValidationWarning(warning)}</span>
     </article>
   );
 }
@@ -1147,7 +1178,7 @@ function AuditSeal({ result }: { result: Result }) {
       </section>
       <div className="auditCounters">
         <Metric label="Substituições" value={result.stats.replacements_applied} />
-        <Metric label="Entidades" value={result.stats.entities_found} />
+        <DownloadFormatsInfo formats={exportEntries.map(([format]) => format)} />
       </div>
     </section>
   );
@@ -1180,6 +1211,18 @@ function AuditHash({ label, value }: { label: string; value: string }) {
         <Copy size={13} />
         Copiar
       </button>
+    </div>
+  );
+}
+
+function DownloadFormatsInfo({ formats }: { formats: string[] }) {
+  const normalizedFormats = formats.map((format) => format.toUpperCase());
+
+  return (
+    <div className="downloadFormatsInfo">
+      <span>Arquivos disponíveis para download</span>
+      <strong>{normalizedFormats.length ? normalizedFormats.join(" · ") : "Aguardando geração"}</strong>
+      <small>Os produtos são baixados com conferência prévia de SHA-256.</small>
     </div>
   );
 }
@@ -1250,12 +1293,17 @@ function ExportBar({ result, fileName }: { result?: Result; fileName?: string })
 function InstitutionalFooter() {
   return (
     <footer className="institutionalFooter">
-      <span>© 2026 NEXUS ANON · Uso institucional e interno · Criador: Lukas Furtado - Polícia Civil do Estado de Pernambuco.</span>
-      <strong>Versão 1.7.6</strong>
+      <span>
+        © 2026 NEXUS ANON · Uso institucional e interno · Criador e Desenvolvedor:{" "}
+        <a href="https://github.com/LukasFurtado" target="_blank" rel="noreferrer">Lukas Furtado</a>
+        {" "}- Polícia Civil do Estado de Pernambuco.
+      </span>
+      <strong>
+        <a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noreferrer">Versão 1.8.4</a>
+      </strong>
     </footer>
   );
 }
-
 function formatElapsed(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
@@ -1267,6 +1315,40 @@ function formatRequestError(err: unknown) {
     return "Backend local não respondeu. Reinicie o backend e tente processar novamente.";
   }
   return err instanceof Error ? err.message : "Erro inesperado.";
+}
+
+function explainValidationWarning(warning: string) {
+  const normalized = warning.toLowerCase();
+
+  if (normalized.includes("termos protegidos do perfil")) {
+    return "O sistema percebeu que algum termo que deveria permanecer igual pode ter mudado. Confira principalmente cabeçalhos, colunas, históricos, totais e rótulos do documento.";
+  }
+  if (normalized.includes("ia local nao utilizada") || normalized.includes("ia local não utilizada")) {
+    return "O Ollama ou o modelo selecionado não participou dessa execução. O documento foi processado pelas regras automáticas locais; verifique se o Ollama está aberto e se o modelo escolhido está instalado.";
+  }
+  if (normalized.includes("valores possivelmente alterados")) {
+    return "O sistema encontrou diferença em valores monetários. Confira se quantias, centavos e formatação financeira foram preservados exatamente como no original.";
+  }
+  if (normalized.includes("datas possivelmente alteradas")) {
+    return "O sistema encontrou diferença em datas. Confira se datas de movimentação, emissão, abertura, encerramento ou registro continuam corretas.";
+  }
+  if (normalized.includes("termo juridico") || normalized.includes("termo jurídico")) {
+    return "Uma possível anonimização foi descartada porque atingiria texto jurídico ou expressão legal. Isso evita alterar fundamento, lei, artigo ou jurisprudência.";
+  }
+  if (normalized.includes("termo generico") || normalized.includes("termo genérico")) {
+    return "Uma possível anonimização foi descartada porque parecia ser apenas um nome de campo ou tipo de documento, e não uma informação pessoal.";
+  }
+  if (normalized.includes("termo protegido do perfil")) {
+    return "Uma possível anonimização foi descartada para não apagar estrutura do documento. Em extratos, isso normalmente envolve históricos bancários, nomes de colunas, títulos ou descrições de operação.";
+  }
+
+  return "Aviso automático de conferência. Revise o ponto indicado para confirmar se só os dados sensíveis foram substituídos e se o restante do documento foi preservado.";
+}
+
+function groupValidationWarnings(warnings: string[]) {
+  const grouped = new Map<string, number>();
+  warnings.forEach((warning) => grouped.set(warning, (grouped.get(warning) ?? 0) + 1));
+  return Array.from(grouped.entries()).map(([warning, count]) => ({ warning, count }));
 }
 
 async function readErrorMessage(response: Response) {
@@ -1329,19 +1411,31 @@ function formatModelName(value: string) {
 
 function loadStoredRequests(): RequestGroup[] {
   try {
-    const stored = localStorage.getItem(REQUESTS_STORAGE_KEY);
+    const stored = localStorage.getItem(REQUESTS_STORAGE_KEY) ?? sessionStorage.getItem(REQUESTS_RECOVERY_KEY);
     if (!stored) return [];
     const parsed = JSON.parse(stored) as RequestGroup[];
     if (!Array.isArray(parsed)) {
-      localStorage.removeItem(REQUESTS_STORAGE_KEY);
+      quarantineStoredRequests(stored);
       return [];
     }
 
-    return parsed.filter(isValidRequestGroup);
+    const validRequests = parsed.filter(isValidRequestGroup);
+    if (!localStorage.getItem(REQUESTS_STORAGE_KEY) && validRequests.length) {
+      localStorage.setItem(REQUESTS_STORAGE_KEY, JSON.stringify(validRequests));
+    }
+    return validRequests;
   } catch {
-    localStorage.removeItem(REQUESTS_STORAGE_KEY);
+    const stored = localStorage.getItem(REQUESTS_STORAGE_KEY);
+    if (stored) quarantineStoredRequests(stored);
     return [];
   }
+}
+
+function quarantineStoredRequests(rawValue: string) {
+  const backupKey = `${REQUESTS_STORAGE_KEY}.quarantine.${Date.now()}`;
+  sessionStorage.setItem(REQUESTS_RECOVERY_KEY, rawValue);
+  localStorage.setItem(backupKey, rawValue);
+  localStorage.removeItem(REQUESTS_STORAGE_KEY);
 }
 
 function isValidRequestGroup(value: unknown): value is RequestGroup {

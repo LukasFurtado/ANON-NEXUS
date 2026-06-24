@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot\.."
-$version = "1.7.6"
+$version = "1.8.4"
 $packageRoot = Join-Path $root "dist-installer"
 $stage = Join-Path $packageRoot "NEXUS_ANON_$version"
 $zipPath = Join-Path $packageRoot "NEXUS_ANON_instalador_local_v$version.zip"
