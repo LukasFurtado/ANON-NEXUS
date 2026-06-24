@@ -143,7 +143,6 @@ Esta versão entrega:
 - Detecção por regex para CPF, CNPJ, telefone, e-mail, CEP, placas, IP, MAC, contas, agências, PIX, processos, protocolos e documentos.
 - Encaixe para Ollama local.
 - Validador para preservar datas, valores e termos jurídicos.
-- Comparação lado a lado entre texto original e anonimizado.
 - Exportação em TXT, DOCX e PDF.
 - Histórico básico em SQLite com SHA-256.
 
