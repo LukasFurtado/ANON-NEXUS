@@ -2,6 +2,13 @@
 
 Todas as alterações relevantes do NEXUS ANON devem ser registradas neste arquivo. A partir desta versão, toda atualização funcional, visual ou documental deve incrementar a versão do projeto.
 
+## [1.7.6] - 2026-06-24
+
+### Corrigido
+
+- README revisado e regravado com acentuacao correta em portugues.
+- Corrigidos trechos com mojibake e palavras sem acento na documentacao principal.
+- Pacote de instalacao passa a ser gerado como versao 1.7.6.
 ## [1.7.5] - 2026-06-24
 
 ### Alterado

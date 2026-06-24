@@ -1251,7 +1251,7 @@ function InstitutionalFooter() {
   return (
     <footer className="institutionalFooter">
       <span>© 2026 NEXUS ANON · Uso institucional e interno · Criador: Lukas Furtado - Polícia Civil do Estado de Pernambuco.</span>
-      <strong>Versão 1.7.5</strong>
+      <strong>Versão 1.7.6</strong>
     </footer>
   );
 }

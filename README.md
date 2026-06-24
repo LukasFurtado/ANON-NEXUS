@@ -1,14 +1,14 @@
 # NEXUS ANON
 
-Aplicação desktop profissional, local e offline, para anonimização inteligente de documentos policiais, juridicos e administrativos, com foco inicial em Relatorios de Inteligencia Financeira (RIF/COAF).
+Aplicação desktop profissional, local e offline, para anonimização inteligente de documentos policiais, jurídicos e administrativos, com foco inicial em Relatórios de Inteligência Financeira (RIF/COAF).
 
-## Principios
+## Princípios
 
 - Nenhum documento é enviado para a internet.
 - O processamento roda localmente em Python, FastAPI, SQLite e Ollama.
-- Regex e validacao protegem datas, valores, percentuais, fundamentacao juridica e analise tecnica.
-- A IA local atua como motor auxiliar de reconhecimento de entidades, nao como chatbot.
-- Cada modulo tem responsabilidade unica: parser, OCR, regex, IA, validacao, exportacao e historico.
+- Regex e validação protegem datas, valores, percentuais, fundamentação jurídica e análise técnica.
+- A IA local atua como motor auxiliar de reconhecimento de entidades, não como chatbot.
+- Cada módulo tem responsabilidade única: parser, OCR, regex, IA, validação, exportação e histórico.
 
 ## Estrutura
 
@@ -16,40 +16,41 @@ Aplicação desktop profissional, local e offline, para anonimização inteligen
 backend/
   app/
     api/          Rotas HTTP locais
-    core/         Configuracao
+    core/         Configuração
     models/       Contratos de dados
-    pipeline/     Parser, OCR, regex, IA, validacao e exportacao
+    pipeline/     Parser, OCR, regex, IA, validação e exportação
     services/     SQLite e Ollama
 frontend/
   src/            Interface React + TypeScript
-src-tauri/        Configuracao desktop Tauri
-docs/             Documentacao tecnica
+src-tauri/        Configuração desktop Tauri
+docs/             Documentação técnica
 ```
 
 ## Fluxo
 
 ```text
 Arquivo
--> Identificacao do formato
--> Extracao do texto
--> OCR quando necessario
--> Pre-processamento por regex
+-> Identificação do formato
+-> Extração do texto
+-> OCR quando necessário
+-> Pré-processamento por regex
 -> Reconhecimento por Ollama local
--> Validacao automatica
--> Exportacao em TXT, DOCX e PDF
+-> Validação automática
+-> Exportação em TXT, DOCX e PDF
 ```
 
-## Instalacao assistida
+## Instalação assistida
 
 Para uso por pessoas sem familiaridade com terminal, utilize os arquivos da raiz do projeto:
 
-- `INSTALAR_NEXUS_ANON.bat`: prepara Python, dependencias do backend, dependencias da interface, modelo local do Ollama e cria atalho na Area de Trabalho.
-- `ABRIR_NEXUS_ANON.bat`: liga os servicos locais e abre automaticamente `http://localhost:5173/` no navegador.
-- `INSTALACAO_NEXUS_ANON.html`: guia visual de instalacao e requisitos para operadores nao tecnicos.
-- `GERAR_PACOTE_NEXUS_ANON.bat`: gera um pacote ZIP limpo para distribuicao local.
+- `INSTALAR_NEXUS_ANON.bat`: prepara Python, dependências do backend, dependências da interface, modelo local do Ollama e cria atalho na Área de Trabalho.
+- `ABRIR_NEXUS_ANON.bat`: liga os serviços locais e abre automaticamente `http://localhost:5173/` no navegador.
+- `INSTALACAO_NEXUS_ANON.html`: guia visual de instalação e requisitos para operadores não técnicos.
+- `GERAR_PACOTE_NEXUS_ANON.bat`: gera um pacote ZIP limpo para distribuição local.
 
-O pacote nao inclui o peso do modelo `qwen3:32b`, pois ele e grande e deve ser instalado/baixado pelo Ollama na maquina de destino.
-## Execucao local
+O pacote não inclui o peso do modelo `qwen3:32b`, pois ele é grande e deve ser instalado ou baixado pelo Ollama na máquina de destino.
+
+## Execução local
 
 ### 1. Backend
 
@@ -61,17 +62,17 @@ pip install -r requirements.txt
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-OCR e opcional no MVP. Depois que a aplicacao estiver abrindo, instale OCR separadamente se precisar analisar imagens ou PDFs escaneados:
+OCR é opcional no MVP. Depois que a aplicação estiver abrindo, instale OCR separadamente se precisar analisar imagens ou PDFs escaneados:
 
 ```powershell
 pip install -r requirements-ocr.txt
 ```
 
-Se o Pillow falhar em Python 3.14, use Python 3.11 ou 3.12. O backend principal nao depende do Pillow para abrir.
+Se o Pillow falhar em Python 3.14, use Python 3.11 ou 3.12. O backend principal não depende do Pillow para abrir.
 
 ### 2. Ollama
 
-Instale e execute o Ollama localmente. Depois baixe pelo proprio ambiente local os modelos desejados:
+Instale e execute o Ollama localmente. Depois baixe pelo próprio ambiente local os modelos desejados:
 
 ```powershell
 ollama pull qwen3:32b
@@ -101,11 +102,11 @@ cd frontend
 npm run tauri dev
 ```
 
-## Diagnostico rapido
+## Diagnóstico rápido
 
-Se o navegador abrir em `http://127.0.0.1:8000/` e nao aparecer a interface, isso e esperado: a porta 8000 e somente a API. A tela principal roda em `http://localhost:5173`.
+Se o navegador abrir em `http://127.0.0.1:8000/` e não aparecer a interface, isso é esperado: a porta 8000 é somente a API. A tela principal roda em `http://localhost:5173/`.
 
-Verifique se a API esta ativa:
+Verifique se a API está ativa:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/health
@@ -123,41 +124,41 @@ Se falhar, inicie o backend:
 .\scripts\start-backend.ps1
 ```
 
-Se a interface nao abrir, inicie o frontend em outra janela:
+Se a interface não abrir, inicie o frontend em outra janela:
 
 ```powershell
 .\scripts\start-frontend.ps1
 ```
 
-Se aparecer erro dizendo que `python` ou `npm` nao foi encontrado, instale Python 3.11+ e Node.js 20+ e abra um novo PowerShell.
+Se aparecer erro dizendo que `python` ou `npm` não foi encontrado, instale Python 3.11+ e Node.js 20+ e abra um novo PowerShell.
 
 ## Estado do MVP
 
-Esta versao entrega:
+Esta versão entrega:
 
 - Upload por arrastar e soltar.
 - Escolha de modelo local.
 - Perfil documental RIF/COAF e demais perfis iniciais.
 - API local de anonimização.
-- Detecção por regex para CPF, CNPJ, telefone, e-mail, CEP, placas, IP, MAC, contas, agencias, PIX, processos, protocolos e documentos.
+- Detecção por regex para CPF, CNPJ, telefone, e-mail, CEP, placas, IP, MAC, contas, agências, PIX, processos, protocolos e documentos.
 - Encaixe para Ollama local.
-- Validador para preservar datas, valores e termos juridicos.
-- Comparacao lado a lado entre texto original e anonimizado.
-- Exportacao em TXT, DOCX e PDF.
-- Historico basico em SQLite com SHA-256.
+- Validador para preservar datas, valores e termos jurídicos.
+- Comparação lado a lado entre texto original e anonimizado.
+- Exportação em TXT, DOCX e PDF.
+- Histórico básico em SQLite com SHA-256.
 
 ## Versionamento
 
-Versão atual: **1.7.5**.
+Versão atual: **1.7.6**.
 
-Toda atualizacao funcional, visual ou documental deve incrementar a versao e registrar a mudanca em `CHANGELOG.md`.
+Toda atualização funcional, visual ou documental deve incrementar a versão e registrar a mudança em `CHANGELOG.md`.
 
-## Proximas fases
+## Próximas fases
 
-1. Preservacao visual fiel de PDF/DOCX com mapeamento por coordenadas.
-2. OCR avancado com Tesseract/EasyOCR e fila de processamento.
-3. Relatorio de auditoria detalhado por entidade anonimizada.
+1. Preservação visual fiel de PDF/DOCX com mapeamento por coordenadas.
+2. OCR avançado com Tesseract/EasyOCR e fila de processamento.
+3. Relatório de auditoria detalhado por entidade anonimizada.
 4. Processamento em lote.
 5. Perfis especializados por documento.
-6. Tela de revisao humana com aceite/rejeicao de entidades.
-7. Empacotamento com instalador e verificador de dependencias locais.
+6. Tela de revisão humana com aceite/rejeição de entidades.
+7. Empacotamento com instalador e verificador de dependências locais.
