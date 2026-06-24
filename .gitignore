@@ -4,3 +4,34 @@ frontend/node_modules/
 frontend/dist/
 src-tauri/target/
 *.log
+
+# ==========================
+# Arquivos temporários do ANON
+# ==========================
+
+tmp/
+temp/
+tmp_review/
+tmp_review_latest/
+
+# ==========================
+# Builds e instaladores
+# ==========================
+
+dist/
+dist-installer/
+release/
+
+# ==========================
+# Arquivos temporários
+# ==========================
+
+*.tmp
+*.bak
+
+# ==========================
+# Cache Python
+# ==========================
+
+__pycache__/
+*.pyc
