@@ -1,7 +1,9 @@
 import re
+import unicodedata
 
 from app.models.schemas import DocumentKind, Entity, EntityType
-from app.pipeline.delos_rules import documento_e_delos, should_preserve_entity
+from app.pipeline.delos_rules import should_preserve_entity
+from app.pipeline.identifier_detectors import is_protected_institution, is_valid_cnpj_digits, is_valid_cpf_digits
 from app.pipeline.profile_strategy import profile_output_terms, profile_protected_patterns
 from app.services.knowledge_base import protected_terms_for_profile
 
@@ -24,6 +26,32 @@ PROFILE_ENTITY_TYPES_ALLOWED_WITH_TERMS = {
     EntityType.functional_id,
 }
 
+RIF_PUBLIC_ENTITY_TERMS = (
+    "PREFEITURA",
+    "MUNICIPIO",
+    "MUNICÍPIO",
+    "MINISTERIO",
+    "MINISTÉRIO",
+    "POLICIA",
+    "POLÍCIA",
+    "CAMARA MUNICIPAL",
+    "CÂMARA MUNICIPAL",
+    "FUNDO MUNICIPAL",
+    "COMPANHIA ENERGETICA",
+    "COMPANHIA ENERGÉTICA",
+    "CAIXA ECONOMICA FEDERAL",
+    "CAIXA ECONÔMICA FEDERAL",
+    "RECEITA FEDERAL",
+    "BANCO CENTRAL",
+    "BANCO DO BRASIL",
+    "BRADESCO",
+    "SANTANDER",
+    "ITAU",
+    "CEF",
+    "COAF",
+    "LOTERIAS",
+)
+
 
 def validate_entities(
     text: str,
@@ -34,17 +62,30 @@ def validate_entities(
     preserved_dates = 0
     preserved_values = 0
     warnings: list[str] = []
-    delos_active = document_kind == DocumentKind.extrato_bancario and documento_e_delos(text)
+    warning_counts: dict[str, int] = {}
+    bank_statement_active = document_kind == DocumentKind.extrato_bancario
     knowledge_protected_terms = [item.lower() for item in protected_terms_for_profile(document_kind)]
 
     for entity in entities:
         fragment = text[entity.start : entity.end]
         normalized_fragment = fragment.lower()
-        if delos_active:
+        if bank_statement_active:
             preserve, reason = should_preserve_entity(fragment, _line_context(text, entity.start, entity.end), entity.type)
             if preserve:
-                warnings.append(f"Marcacao preservada no perfil extrato_bancario: {reason}.")
+                _count_warning(warning_counts, f"Marcacao preservada no perfil extrato_bancario: {reason}.")
                 continue
+        if document_kind == DocumentKind.rif and _is_rif_public_entity(fragment):
+            _count_warning(warning_counts, "Marcacao descartada no perfil rif: entidade publica ou instituicao operacional preservada.")
+            continue
+        if entity.type in {EntityType.person, EntityType.organization} and is_protected_institution(fragment):
+            _count_warning(warning_counts, "Marcacao descartada: biblioteca institucional preservou orgao publico, banco ou entidade operacional.")
+            continue
+        if entity.type == EntityType.cpf and not is_valid_cpf_digits(fragment):
+            _count_warning(warning_counts, "Marcacao descartada: CPF com digito verificador invalido ou sequencia generica.")
+            continue
+        if entity.type == EntityType.cnpj and not is_valid_cnpj_digits(fragment):
+            _count_warning(warning_counts, "Marcacao descartada: CNPJ com digito verificador invalido ou sequencia generica.")
+            continue
         if DATE_PATTERN.fullmatch(fragment.strip()):
             preserved_dates += 1
             continue
@@ -52,25 +93,26 @@ def validate_entities(
             preserved_values += 1
             continue
         if LEGAL_PATTERN.search(fragment):
-            warnings.append(f"Marcacao descartada por conter termo juridico: {fragment[:40]}")
+            _count_warning(warning_counts, "Marcacao descartada por conter termo juridico preservado.")
             continue
         if GENERIC_PROTOCOL_PATTERN.fullmatch(fragment.strip()):
-            warnings.append(f"Marcacao descartada por conter termo generico do perfil: {fragment[:40]}")
+            _count_warning(warning_counts, "Marcacao descartada por conter termo generico do perfil.")
             continue
         if (
             entity.type not in PROFILE_ENTITY_TYPES_ALLOWED_WITH_TERMS
             and any(pattern.search(fragment) for pattern in profile_protected_patterns(document_kind))
         ):
-            warnings.append(f"Marcacao descartada por conter termo protegido do perfil {document_kind.value}: {fragment[:40]}")
+            _count_warning(warning_counts, f"Marcacao descartada por conter termo protegido do perfil {document_kind.value}.")
             continue
         if (
             entity.type not in PROFILE_ENTITY_TYPES_ALLOWED_WITH_TERMS
             and any(term and term in normalized_fragment for term in knowledge_protected_terms)
         ):
-            warnings.append(f"Marcacao descartada por conter termo protegido da base operacional {document_kind.value}: {fragment[:40]}")
+            _count_warning(warning_counts, f"Marcacao descartada por conter termo protegido da base operacional {document_kind.value}.")
             continue
         valid.append(entity)
 
+    warnings.extend(_format_warning_counts(warning_counts))
     return valid, preserved_dates, preserved_values, warnings
 
 
@@ -105,3 +147,28 @@ def _line_context(text: str, start: int, end: int) -> str:
     if line_end == -1:
         line_end = len(text)
     return text[line_start:line_end]
+
+
+def _count_warning(counter: dict[str, int], warning: str) -> None:
+    counter[warning] = counter.get(warning, 0) + 1
+
+
+def _format_warning_counts(counter: dict[str, int]) -> list[str]:
+    formatted: list[str] = []
+    for warning, count in counter.items():
+        if count > 1:
+            formatted.append(f"{warning} Ocorrencias consolidadas: {count}.")
+        else:
+            formatted.append(warning)
+    return formatted
+
+
+def _is_rif_public_entity(fragment: str) -> bool:
+    normalized = _normalize_text(fragment)
+    return any(_normalize_text(term) in normalized for term in RIF_PUBLIC_ENTITY_TERMS)
+
+
+def _normalize_text(value: str) -> str:
+    nfkd = unicodedata.normalize("NFKD", value or "")
+    no_accent = "".join(char for char in nfkd if not unicodedata.combining(char))
+    return re.sub(r"\s+", " ", no_accent.upper()).strip()

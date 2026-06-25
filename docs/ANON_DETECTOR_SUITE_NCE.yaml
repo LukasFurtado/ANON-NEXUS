@@ -1,0 +1,100 @@
+schema: ANON-DETECTOR-SUITE-NCE-v1
+purpose: >
+  Especificacao da camada deterministica de detectores do NCE. Esta camada
+  aumenta cobertura antes da IA local, reduz falsos positivos e preserva a
+  estrutura original do documento.
+
+execution_order:
+  - cpf_validado
+  - cnpj_validado
+  - telefone_brasileiro
+  - dados_bancarios_contextuais
+  - nomes_brasileiros_contextuais
+  - biblioteca_institucional_preservacao
+  - ia_local_semantica
+
+detectors:
+  cpf_validado:
+    accepts:
+      - "000.000.000-00"
+      - "00000000000"
+      - "000 000 000 00"
+      - "000-000-000-00"
+      - "0 + 11 digitos"
+    rejects:
+      - sequencias_genericas
+      - digito_verificador_invalido
+    output: CPF
+
+  cnpj_validado:
+    accepts:
+      - "00.000.000/0000-00"
+      - "00000000000000"
+      - "00 000 000 0000 00"
+    rejects:
+      - sequencias_genericas
+      - digito_verificador_invalido
+    output: CNPJ
+
+  telefone_brasileiro:
+    accepts:
+      - celular_com_ddd
+      - fixo_com_ddd
+      - codigo_pais_55_opcional
+    validates:
+      - ddd_brasileiro
+      - primeiro_digito_plausivel
+    output: PHONE
+
+  dados_bancarios_contextuais:
+    accepts:
+      - "Agencia 1234"
+      - "Ag. 1234-5"
+      - "Conta 123456789-0"
+      - "C/C 123456789"
+      - "Banco + agencia + conta na mesma linha"
+    requires:
+      - contexto_bancario_explicito
+    outputs:
+      - BANK_BRANCH
+      - BANK_ACCOUNT
+
+  nomes_brasileiros_contextuais:
+    strategy:
+      - primeiro_nome_em_biblioteca_local
+      - sobrenome_em_biblioteca_local
+      - contexto_policial_ou_financeiro
+    rejects:
+      - orgao_publico
+      - banco
+      - instituicao_operacional
+      - palavra_comum
+    output: PERSON
+
+  biblioteca_institucional_preservacao:
+    strategy:
+      - normalizacao_sem_acento
+      - lista_local_expansivel
+      - preservacao_por_contexto
+    protects:
+      - bancos
+      - orgaos_publicos
+      - instituicoes_financeiras_operacionais
+      - empresas_estatais
+      - entidades_de_justica_e_seguranca
+
+integration_with_llm:
+  role: complementar_lacunas_semanticas
+  forbidden:
+    - reescrever_documento
+    - gerar_csv_docx_pdf
+    - sugerir_anonimizacao_de_instituicao_preservada
+    - ignorar_contrato_json
+  expected_output: "JSON com raiz entities"
+
+source_files_absorbed:
+  - comando-anon-biblioteca-nomes.yaml
+  - comando-anon-detectores-completos.yaml
+  - comando-anon-bibliotecas-institucionais.yaml
+  - GUIA-CODEX-IMPLEMENTACAO-ANON.md
+  - INSTRUCAO-FINAL-CODEX-SUITE-COMPLETA.md

@@ -1,0 +1,31 @@
+NEXUS ANON - DOCUMENTO ANONIMIZADO
+POLICIA CIVIL DO ESTADO DE PERNAMBUCO
+------------------------------------------------------------------------------
+
+RESUMO OPERACIONAL
+Solicitacao: Nao informada
+Arquivo de origem: relatorio.txt
+Perfil documental: rif
+Modelo: qwen3:32b
+Versao do ANON: 1.8.39
+Tempo de processamento: 0.004 s
+OCR: Nao utilizado
+Estrutura: Preservada
+Validacao: Concluída com avisos
+Hash SHA-256 original: A49CBB6DE6E00D0AA7553DCAD1B9F5A20B8A2697997BA0E85C85095EAAEC0E35
+Entidades identificadas: 2
+Substituicoes aplicadas: 2
+Eventos internos de comunicacao: 13
+Ultimo estagio interno: validacao_saida
+Gerado em: 25/06/2026 02:04:53
+Protecao de dados: ativa
+
+------------------------------------------------------------------------------
+PRODUTO FINAL DA ANONIMIZACAO DE DADOS
+O conteudo abaixo corresponde ao resultado desidentificado gerado pelo NEXUS ANON.
+------------------------------------------------------------------------------
+
+[PESSOA_001] CPF [CPF_001] reside na Rua das Flores, 100.
+
+------------------------------------------------------------------------------
+FIM DO PRODUTO FINAL DA ANONIMIZACAO DE DADOS

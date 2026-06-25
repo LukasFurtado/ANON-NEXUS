@@ -1,0 +1,163 @@
+schema: ANON-DELOS-EXTRATO-NCE-v1
+purpose: >
+  Especificacao reutilizavel para orientar o NCE-ANON, a IA local,
+  as regras deterministicas e a validacao de extratos bancarios do Sistema DELOS.
+source_yaml_sections:
+  - document_fingerprint
+  - global_architecture
+  - field_catalog.campos_operacionais
+  - ambiguity_register
+  - validation_specification
+  - classification_specification
+  - extraction_specification
+  - confidence_and_gaps
+
+document_model:
+  family: extrato_bancario_delos
+  typical_file: PDF
+  official_title: Anexo B - Extrato Detalhado
+  source_system: Sistema DELOS
+  preferred_export: PDF fac-simile
+  architecture:
+    - cabecalho_consolidado
+    - secoes_por_conta
+    - sumario_por_conta
+    - tabela_de_movimentacoes
+    - rodape_institucional
+
+column_contract:
+  Data:
+    action: preserve
+    reason: data operacional do lancamento
+  Historico:
+    action: preserve_operation_text
+    reason: natureza da operacao bancaria
+  Doc.:
+    action: preserve
+    reason: numero tecnico da operacao; zero significa ausencia operacional de documento
+  Valor:
+    action: preserve
+    reason: valor financeiro nunca deve ser alterado
+  D/C:
+    action: preserve
+    reason: indicador debito/credito
+  CPF/CNPJ:
+    action: anonymize_when_filled
+    reason: identificador de titular, contraparte, beneficiario ou depositante
+  Nome Benef/Depos:
+    action: anonymize_when_person_or_private_company
+    reason: nome sensivel de contraparte
+  Inst.:
+    action: preserve
+    reason: codigo de instituicao financeira
+  Ag:
+    action: anonymize_when_counterparty_data
+    reason: agencia pode compor identificador bancario de pessoa ou empresa
+  Conta:
+    action: anonymize_when_counterparty_data
+    reason: conta bancaria e identificador sensivel
+  Observacoes:
+    action: partial_anonymization
+    reason: preservar aviso tecnico e anonimizar apenas entidades sensiveis internas
+
+protected_operation_terms:
+  - SAQUE COM CARTAO
+  - SAQUE ATM
+  - APLICACAO
+  - INVESTIMENTO APLICACAO
+  - RESG AUTOM
+  - RESGATE
+  - RETIRADA
+  - DEPOSITO BLOQUEADO 1 DIA UTIL
+  - DESBLOQUEIO DE DEPOSITO
+  - ESTORNO ACERTO-CREDITO
+  - ESTORNO DE DEBITO
+  - PAGAMENTO CONTA AGUA
+  - PAGAMENTO CONTA LUZ
+  - PAGTO CARTAO CREDITO
+  - TRANSFERENCIA ON LINE
+  - TRANSF.CRED.
+  - TRANSF CTA
+  - TED
+  - DOC
+  - JUROS
+  - TARIFA
+
+anonymization_targets:
+  always:
+    - titular_nome
+    - titular_cpf_cnpj
+    - beneficiario_nome
+    - depositante_nome
+    - remetente_nome
+    - contraparte_nome
+    - cpf_cnpj_preenchido
+    - conta_vinculada_a_pessoa
+    - chave_pix_sensivel
+  never:
+    - data_lancamento
+    - valor_lancamento
+    - saldo
+    - indicador_dc
+    - numero_doc_operacional
+    - codigo_inst_banco
+    - historico_bancario
+    - nome_coluna
+    - aviso_tecnico_delos
+
+known_ambiguities:
+  encerramento_9999:
+    interpretation: marcador tecnico de conta ativa
+    action: preserve
+  doc_zero:
+    interpretation: operacao sem numero de documento no sistema
+    action: preserve
+  cpf_branco:
+    interpretation: contraparte nao informada
+    action: do_not_create_entity
+  documento_exige_recuperacao_manual:
+    interpretation: aviso de dado incompleto
+    action: preserve_notice_and_anonymize_only_internal_entities
+  saque_alto_sem_identificacao:
+    interpretation: ponto de revisao humana e auditoria
+    action: preserve_value_and_operation_text
+
+llm_instruction_pack:
+  role: detector_semantico_de_entidades
+  forbidden:
+    - reescrever_lancamento
+    - interpretar_risco_no_documento_anonimizado
+    - alterar_valor
+    - alterar_data
+    - alterar_historico
+    - marcar_doc_ou_inst_como_entidade
+    - produzir_pdf_docx_csv_txt
+  required_response: JSON estrito com raiz entities
+  priority_rules:
+    - Marcar nomes e CPF/CNPJ preenchidos de titular e contraparte.
+    - Preservar termos operacionais mesmo quando parecam nomes.
+    - Preferir offsets literais quando o texto extraido estiver quebrado.
+    - Retornar entities vazio quando nao houver entidade aproveitavel.
+
+validation_pack:
+  checks:
+    - datas_preservadas
+    - valores_preservados
+    - dc_preservado
+    - doc_preservado
+    - inst_preservado
+    - historico_preservado
+    - layout_pdf_preservado
+    - contrapartes_preenchidas_anonimizadas
+  warning_policy:
+    - Gerar aviso externo quando houver resposta JSON recusada.
+    - Gerar aviso externo quando termos protegidos parecerem alterados.
+    - Nunca inserir avisos dentro do produto final anonimizado.
+
+implementation_mapping:
+  profile_json: backend/resources/profiles/extrato_bancario.json
+  operational_knowledge: backend/resources/knowledge/anon_operational_knowledge.json
+  prompt_builder: backend/app/core/profile_loader.py
+  compact_guidance: backend/app/services/knowledge_base.py
+  deterministic_rules: backend/app/pipeline/delos_rules.py
+  validator: backend/app/pipeline/validator.py

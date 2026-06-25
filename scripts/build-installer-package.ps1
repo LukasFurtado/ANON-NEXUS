@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot\.."
-$version = "1.8.34"
+$version = "1.8.39"
 $packageRoot = Join-Path $root "dist-installer"
 $stage = Join-Path $packageRoot "NEXUS_ANON_$version"
 $zipPath = Join-Path $packageRoot "NEXUS_ANON_instalador_local_v$version.zip"
@@ -14,11 +14,15 @@ New-Item -ItemType Directory -Force -Path $stage | Out-Null
 
 $excludeDirs = @(
     ".git",
+    "NEXUS-ANON",
+    "data",
     "backend\.venv",
     "backend\data",
     "frontend\node_modules",
     "dist-installer",
-    "logs"
+    "logs",
+    "tmp_review",
+    "tmp_review_latest"
 )
 
 $excludeNames = @(

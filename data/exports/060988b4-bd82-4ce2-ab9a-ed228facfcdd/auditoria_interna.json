@@ -1,0 +1,122 @@
+{
+  "schema": "ANON-AUDITORIA-INTERNA-v1",
+  "created_at": "2026-06-25T02:06:24",
+  "request_title": "Corpus controlado extrato bancario",
+  "original_filename": "extrato_controlado.txt",
+  "document_kind": "extrato_bancario",
+  "model": "qwen3:32b",
+  "anon_version": "1.8.39",
+  "source_sha256": "B0875E8E0F8299AA97E3F4A3D20F0A9076ECC2BA89FAF96C094AE43D247075D9",
+  "processing": {
+    "time_seconds": 0.006,
+    "ocr_used": false,
+    "structure_preserved": true,
+    "validation_status": "Concluída com avisos"
+  },
+  "counts": {
+    "entities_found": 4,
+    "replacements_applied": 4,
+    "validation_warnings": 1,
+    "control_rows": 4
+  },
+  "ollama_json": {
+    "chunks_processed": 0,
+    "json_rejected_chunks": 0,
+    "correction_attempts": 0,
+    "correction_successes": 0,
+    "json_rejection_reasons": [],
+    "failure_reason": null
+  },
+  "communication_summary": {
+    "events": 12,
+    "levels": {
+      "info": 10,
+      "warning": 2
+    },
+    "cells": {
+      "ANON": 2,
+      "NCE": 1,
+      "Parser": 1,
+      "OCR": 1,
+      "Regex": 1,
+      "IA local": 2,
+      "Validador": 3,
+      "Anonimizador": 1
+    },
+    "last_stage": "validacao_saida"
+  },
+  "nce_context": {
+    "nce_group_id": "7656aec9-c0c4-4f41-9ef7-b0438f1306ef",
+    "request_title": "Corpus controlado extrato bancario",
+    "document_kind": "extrato_bancario",
+    "model": "qwen3:32b",
+    "created_at": "2026-06-25T02:06:23",
+    "files": [
+      {
+        "filename": "extrato_controlado.txt",
+        "subtype": "extrato_bancario",
+        "role_label": "Extrato bancario"
+      }
+    ],
+    "dictionary_size": 4,
+    "counters": {
+      "PESSOA": 2,
+      "CPF": 2
+    }
+  },
+  "nce_file_context": {
+    "subtype": "extrato_bancario",
+    "role_label": "Extrato bancario"
+  },
+  "product_policy": {
+    "external_products": [
+      "csv",
+      "docx",
+      "pdf",
+      "txt"
+    ],
+    "internal_restricted_products": [
+      "auditoria",
+      "avisos",
+      "controle"
+    ],
+    "note": "Produtos externos sao destinados a uso apos revisao humana. Arquivos internos restritos servem para auditoria, conferencia, avisos e cadeia de custodia."
+  },
+  "products": [
+    {
+      "format": "avisos",
+      "sha256": "FCAAE492A8073597513E3E95881E7C2590797D1A4D56D05A830049EA3C10021B",
+      "usage_classification": "interno_restrito_avisos_de_validacao",
+      "contains_original_values": false,
+      "external_sharing_allowed": false
+    },
+    {
+      "format": "controle",
+      "sha256": "35590C65A0412114D923E223AB7627246233F1D507E2D8AC406D142859BDA445",
+      "usage_classification": "interno_restrito_tabela_de_correspondencia",
+      "contains_original_values": true,
+      "external_sharing_allowed": false
+    },
+    {
+      "format": "docx",
+      "sha256": "1531FE2F5462C945BDB4E967A541882610437B40F4928FDA5492C303F1CEA271",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "pdf",
+      "sha256": "6246FE237AD1554F7F20DC4EBDA5666570D3A67E9DA3A86C09296C3D98BDD536",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "txt",
+      "sha256": "549A5DB21DC1B1992FDF2DDD4F950B804342E4B6305583D97E7B6ED8CF89E87F",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    }
+  ]
+}

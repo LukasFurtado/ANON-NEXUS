@@ -1,0 +1,67 @@
+{
+  "document_id": "E8453AB414D2D6D580555D2CEB11005091FFE55AB45D4F8DAB613C0F7A9905EA",
+  "profile": "rif",
+  "total_entities_detected": 4,
+  "entities_by_type": {
+    "CPF": 2,
+    "PERSON": 2
+  },
+  "substitution_method_used": {
+    "pseudonimizacao": 4,
+    "mascaramento": 0
+  },
+  "fields_preserved": [
+    "indexador",
+    "idComunicacao",
+    "idOcorrencia",
+    "NumeroOcorrenciaBC",
+    "CodigoSegmento",
+    "data_referencia",
+    "data_operacao",
+    "valor_operacao",
+    "valor_total",
+    "percentuais",
+    "tipologia_coaf",
+    "tipoEnvolvido",
+    "bitPepCitado",
+    "bitPessoaObrigadaCitado",
+    "intServidorCitado",
+    "cpfCnpjComunicante",
+    "nomeComunicante",
+    "CidadeAgencia",
+    "UFAgencia",
+    "NomeAgencia",
+    "NumeroAgencia",
+    "CampoA",
+    "CampoB",
+    "CampoC",
+    "CampoD",
+    "CampoE",
+    "instituicao_publica",
+    "instituicao_financeira_operacional",
+    "orgao_publico",
+    "municipio",
+    "fundamento_tecnico"
+  ],
+  "warnings_raised": [],
+  "processing_duration_ms": 163,
+  "integrity_hash_output": "A67A0336F8AA8697773F30EF41287C8ECA6069C033EAD950C65A9388B504E4A7",
+  "pipeline_stages_ok": [
+    "parser",
+    "regex",
+    "ner",
+    "validation",
+    "substitution",
+    "export"
+  ],
+  "quality_status": "REVISAR",
+  "quality_score": 85,
+  "quality_reasons": [
+    "Volume de entidades detectadas abaixo do esperado para o perfil."
+  ],
+  "confidence_score": 92,
+  "confidence_level": "ALTA",
+  "confidence_reasons": [
+    "Ha 2 aviso(s) de validacao."
+  ]
+}

@@ -1,0 +1,842 @@
+{
+  "schema": "ANON-AUDITORIA-INTERNA-v1",
+  "created_at": "2026-06-25T02:36:33",
+  "request_title": "Corpus controlado RIF",
+  "original_filename": "RIF138538_Comunicacoes.csv",
+  "document_kind": "rif",
+  "model": "qwen3:32b",
+  "anon_version": "1.8.39",
+  "source_sha256": "9E59F1B46A58BD5A3C0C88D8EE6833074EB25C5CD9A4532FA34DF35711701856",
+  "processing": {
+    "time_seconds": 0.004,
+    "ocr_used": false,
+    "structure_preserved": true,
+    "validation_status": "Concluída com avisos"
+  },
+  "counts": {
+    "entities_found": 4,
+    "replacements_applied": 4,
+    "validation_warnings": 3,
+    "control_rows": 4
+  },
+  "ollama_json": {
+    "chunks_processed": 0,
+    "json_rejected_chunks": 0,
+    "correction_attempts": 0,
+    "correction_successes": 0,
+    "json_rejection_reasons": [],
+    "failure_reason": null,
+    "preserved_items": 0
+  },
+  "post_validation": {
+    "warnings": [
+      "Possiveis identificadores remanescentes apos anonimizacao: ORGANIZATION=1."
+    ],
+    "score": 88,
+    "residual_entities": 1,
+    "residual_by_type": {
+      "ORGANIZATION": 1
+    },
+    "structure_warnings": 0,
+    "anonymous_markers": 4
+  },
+  "confidence": {
+    "score": 78,
+    "level": "MEDIA",
+    "reasons": [
+      "Ha 3 aviso(s) de validacao.",
+      "Pos-validacao indicou 1 possivel(is) identificador(es) remanescente(s)."
+    ]
+  },
+  "human_review": {
+    "mode": "enabled",
+    "status": "pending_operator_review",
+    "items": [
+      {
+        "id": "entity-1",
+        "category": "entidade",
+        "label": "Pessoa -> [PESSOA_001]",
+        "status": "pendente",
+        "recommendation": "Conferir se a substituicao corresponde ao dado sensivel correto.",
+        "severity": "baixa",
+        "metadata": {
+          "occurrences": 1,
+          "anonymous_id": "[PESSOA_001]"
+        }
+      },
+      {
+        "id": "entity-2",
+        "category": "entidade",
+        "label": "CPF -> [CPF_001]",
+        "status": "pendente",
+        "recommendation": "Conferir se a substituicao corresponde ao dado sensivel correto.",
+        "severity": "baixa",
+        "metadata": {
+          "occurrences": 1,
+          "anonymous_id": "[CPF_001]"
+        }
+      },
+      {
+        "id": "entity-3",
+        "category": "entidade",
+        "label": "Pessoa -> [PESSOA_002]",
+        "status": "pendente",
+        "recommendation": "Conferir se a substituicao corresponde ao dado sensivel correto.",
+        "severity": "baixa",
+        "metadata": {
+          "occurrences": 1,
+          "anonymous_id": "[PESSOA_002]"
+        }
+      },
+      {
+        "id": "entity-4",
+        "category": "entidade",
+        "label": "CPF -> [CPF_002]",
+        "status": "pendente",
+        "recommendation": "Conferir se a substituicao corresponde ao dado sensivel correto.",
+        "severity": "baixa",
+        "metadata": {
+          "occurrences": 1,
+          "anonymous_id": "[CPF_002]"
+        }
+      },
+      {
+        "id": "warning-1",
+        "category": "aviso",
+        "label": "IA local executada, mas nao retornou entidades aproveitaveis em JSON. As regras locais de apoio foram usadas para manter a anonimizacao au... [resumo]",
+        "status": "pendente",
+        "recommendation": "Revisar o ponto antes de uso externo do produto.",
+        "severity": "media",
+        "metadata": {}
+      },
+      {
+        "id": "warning-2",
+        "category": "aviso",
+        "label": "Marcacao descartada no perfil rif: entidade publica ou instituicao operacional preservada.",
+        "status": "pendente",
+        "recommendation": "Revisar o ponto antes de uso externo do produto.",
+        "severity": "media",
+        "metadata": {}
+      },
+      {
+        "id": "warning-3",
+        "category": "aviso",
+        "label": "Possiveis identificadores remanescentes apos anonimizacao: ORGANIZATION=1.",
+        "status": "pendente",
+        "recommendation": "Revisar o ponto antes de uso externo do produto.",
+        "severity": "alta",
+        "metadata": {}
+      },
+      {
+        "id": "post-validation-residuals",
+        "category": "pos_validacao",
+        "label": "Possiveis identificadores remanescentes detectados.",
+        "status": "pendente",
+        "recommendation": "Executar conferencia humana e, se necessario, anonimizar manualmente os pontos remanescentes.",
+        "severity": "alta",
+        "metadata": {
+          "residual_by_type": {
+            "ORGANIZATION": 1
+          }
+        }
+      },
+      {
+        "id": "confidence-review",
+        "category": "confiabilidade",
+        "label": "Confiabilidade MEDIA (78/100)",
+        "status": "pendente",
+        "recommendation": "Revisao humana obrigatoria antes de uso institucional externo.",
+        "severity": "media",
+        "metadata": {}
+      }
+    ]
+  },
+  "communication_summary": {
+    "events": 12,
+    "levels": {
+      "info": 9,
+      "warning": 3
+    },
+    "cells": {
+      "ANON": 2,
+      "NCE": 1,
+      "Parser": 1,
+      "OCR": 1,
+      "Regex": 1,
+      "IA local": 2,
+      "Validador": 3,
+      "Anonimizador": 1
+    },
+    "last_stage": "validacao_saida"
+  },
+  "nce_context": {
+    "nce_group_id": "376d9b92-7d02-4a17-b865-82003350e8ea",
+    "request_title": "Corpus controlado RIF",
+    "document_kind": "rif",
+    "model": "qwen3:32b",
+    "created_at": "2026-06-25T02:36:32",
+    "files": [
+      {
+        "filename": "RIF138538_Envolvidos.csv",
+        "document_kind": "rif",
+        "subtype": "rif_envolvidos",
+        "role_label": "RIF Envolvidos",
+        "source_sha256": "614318C8CB24882A9CBD75F7EB27A314A910ACFAF9CD324EBA01D99B86A6926F",
+        "extension": ".csv",
+        "text_length": 143,
+        "expected_sensitive_domains": [
+          "CPF/CNPJ",
+          "nome",
+          "agencia",
+          "conta"
+        ],
+        "coordination_log": [
+          {
+            "stage": "context",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "Arquivo classificado pelo NCE e vinculado ao grupo de consistencia.",
+            "data": {
+              "dictionary_size": 0
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "parser",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "Texto extraido recebido pelo NCE para coordenacao das etapas seguintes.",
+            "data": {
+              "extension": ".csv",
+              "size_bytes": 145,
+              "text_characters": 143,
+              "text_lines": 2,
+              "likely_delimiter": ";",
+              "has_tabular_text": true,
+              "ocr_recommended": false
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "ocr",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE avaliou necessidade de OCR local.",
+            "data": {},
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "ocr",
+            "status": "skipped",
+            "decision": "continue",
+            "summary": "OCR dispensado pelo texto extraido.",
+            "data": {},
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "regex",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE encaminhou texto para regras deterministicas do perfil documental.",
+            "data": {
+              "expected_sensitive_domains": [
+                "CPF/CNPJ",
+                "nome",
+                "agencia",
+                "conta"
+              ]
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "regex",
+            "status": "completed",
+            "decision": "continue",
+            "summary": "Regras locais retornaram candidatos para avaliacao.",
+            "data": {
+              "candidates": 4
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "ia_local",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE encaminhou o documento para avaliacao semantica da IA local.",
+            "data": {
+              "model": "qwen3:32b"
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "ia_local",
+            "status": "completed",
+            "decision": "continue",
+            "summary": "Resposta da IA local foi registrada pelo NCE.",
+            "data": {
+              "entities": 0,
+              "json_rejected_chunks": 0,
+              "correction_attempts": 0
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "validation",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE reuniu candidatos locais e semanticos para validacao por perfil.",
+            "data": {
+              "regex_candidates": 4,
+              "ia_candidates": 0
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "validation",
+            "status": "completed",
+            "decision": "continue",
+            "summary": "Validador retornou entidades aprovadas e preservacoes.",
+            "data": {
+              "valid_entities": 4,
+              "preserved_dates": 0,
+              "preserved_values": 0,
+              "warnings": 0
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "substitution",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE forneceu dicionario compartilhado para consistencia de substituicoes.",
+            "data": {
+              "dictionary_size": 0
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "substitution",
+            "status": "completed",
+            "decision": "continue",
+            "summary": "Substituicoes aplicadas e dicionario de consistencia atualizado.",
+            "data": {
+              "replacements": 4,
+              "control_rows": 4,
+              "dictionary_size": 4
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "output_validation",
+            "status": "warning",
+            "decision": "continue",
+            "summary": "NCE registrou validacao de saida anonimizada.",
+            "data": {
+              "warnings": 2,
+              "post_validation_score": 100,
+              "residual_entities": 0,
+              "anonymous_markers": 4,
+              "structure_warnings": 0,
+              "confidence_score": 92,
+              "review_items": 6
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "export",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE autorizou geracao de produtos exportaveis e internos.",
+            "data": {
+              "validation_status": "Concluída com avisos"
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "export",
+            "status": "completed",
+            "decision": "continue",
+            "summary": "Produtos exportaveis tiveram hash calculado e foram registrados pelo NCE.",
+            "data": {
+              "formats": [
+                "txt",
+                "docx",
+                "pdf",
+                "csv",
+                "avisos",
+                "controle"
+              ],
+              "exports": 6
+            },
+            "created_at": "2026-06-25T02:36:32"
+          }
+        ]
+      },
+      {
+        "filename": "RIF138538_Comunicacoes.csv",
+        "document_kind": "rif",
+        "subtype": "rif_comunicacoes",
+        "role_label": "RIF Comunicacoes",
+        "source_sha256": "9E59F1B46A58BD5A3C0C88D8EE6833074EB25C5CD9A4532FA34DF35711701856",
+        "extension": ".csv",
+        "text_length": 310,
+        "expected_sensitive_domains": [
+          "narrativa",
+          "pessoa",
+          "CPF/CNPJ",
+          "PIX",
+          "conta",
+          "contraparte"
+        ],
+        "coordination_log": [
+          {
+            "stage": "context",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "Arquivo classificado pelo NCE e vinculado ao grupo de consistencia.",
+            "data": {
+              "dictionary_size": 4
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "parser",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "Texto extraido recebido pelo NCE para coordenacao das etapas seguintes.",
+            "data": {
+              "extension": ".csv",
+              "size_bytes": 312,
+              "text_characters": 310,
+              "text_lines": 2,
+              "likely_delimiter": ";",
+              "has_tabular_text": true,
+              "ocr_recommended": false
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "ocr",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE avaliou necessidade de OCR local.",
+            "data": {},
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "ocr",
+            "status": "skipped",
+            "decision": "continue",
+            "summary": "OCR dispensado pelo texto extraido.",
+            "data": {},
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "regex",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE encaminhou texto para regras deterministicas do perfil documental.",
+            "data": {
+              "expected_sensitive_domains": [
+                "narrativa",
+                "pessoa",
+                "CPF/CNPJ",
+                "PIX",
+                "conta",
+                "contraparte"
+              ]
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "regex",
+            "status": "completed",
+            "decision": "continue",
+            "summary": "Regras locais retornaram candidatos para avaliacao.",
+            "data": {
+              "candidates": 5
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "ia_local",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE encaminhou o documento para avaliacao semantica da IA local.",
+            "data": {
+              "model": "qwen3:32b"
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "ia_local",
+            "status": "completed",
+            "decision": "continue",
+            "summary": "Resposta da IA local foi registrada pelo NCE.",
+            "data": {
+              "entities": 0,
+              "json_rejected_chunks": 0,
+              "correction_attempts": 0
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "validation",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE reuniu candidatos locais e semanticos para validacao por perfil.",
+            "data": {
+              "regex_candidates": 5,
+              "ia_candidates": 0
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "validation",
+            "status": "warning",
+            "decision": "continue",
+            "summary": "Validador retornou entidades aprovadas e preservacoes.",
+            "data": {
+              "valid_entities": 4,
+              "preserved_dates": 0,
+              "preserved_values": 0,
+              "warnings": 1
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "substitution",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE forneceu dicionario compartilhado para consistencia de substituicoes.",
+            "data": {
+              "dictionary_size": 4
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "substitution",
+            "status": "completed",
+            "decision": "continue",
+            "summary": "Substituicoes aplicadas e dicionario de consistencia atualizado.",
+            "data": {
+              "replacements": 4,
+              "control_rows": 4,
+              "dictionary_size": 6
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "output_validation",
+            "status": "warning",
+            "decision": "continue",
+            "summary": "NCE registrou validacao de saida anonimizada.",
+            "data": {
+              "warnings": 3,
+              "post_validation_score": 88,
+              "residual_entities": 1,
+              "anonymous_markers": 4,
+              "structure_warnings": 0,
+              "confidence_score": 78,
+              "review_items": 9
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "export",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE autorizou geracao de produtos exportaveis e internos.",
+            "data": {
+              "validation_status": "Concluída com avisos"
+            },
+            "created_at": "2026-06-25T02:36:32"
+          },
+          {
+            "stage": "export",
+            "status": "completed",
+            "decision": "continue",
+            "summary": "Produtos exportaveis tiveram hash calculado e foram registrados pelo NCE.",
+            "data": {
+              "formats": [
+                "txt",
+                "docx",
+                "pdf",
+                "csv",
+                "avisos",
+                "controle"
+              ],
+              "exports": 6
+            },
+            "created_at": "2026-06-25T02:36:33"
+          }
+        ]
+      }
+    ],
+    "dictionary_size": 6,
+    "counters": {
+      "CPF": 2,
+      "PESSOA": 2,
+      "AGENCIA": 1,
+      "CONTA": 1
+    }
+  },
+  "nce_file_context": {
+    "filename": "RIF138538_Comunicacoes.csv",
+    "document_kind": "rif",
+    "subtype": "rif_comunicacoes",
+    "role_label": "RIF Comunicacoes",
+    "source_sha256": "9E59F1B46A58BD5A3C0C88D8EE6833074EB25C5CD9A4532FA34DF35711701856",
+    "extension": ".csv",
+    "text_length": 310,
+    "expected_sensitive_domains": [
+      "narrativa",
+      "pessoa",
+      "CPF/CNPJ",
+      "PIX",
+      "conta",
+      "contraparte"
+    ],
+    "coordination_log": [
+      {
+        "stage": "context",
+        "status": "authorized",
+        "decision": "continue",
+        "summary": "Arquivo classificado pelo NCE e vinculado ao grupo de consistencia.",
+        "data": {
+          "dictionary_size": 4
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "parser",
+        "status": "authorized",
+        "decision": "continue",
+        "summary": "Texto extraido recebido pelo NCE para coordenacao das etapas seguintes.",
+        "data": {
+          "extension": ".csv",
+          "size_bytes": 312,
+          "text_characters": 310,
+          "text_lines": 2,
+          "likely_delimiter": ";",
+          "has_tabular_text": true,
+          "ocr_recommended": false
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "ocr",
+        "status": "authorized",
+        "decision": "continue",
+        "summary": "NCE avaliou necessidade de OCR local.",
+        "data": {},
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "ocr",
+        "status": "skipped",
+        "decision": "continue",
+        "summary": "OCR dispensado pelo texto extraido.",
+        "data": {},
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "regex",
+        "status": "authorized",
+        "decision": "continue",
+        "summary": "NCE encaminhou texto para regras deterministicas do perfil documental.",
+        "data": {
+          "expected_sensitive_domains": [
+            "narrativa",
+            "pessoa",
+            "CPF/CNPJ",
+            "PIX",
+            "conta",
+            "contraparte"
+          ]
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "regex",
+        "status": "completed",
+        "decision": "continue",
+        "summary": "Regras locais retornaram candidatos para avaliacao.",
+        "data": {
+          "candidates": 5
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "ia_local",
+        "status": "authorized",
+        "decision": "continue",
+        "summary": "NCE encaminhou o documento para avaliacao semantica da IA local.",
+        "data": {
+          "model": "qwen3:32b"
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "ia_local",
+        "status": "completed",
+        "decision": "continue",
+        "summary": "Resposta da IA local foi registrada pelo NCE.",
+        "data": {
+          "entities": 0,
+          "json_rejected_chunks": 0,
+          "correction_attempts": 0
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "validation",
+        "status": "authorized",
+        "decision": "continue",
+        "summary": "NCE reuniu candidatos locais e semanticos para validacao por perfil.",
+        "data": {
+          "regex_candidates": 5,
+          "ia_candidates": 0
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "validation",
+        "status": "warning",
+        "decision": "continue",
+        "summary": "Validador retornou entidades aprovadas e preservacoes.",
+        "data": {
+          "valid_entities": 4,
+          "preserved_dates": 0,
+          "preserved_values": 0,
+          "warnings": 1
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "substitution",
+        "status": "authorized",
+        "decision": "continue",
+        "summary": "NCE forneceu dicionario compartilhado para consistencia de substituicoes.",
+        "data": {
+          "dictionary_size": 4
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "substitution",
+        "status": "completed",
+        "decision": "continue",
+        "summary": "Substituicoes aplicadas e dicionario de consistencia atualizado.",
+        "data": {
+          "replacements": 4,
+          "control_rows": 4,
+          "dictionary_size": 6
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "output_validation",
+        "status": "warning",
+        "decision": "continue",
+        "summary": "NCE registrou validacao de saida anonimizada.",
+        "data": {
+          "warnings": 3,
+          "post_validation_score": 88,
+          "residual_entities": 1,
+          "anonymous_markers": 4,
+          "structure_warnings": 0,
+          "confidence_score": 78,
+          "review_items": 9
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "export",
+        "status": "authorized",
+        "decision": "continue",
+        "summary": "NCE autorizou geracao de produtos exportaveis e internos.",
+        "data": {
+          "validation_status": "Concluída com avisos"
+        },
+        "created_at": "2026-06-25T02:36:32"
+      },
+      {
+        "stage": "export",
+        "status": "completed",
+        "decision": "continue",
+        "summary": "Produtos exportaveis tiveram hash calculado e foram registrados pelo NCE.",
+        "data": {
+          "formats": [
+            "txt",
+            "docx",
+            "pdf",
+            "csv",
+            "avisos",
+            "controle"
+          ],
+          "exports": 6
+        },
+        "created_at": "2026-06-25T02:36:33"
+      }
+    ]
+  },
+  "product_policy": {
+    "external_products": [
+      "csv",
+      "docx",
+      "pdf",
+      "txt"
+    ],
+    "internal_restricted_products": [
+      "auditoria",
+      "avisos",
+      "controle"
+    ],
+    "note": "Produtos externos sao destinados a uso apos revisao humana. Arquivos internos restritos servem para auditoria, conferencia, avisos e cadeia de custodia."
+  },
+  "products": [
+    {
+      "format": "avisos",
+      "sha256": "AAFB2AE16C34AD69851B78746D60ABD24C19B1D1B688E2B66D955EF83F78DFFC",
+      "usage_classification": "interno_restrito_avisos_de_validacao",
+      "contains_original_values": false,
+      "external_sharing_allowed": false
+    },
+    {
+      "format": "controle",
+      "sha256": "D85E1533404496A3E93159A9B4AE00DFC2BC74B61E08AA04BB2BAE653009199C",
+      "usage_classification": "interno_restrito_tabela_de_correspondencia",
+      "contains_original_values": true,
+      "external_sharing_allowed": false
+    },
+    {
+      "format": "csv",
+      "sha256": "CCA67163A309514F1101D52B438090B7A0FB6F271F8EBD0852C627EC54B5C2AD",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "docx",
+      "sha256": "DB51F3DBAF76DEC9BED25F688DD5983DC43E8D8AA389611DECB45215ACCA0936",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "pdf",
+      "sha256": "C40DD6888F1A9C7506CFACC7D2F9A271D6E4561E8B9F2954AB0F9079D6EFCFD1",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "txt",
+      "sha256": "CE5B02D77AF33EA7E6EBDEC25C97EAF673ED740E3A0BAE606BA3DC1138386676",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    }
+  ]
+}

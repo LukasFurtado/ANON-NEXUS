@@ -259,7 +259,7 @@
         <div class="badge">2</div>
         <div>
           <h3>Execute o instalador do NEXUS ANON</h3>
-          <p>Dê dois cliques em <span class="file">INSTALAR_NEXUS_ANON.bat</span>. Esse arquivo prepara o backend, a interface, as dependências e tenta criar o modelo especializado <strong>NEXUS-anon:latest</strong> a partir do <strong><a href="https://ollama.com/library/qwen3:32b" target="_blank" rel="noopener noreferrer">qwen3:32b</a></strong>.</p>
+          <p>Dê dois cliques em <span class="file">INSTALAR_NEXUS_ANON.bat</span>. Esse arquivo prepara o backend, a interface, as dependências e confere o modelo local padrão <strong><a href="https://ollama.com/library/qwen3:32b" target="_blank" rel="noopener noreferrer">qwen3:32b</a></strong>, usado diretamente pelo ANON.</p>
         </div>
       </div>
       <div class="step">
@@ -296,7 +296,7 @@
             </tr>
             <tr>
               <td><a href="https://ollama.com/library/qwen3:32b" target="_blank" rel="noopener noreferrer">qwen3:32b</a></td>
-              <td>Modelo base usado para criar o modelo especializado <strong>NEXUS-anon:latest</strong>.</td>
+              <td>Modelo local padrão usado diretamente pelo ANON. A especialização fica nos prompts, perfis, regras e validadores internos.</td>
             </tr>
             <tr>
               <td><a href="https://github.com/UB-Mannheim/tesseract/wiki" target="_blank" rel="noopener noreferrer">Tesseract OCR</a></td>
@@ -314,6 +314,8 @@
         <h2>Arquivos principais do instalador</h2>
         <ul>
           <li><span class="file">INSTALAR_NEXUS_ANON.bat</span>: prepara o computador para rodar o sistema.</li>
+          <li><span class="file">install.py</span>: assistente alternativo em Python para instalar dependências do backend e da interface.</li>
+          <li><span class="file">install_check.py</span>: verifica rapidamente Python, Node.js, npm, Ollama, estrutura do ANON e modelos locais.</li>
           <li><span class="file">ABRIR_NEXUS_ANON.bat</span>: liga o backend, tenta iniciar o Ollama, liga a interface e abre o navegador.</li>
           <li><span class="file">NEXUS_ANON.url</span>: link local direto para a interface, útil quando os serviços já estão ligados.</li>
           <li><span class="file">GERAR_PACOTE_NEXUS_ANON.bat</span>: cria um pacote ZIP limpo para transporte ou entrega institucional.</li>
@@ -353,7 +355,7 @@
       <article class="card">
         <h2>Problemas comuns</h2>
         <ul>
-          <li>Se abrir <strong>http://127.0.0.1:8000/</strong> e aparecer ââ‚¬Å“Not Foundââ‚¬, isso é normal: essa porta é da API. A tela correta é <strong>http://localhost:5173/</strong>.</li>
+          <li>Se abrir <strong>http://127.0.0.1:8000/</strong> e aparecer <strong>"Not Found"</strong>, isso ? normal: essa porta ? da API. A tela correta ? <strong>http://localhost:5173/</strong>.</li>
           <li>Se o botão abrir e nada acontecer, execute novamente <span class="file">ABRIR_NEXUS_ANON.bat</span> e aguarde alguns segundos.</li>
           <li>Se o Ollama não for encontrado ou não estiver em execução, instale o <a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">Ollama</a>, abra o Ollama manualmente e tente novamente. A interface pode abrir sem ele, mas a anonimização será bloqueada.</li>
           <li>Se o modelo for lento, use máquina mais potente ou reduza o tamanho/lote dos documentos processados.</li>
@@ -369,16 +371,15 @@
         <li>Instala as dependências da interface React.</li>
         <li>Verifica se o Ollama está disponível e tenta iniciar o serviço local quando possível.</li>
         <li>Verifica se o <strong><a href="https://ollama.com/library/qwen3:32b" target="_blank" rel="noopener noreferrer">qwen3:32b</a></strong> está instalado e oferece baixar quando estiver ausente.</li>
-        <li>Cria ou atualiza o modelo especializado <strong>NEXUS-anon:latest</strong>.</li>
+        <li>Padroniza o uso do <strong><a href="https://ollama.com/library/qwen3:32b" target="_blank" rel="noopener noreferrer">qwen3:32b</a></strong>, sem criar modelo derivado.</li>
         <li>Cria um atalho na Área de Trabalho para abrir o sistema sem digitar comandos.</li>
       </ul>
     </section>
 
     <footer>
       <span>© 2026 NEXUS ANON · Uso institucional e interno · Criador e Desenvolvedor: <a href="https://github.com/LukasFurtado" target="_blank" rel="noopener noreferrer">Lukas Furtado</a> - Polícia Civil do Estado de Pernambuco.</span>
-      <strong><a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noopener noreferrer">Versão 1.8.34</a></strong>
+      <strong><a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noopener noreferrer">Versão 1.8.39</a></strong>
     </footer>
   </main>
 </body>
 </html>
-

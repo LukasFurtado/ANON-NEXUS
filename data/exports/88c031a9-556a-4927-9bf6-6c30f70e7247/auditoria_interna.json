@@ -1,0 +1,134 @@
+{
+  "schema": "ANON-AUDITORIA-INTERNA-v1",
+  "created_at": "2026-06-25T02:04:41",
+  "request_title": "Corpus controlado RIF",
+  "original_filename": "RIF138538_Ocorrencias.csv",
+  "document_kind": "rif",
+  "model": "qwen3:32b",
+  "anon_version": "1.8.39",
+  "source_sha256": "316CD6CB686A07764FED819353CBADC348A66734CCED582C9D224B9A0AD6C24C",
+  "processing": {
+    "time_seconds": 0.003,
+    "ocr_used": false,
+    "structure_preserved": true,
+    "validation_status": "Concluída com avisos"
+  },
+  "counts": {
+    "entities_found": 0,
+    "replacements_applied": 0,
+    "validation_warnings": 1,
+    "control_rows": 0
+  },
+  "ollama_json": {
+    "chunks_processed": 0,
+    "json_rejected_chunks": 0,
+    "correction_attempts": 0,
+    "correction_successes": 0,
+    "json_rejection_reasons": [],
+    "failure_reason": null
+  },
+  "communication_summary": {
+    "events": 12,
+    "levels": {
+      "info": 10,
+      "warning": 2
+    },
+    "cells": {
+      "ANON": 2,
+      "NCE": 1,
+      "Parser": 1,
+      "OCR": 1,
+      "Regex": 1,
+      "IA local": 2,
+      "Validador": 3,
+      "Anonimizador": 1
+    },
+    "last_stage": "validacao_saida"
+  },
+  "nce_context": {
+    "nce_group_id": "1cbf37b8-9dd6-49f5-a721-a44268c4843e",
+    "request_title": "Corpus controlado RIF",
+    "document_kind": "rif",
+    "model": "qwen3:32b",
+    "created_at": "2026-06-25T02:04:40",
+    "files": [
+      {
+        "filename": "RIF138538_Envolvidos.csv",
+        "subtype": "rif_envolvidos",
+        "role_label": "RIF Envolvidos"
+      },
+      {
+        "filename": "RIF138538_Comunicacoes.csv",
+        "subtype": "rif_comunicacoes",
+        "role_label": "RIF Comunicacoes"
+      },
+      {
+        "filename": "RIF138538_Ocorrencias.csv",
+        "subtype": "rif_ocorrencias",
+        "role_label": "RIF Ocorrencias"
+      }
+    ],
+    "dictionary_size": 6,
+    "counters": {
+      "CPF": 2,
+      "PESSOA": 2,
+      "AGENCIA": 1,
+      "CONTA": 1
+    }
+  },
+  "nce_file_context": {
+    "subtype": "rif_ocorrencias",
+    "role_label": "RIF Ocorrencias"
+  },
+  "product_policy": {
+    "external_products": [
+      "csv",
+      "docx",
+      "pdf",
+      "txt"
+    ],
+    "internal_restricted_products": [
+      "auditoria",
+      "avisos",
+      "controle"
+    ],
+    "note": "Produtos externos sao destinados a uso apos revisao humana. Arquivos internos restritos servem para auditoria, conferencia, avisos e cadeia de custodia."
+  },
+  "products": [
+    {
+      "format": "avisos",
+      "sha256": "B794FC7D440C9F0D3105F023C222F001E6836307175185BE7F41DD2320773B0E",
+      "usage_classification": "interno_restrito_avisos_de_validacao",
+      "contains_original_values": false,
+      "external_sharing_allowed": false
+    },
+    {
+      "format": "csv",
+      "sha256": "63062B1F023D81DF38958A2665844DE1902349A06D79AD4BE8FF47C823138FE1",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "docx",
+      "sha256": "B400D6D0784365BC1BE0191E842A91FBB826EFF9716015306732F6B43E77692F",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "pdf",
+      "sha256": "281B69B63A9316359CA8E2DEF4D40B9A8CDE6BD7ACB0BC6345285A1C59D08E78",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "txt",
+      "sha256": "FFC376BDA8BC82E4BA39A5D524EE74DF64B1462B3BFFC530EC1CC8167405F064",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    }
+  ]
+}

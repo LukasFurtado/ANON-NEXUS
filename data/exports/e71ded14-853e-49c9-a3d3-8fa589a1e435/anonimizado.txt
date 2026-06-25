@@ -1,0 +1,32 @@
+NEXUS ANON - DOCUMENTO ANONIMIZADO
+POLICIA CIVIL DO ESTADO DE PERNAMBUCO
+------------------------------------------------------------------------------
+
+RESUMO OPERACIONAL
+Solicitacao: Corpus controlado RIF
+Arquivo de origem: RIF138538_Envolvidos.csv
+Perfil documental: rif
+Modelo: qwen3:32b
+Versao do ANON: 1.8.39
+Tempo de processamento: 0.004 s
+OCR: Nao utilizado
+Estrutura: Preservada
+Validacao: Concluída com avisos
+Hash SHA-256 original: 614318C8CB24882A9CBD75F7EB27A314A910ACFAF9CD324EBA01D99B86A6926F
+Entidades identificadas: 4
+Substituicoes aplicadas: 4
+Eventos internos de comunicacao: 12
+Ultimo estagio interno: validacao_saida
+Gerado em: 25/06/2026 02:29:51
+Protecao de dados: ativa
+
+------------------------------------------------------------------------------
+PRODUTO FINAL DA ANONIMIZACAO DE DADOS
+O conteudo abaixo corresponde ao resultado desidentificado gerado pelo NEXUS ANON.
+------------------------------------------------------------------------------
+
+Indexador;cpfCnpjEnvolvido;nomeEnvolvido;tipoEnvolvido;agenciaEnvolvido;contaEnvolvido
+1;[CPF_001];[PESSOA_001];Titular;[AGENCIA_001];[CONTA_001]
+
+------------------------------------------------------------------------------
+FIM DO PRODUTO FINAL DA ANONIMIZACAO DE DADOS

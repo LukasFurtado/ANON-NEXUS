@@ -1,47 +1,37 @@
-# Modelo Ollama NEXUS ANON
+# Ollama e modelo local do ANON
 
-O arquivo `backend/resources/ollama/AnonRIF2.modelfile` define o modelo local especializado:
+## Padrão atual
 
-```text
-FROM qwen3:32b
-```
-
-O modelo criado pelo script se chama:
-
-```text
-NEXUS-anon:latest
-```
-
-## Finalidade correta
-
-O modelo nao gera documentos anonimizados.
-Ele atua apenas como detector contextual de entidades sensiveis.
-
-A resposta esperada e sempre JSON valido, no formato:
-
-```json
-[
-  {"type": "PERSON", "text": "Joao da Silva", "start": 10, "end": 23}
-]
-```
-
-As substituicoes, os identificadores anonimos, a preservacao estrutural, os hashes, a validacao e as exportacoes sao responsabilidade do backend.
-
-## Criar ou recriar o modelo local
-
-Com o Ollama instalado e `qwen3:32b` ja baixado:
+O ANON usa `qwen3:32b` como modelo local padrão.
 
 ```powershell
-.\scripts\create-anonrif2-model.ps1
+ollama pull qwen3:32b
 ```
 
-## Arquitetura preservada
+A especialização institucional não depende mais de um modelo derivado chamado `NEXUS-anon:latest`. As regras especializadas são aplicadas dentro do próprio ANON por:
 
-```text
-Parser -> CSV estruturado/Regex -> IA local apenas quando necessario -> Validacao -> Substituicao pelo backend -> Exportacao
-```
+- prompt obrigatório enviado ao Ollama;
+- perfis documentais JSON;
+- regras determinísticas por perfil;
+- validador de preservação documental;
+- corretor de resposta JSON;
+- classificador de qualidade;
+- resumo seguro e arquivo complementar de avisos.
 
-## Pensamento desligado
+## Sobre o Modelfile arquivado
 
-O backend envia `/no_think` e `think: false` ao Ollama.
-O Modelfile tambem proibe pensamento visivel, tags `<think>`, explicacoes e qualquer texto fora do JSON.
+O arquivo `backend/resources/ollama/AnonRIF2.modelfile` permanece no repositório como referência técnica do comportamento desejado: pensamento visível desligado, resposta em JSON, offsets exatos e foco exclusivo em entidades sensíveis.
+
+Ele não deve ser usado para recriar `NEXUS-anon:latest` no fluxo padrão. Criar outro modelo derivado aumenta risco de incompatibilidade entre máquinas.
+
+## Comunicação IA e JSON
+
+O ANON avalia cada resposta do modelo local e registra métricas objetivas:
+
+- blocos de texto enviados à IA;
+- blocos recusados por JSON não aproveitável;
+- tentativas de correção solicitadas ao próprio modelo;
+- correções aproveitadas;
+- entidades aceitas depois da validação.
+
+Essas métricas são incluídas nos metadados do processamento e no arquivo complementar de avisos, sem expor conteúdo sensível do documento.

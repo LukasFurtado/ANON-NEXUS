@@ -1,0 +1,68 @@
+schema: ANON-JSON-CONTRACT-INSTITUTIONS-v1
+purpose: >
+  Formalizar a Prioridade 2 (contrato JSON da IA) e a Prioridade 3
+  (biblioteca real de instituicoes) dentro do NCE.
+
+json_contract:
+  root: entities
+  required_entity_fields:
+    - type
+    - text
+  recommended_entity_fields:
+    - start
+    - end
+    - action
+    - reason
+    - confidence
+    - field
+    - source_hint
+  accepted_actions:
+    anonymize: entidade deve ser substituida pelo ANON
+    preserve: entidade reconhecida, mas preservada por regra institucional
+    review: entidade candidata que exige validacao local antes da substituicao
+  parser_policy:
+    - aceitar aliases em portugues para type, text, action, start e end
+    - ignorar action=preserve na lista de substituicoes
+    - manter compatibilidade com respostas antigas que trazem apenas type e text
+    - usar segunda chamada local de correcao quando a estrutura vier fora do contrato
+
+institutional_retention_library:
+  resource: backend/resources/knowledge/institutional_retention_library.json
+  active_use:
+    - validador
+    - detectores deterministicos
+    - prompt operacional do NCE
+  preserve:
+    - bancos e autoridades financeiras
+    - orgaos de seguranca publica
+    - justica e ministerio publico
+    - controle e fiscalizacao
+    - administracao publica
+    - estatais e servicos publicos
+    - organismos internacionais
+  never_preserve_by_this_rule:
+    - pessoa fisica
+    - CPF
+    - CNPJ privado sensivel
+    - telefone
+    - e-mail
+    - chave PIX
+    - conta bancaria
+    - agencia bancaria
+    - endereco completo
+    - CEP
+
+geographic_library_absorption:
+  source: comando-anon-bibliotecas-geograficas.yaml
+  current_policy: >
+    A base geografica foi absorvida como conhecimento contextual inicial.
+    Nesta etapa, cidades, estados e paises nao bloqueiam a anonimizacao de
+    endereco completo, porque isso poderia gerar falso negativo grave.
+  future_use:
+    - diferenciar municipio isolado de endereco residencial completo
+    - reduzir falso positivo em nomes de pessoas parecidos com localidades
+    - apoiar perfis RIF e extrato bancario em classificacao regional
+
+tests:
+  - tests/test_identifier_detectors.py
+  - tests/test_ollama_json_contract.py

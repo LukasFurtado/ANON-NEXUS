@@ -7,8 +7,11 @@ PROFILE_PROMPTS: dict[DocumentKind, str] = {
     DocumentKind.rif: """
 Perfil documental ativo: RIF / COAF.
 Trate RIF como produto de inteligencia financeira, inclusive exportacoes tabulares do Siscoaf e conjuntos relacionados de Comunicacoes, Envolvidos e Ocorrencias.
-Priorize contrapartes financeiras, pessoas comunicadas, comunicantes, envolvidos, empresas, CPF, CNPJ, contas, agencias, chaves PIX, instituicoes financeiras, boletos, cartoes, protocolos operacionais, idComunicacao, idOcorrencia, NumeroOcorrenciaBC e enderecos.
-Preserve integralmente valores monetarios, datas, percentuais, quantidades, indicadores de atipicidade, classificacoes operacionais, tipoEnvolvido, bitPepCitado, bitPessoaObrigadaCitado, intServidorCitado, CodigoSegmento, natureza da operacao financeira e termos como PIX, TED, DOC, saque, deposito, transferencia, credito, debito, fracionamento e analise financeira.
+Reconheca os modelos RIF[numeros]_Envolvidos.csv, RIF[numeros]_Ocorrencias.csv e RIF[numeros]_Comunicacoes.csv. O campo Indexador e a chave relacional entre arquivos e deve ser preservado.
+Em Envolvidos, anonimizar cpfCnpjEnvolvido, nomeEnvolvido, agenciaEnvolvido e contaEnvolvido quando preenchidos. Preservar tipoEnvolvido, DataAberturaConta, DataAtualizacaoConta, bitPepCitado, bitPessoaObrigadaCitado e intServidorCitado.
+Em Ocorrencias, preservar idOcorrencia e Ocorrencia, pois descrevem classificacoes, tipologias ou codigos operacionais. So sinalize entidade sensivel se houver dado pessoal acidental dentro do texto livre.
+Em Comunicacoes, preservar idComunicacao, NumeroOcorrenciaBC, datas, cpfCnpjComunicante, nomeComunicante, CidadeAgencia, UFAgencia, NomeAgencia, NumeroAgencia, CampoA, CampoB, CampoC, CampoD, CampoE e CodigoSegmento. No campo informacoesAdicionais, anonimizar apenas pessoas, empresas privadas sensiveis, CPF/CNPJ de contraparte, contas, agencias, PIX, enderecos, telefones e emails.
+Preserve integralmente valores monetarios, datas, percentuais, quantidades, indicadores de atipicidade, classificacoes operacionais, CodigoSegmento, natureza da operacao financeira e termos como PIX, TED, DOC, saque, deposito, transferencia, credito, debito, fracionamento e analise financeira.
 Se o documento for CSV ou tabela, preserve nomes de colunas, delimitadores, ordem das colunas, quantidade de linhas, quebras de linha e campos vazios; nao converta CSV em Markdown, nao alinhe colunas e nao troque ponto e virgula por virgula.
 Nao substitua a expressao tecnica da operacao; anonimize apenas a pessoa, empresa, conta, chave ou identificador vinculado.
 """,
@@ -18,6 +21,8 @@ Trate o documento como extrato bancario judicial, policial ou administrativo, de
 Priorize titular da conta, investigado, beneficiario, depositante, remetente, contraparte, CPF/CNPJ de titular ou contraparte e chaves bancarias do titular.
 Preserve integralmente datas, valores em R$, percentuais, saldos, debitos, creditos, quantidade de movimentacoes, natureza da operacao, historico bancario, indicadores D/C, codigos de banco, nomes de instituicoes financeiras, nomes de colunas, numero de pagina e avisos institucionais do extrato.
 Em extratos DELOS, preserve SEMPRE a coluna Doc., os identificadores Requisicao e Numero de Caso, a coluna Inst., codigos ISPB/COMPE e termos operacionais como COMPRA COM CARTAO, JUROS, DEPOSITO ONLINE, PAGAMENTO CONTA, PAGTO CARTAO CREDITO, SAQUE, TARIFA, TED, DOC, TRANSFERENCIA e similares.
+Use a engenharia reversa DELOS: Data, Historico, Doc., Valor, D/C, Inst., Ag, Conta e Observacoes sao colunas com semantica propria. A coluna Doc. pode conter 0 ou numeros de operacao; isso deve ser preservado. A coluna CPF/CNPJ e Nome Benef/Depos sao sensiveis quando identificam titular, beneficiario, depositante, remetente ou contraparte.
+Flags como DOCUMENTO EXIGE RECUPERACAO MANUAL, PESQUISA CONCLUIDA, PORTADORES DE NUMERARIOS INFERIORES A DEZ MIL REAIS NAO SAO IDENTIFICADOS, encerramento 31/12/9999 e Doc. 0 sao informacoes tecnicas do extrato e nao devem ser anonimizadas.
 Anonimize o titular extraido do cabecalho em todas as ocorrencias posteriores, inclusive em Nome Benef/Depos, Observacoes, padrao "POR [NOME]" e variacoes eleitorais ou abreviadas.
 A IA deve identificar somente entidades sensiveis. Nao reescreva lancamentos, nao interprete movimentacoes, nao resuma, nao altere ordem de linhas, nao altere valores e nao altere a classificacao credito/debito.
 """,
@@ -39,10 +44,9 @@ PROFILE_REGEX_PATTERNS: dict[DocumentKind, list[tuple[EntityType, re.Pattern[str
         (EntityType.bank_account, re.compile(r"\b(?:CONTA\s+(?:CORRENTE|POUPANCA)?|C/C|CC)\s*(?:N[O.]*)?\s*[:\-]?\s*\d{3,14}(?:-\d)?\b", re.I)),
         (EntityType.pix, re.compile(r"\b(?:CHAVE\s+PIX|PIX)\s*(?:CPF|CNPJ|E-?MAIL|TELEFONE|ALEATORIA|EVP)?\s*[:\-]\s*[\w.@+\-/]{5,}\b", re.I)),
         (EntityType.boleto, re.compile(r"\b(?:\d{5}\.?\d{5}\s?){3,5}\d{1,14}\b")),
-        (EntityType.protocol, re.compile(r"\b(?:idComunicacao|idOcorrencia|NumeroOcorrenciaBC)\s*[:\-]\s*[\w./-]{3,}\b", re.I)),
         (EntityType.cpf, re.compile(r"\bcpfCnpj(?:Comunicante|Envolvido)\s*[:\-]\s*\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b", re.I)),
         (EntityType.cnpj, re.compile(r"\bcpfCnpj(?:Comunicante|Envolvido)\s*[:\-]\s*\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b", re.I)),
-        (EntityType.bank_branch, re.compile(r"\b(?:agenciaEnvolvido|NumeroAgencia|NomeAgencia)\s*[:\-]\s*[\w ./'-]{2,60}\b", re.I)),
+        (EntityType.bank_branch, re.compile(r"\bagenciaEnvolvido\s*[:\-]\s*[\w ./'-]{2,60}\b", re.I)),
         (EntityType.bank_account, re.compile(r"\bcontaEnvolvido\s*[:\-]\s*[\w./-]{3,30}\b", re.I)),
     ],
     DocumentKind.extrato_bancario: [
@@ -67,12 +71,16 @@ PROFILE_REGEX_PATTERNS: dict[DocumentKind, list[tuple[EntityType, re.Pattern[str
 PROFILE_PROTECTED_PATTERNS: dict[DocumentKind, list[re.Pattern[str]]] = {
     DocumentKind.rif: [
         re.compile(r"\b(?:PIX|TED|DOC|SAQUE|DEPOSITO|TRANSFERENCIA|CREDITO|DEBITO|FRACIONAMENTO)\b", re.I),
+        re.compile(r"\b(?:Indexador|idComunicacao|idOcorrencia|NumeroOcorrenciaBC|CodigoSegmento|CampoA|CampoB|CampoC|CampoD|CampoE)\b", re.I),
+        re.compile(r"\b(?:cpfCnpjComunicante|nomeComunicante|CidadeAgencia|UFAgencia|NomeAgencia|NumeroAgencia)\b", re.I),
     ],
     DocumentKind.extrato_bancario: [
         re.compile(r"\b(?:ANEXO\s+[BC]|EXTRATO|DETALHADO|CONSOLIDADO|AGENCIA|CONTA|TIPO\s+CONTA|INSTITUICAO)\b", re.I),
         re.compile(r"\b(?:DEBITOS?|CREDITOS?|ABERTURA|ENCERRAMENTO|INICIO\s+MOV|FIM\s+MOV|IDENTIFICADOS?)\b", re.I),
         re.compile(r"\b(?:VALOR\s*\(R\$\)|HISTORICO|OBSERVACOES|QTD\.?\s+MOV|TOTAL|PAGINA|D/C)\b", re.I),
         re.compile(r"\b(?:BANCO|BCO|CAIXA\s+ECONOMICA|SICOOB|S\.A\.|CONTA\s+CORRENTE|CONTA\s+POUPANCA)\b", re.I),
+        re.compile(r"\b(?:DOCUMENTO EXIGE RECUPERACAO MANUAL|PESQUISA CONCLUIDA|PORTADORES DE NUMERARIOS INFERIORES A DEZ MIL REAIS NAO SAO IDENTIFICADOS)\b", re.I),
+        re.compile(r"\b(?:31/12/9999|9999-12-31|DOC\.\s*0)\b", re.I),
     ],
     DocumentKind.relatorio_investigativo: [
         re.compile(r"\b(?:IP|BO|B\.O\.|SEI|PROC\.?|PROCESSO|PORTARIA|OFICIO|RELATORIO|RI)\s*(?:N[ºO.]*)?\s*[:\-]?\s*[\w./-]{2,}\b", re.I),
@@ -121,4 +129,3 @@ def profile_protected_patterns(document_kind: DocumentKind) -> list[re.Pattern[s
 
 def profile_output_terms(document_kind: DocumentKind) -> list[re.Pattern[str]]:
     return PROFILE_OUTPUT_TERMS.get(document_kind, [])
-

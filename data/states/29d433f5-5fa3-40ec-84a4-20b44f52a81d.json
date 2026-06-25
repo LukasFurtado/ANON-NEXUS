@@ -1,0 +1,45 @@
+{
+  "pipeline_id": "29d433f5-5fa3-40ec-84a4-20b44f52a81d",
+  "started_at": "2026-06-25T05:23:06.190790+00:00",
+  "finished_at": "2026-06-25T05:23:06.347400+00:00",
+  "stages": [
+    {
+      "name": "parser",
+      "status": "ok",
+      "duration_ms": 0,
+      "note": "210 caracteres extraidos"
+    },
+    {
+      "name": "regex",
+      "status": "ok",
+      "duration_ms": 0,
+      "note": "5 candidatos"
+    },
+    {
+      "name": "ner",
+      "status": "ok",
+      "duration_ms": 0,
+      "note": "0 entidades"
+    },
+    {
+      "name": "validation",
+      "status": "ok",
+      "duration_ms": 0,
+      "note": "sem avisos"
+    },
+    {
+      "name": "substitution",
+      "status": "ok",
+      "duration_ms": 0,
+      "note": "5 substituicoes"
+    },
+    {
+      "name": "export",
+      "status": "ok",
+      "duration_ms": 150,
+      "note": "6 produto(s)"
+    }
+  ],
+  "overall_status": "ok",
+  "total_duration_ms": 155
+}

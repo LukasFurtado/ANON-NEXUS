@@ -11,12 +11,15 @@ from fastapi.responses import FileResponse
 from app.core.config import settings
 from app.core.pipeline_state import load_pipeline_state
 from app.core.safe_summary import load_safe_summary
-from app.models.schemas import AnonymizeOptions, DocumentKind
+from app.models.schemas import AnonymizeOptions, DocumentKind, ManualReanalysisRequest
+from app.pipeline.manual_reanalysis import run_manual_reanalysis
 from app.pipeline.runner import run_batch_pipeline, run_pipeline
+from app.pipeline.sync_package import parse_sync_package, write_sync_package
 from app.services.database import list_jobs
 from app.services.diagnostic_chat import answer_diagnostic_question
 from app.services.error_logger import ensure_error_log, log_error
 from app.services.integrity_guard import IntegrityViolation, require_integrity, verify_integrity
+from app.services.system_metrics import collect_system_metrics
 
 router = APIRouter()
 
@@ -24,7 +27,7 @@ router = APIRouter()
 @router.get("/models")
 def models() -> dict[str, object]:
     installed = _list_ollama_models()
-    recommended = ["qwen3:32b", "NEXUS-anon:latest", "gemma4:31b"]
+    recommended = ["qwen3:32b"]
     merged = []
     for model in recommended + installed:
         if model not in merged:
@@ -38,6 +41,11 @@ def models() -> dict[str, object]:
     }
 
 
+@router.get("/system-metrics")
+def system_metrics() -> dict[str, object]:
+    return collect_system_metrics()
+
+
 def _list_ollama_models() -> list[str]:
     request = urllib.request.Request(f"{settings.ollama_url}/api/tags", method="GET")
     try:
@@ -49,6 +57,8 @@ def _list_ollama_models() -> list[str]:
     names: list[str] = []
     for item in payload.get("models", []):
         name = item.get("name") or item.get("model")
+        if isinstance(name, str) and name.lower() == "nexus-anon:latest":
+            continue
         if isinstance(name, str) and name not in names:
             names.append(name)
     return names
@@ -99,12 +109,14 @@ async def diagnostics_chat(payload: dict) -> dict[str, str]:
 async def anonymize(
     request: Request,
     file: UploadFile = File(...),
+    sync_package: UploadFile | None = File(None),
     document_kind: DocumentKind = Form(...),
     model: str = Form("qwen3:32b"),
     use_ollama: bool = Form(True),
     request_title: str | None = Form(None),
 ) -> dict:
     _enforce_integrity()
+    sync_entries = _read_sync_entries(sync_package)
     suffix = Path(file.filename or "documento.txt").suffix
     with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(await file.read())
@@ -119,6 +131,7 @@ async def anonymize(
                 model=model,
                 use_ollama=use_ollama,
                 request_title=request_title,
+                sync_entries=sync_entries,
             ),
         )
     except ValueError as exc:
@@ -157,12 +170,14 @@ async def anonymize(
 async def anonymize_batch(
     request: Request,
     files: list[UploadFile] = File(...),
+    sync_package: UploadFile | None = File(None),
     document_kind: DocumentKind = Form(...),
     model: str = Form("qwen3:32b"),
     use_ollama: bool = Form(True),
     request_title: str | None = Form(None),
 ) -> dict:
     _enforce_integrity()
+    sync_entries = _read_sync_entries(sync_package)
     if not files:
         message = "Nenhum arquivo enviado."
         log_error(
@@ -205,6 +220,7 @@ async def anonymize_batch(
                 model=model,
                 use_ollama=use_ollama,
                 request_title=request_title,
+                sync_entries=sync_entries,
             ),
             client_host=request.client.host if request.client else None,
         )
@@ -244,13 +260,25 @@ async def anonymize_batch(
 @router.get("/exports/{job_id}/{format_name}")
 def export(job_id: str, format_name: str) -> FileResponse:
     _enforce_integrity()
-    filename = "avisos.pdf" if format_name == "avisos" else f"anonimizado.{format_name}"
+    special_files = {
+        "avisos": "avisos.pdf",
+        "controle": "controle_interno.pdf",
+        "auditoria": "auditoria_interna.json",
+        "reanalise_log": "log_reanalise_dirigida.txt",
+    }
+    filename = special_files.get(format_name, f"anonimizado.{format_name}")
     export_path = Path("data") / "exports" / job_id / filename
     if not export_path.exists():
         message = "Arquivo exportado nao encontrado."
         log_error(message, stage="download_produto", extra={"job_id": job_id, "formato": format_name})
         raise HTTPException(status_code=404, detail=message)
-    return FileResponse(export_path)
+    download_name = {
+        "avisos": "avisos.pdf",
+        "controle": "controle_interno_anon.pdf",
+        "auditoria": "auditoria_interna_anon.json",
+        "reanalise_log": "log_reanalise_dirigida.txt",
+    }.get(format_name, filename)
+    return FileResponse(export_path, filename=download_name)
 
 
 @router.get("/exports/groups/{group_id}/log")
@@ -262,6 +290,43 @@ def export_group_log(group_id: str) -> FileResponse:
         log_error(message, stage="download_log_processamento", extra={"group_id": group_id})
         raise HTTPException(status_code=404, detail=message)
     return FileResponse(export_path, filename="log_processamento_nexus_anon.pdf")
+
+
+@router.get("/jobs/{job_id}/sync-package")
+def sync_package(job_id: str) -> FileResponse:
+    _enforce_integrity()
+    try:
+        export_path = write_sync_package(job_id)
+    except ValueError as exc:
+        log_error(str(exc), stage="pacote_sincronizacao", extra={"job_id": job_id})
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return FileResponse(export_path, filename="pacote_sincronizacao_anon.json", media_type="application/json")
+
+
+@router.post("/jobs/{job_id}/manual-reanalysis")
+def manual_reanalysis(job_id: str, payload: ManualReanalysisRequest) -> dict:
+    _enforce_integrity()
+    try:
+        result = run_manual_reanalysis(job_id, payload.corrections, payload.note)
+    except ValueError as exc:
+        log_error(str(exc), stage="reanalise_dirigida", extra={"job_id": job_id})
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        log_error(f"Falha na reanalise dirigida: {exc}", stage="reanalise_dirigida", exception=exc, extra={"job_id": job_id})
+        raise HTTPException(status_code=500, detail=f"Falha na reanalise dirigida: {exc}") from exc
+    return result.model_dump()
+
+
+def _read_sync_entries(sync_package: UploadFile | None):
+    if not sync_package:
+        return []
+    content = sync_package.file.read()
+    if not content:
+        return []
+    try:
+        return parse_sync_package(content, sync_package.filename)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Pacote de sincronizacao invalido: {exc}") from exc
 
 
 def _diagnostic_context(request: Request, selected_model: str, files: list[tuple[Path, str]]) -> dict[str, object]:

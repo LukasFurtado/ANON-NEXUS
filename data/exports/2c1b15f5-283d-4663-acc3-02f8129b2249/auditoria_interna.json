@@ -1,0 +1,131 @@
+{
+  "schema": "ANON-AUDITORIA-INTERNA-v1",
+  "created_at": "2026-06-25T02:04:14",
+  "request_title": "Corpus controlado RIF",
+  "original_filename": "RIF138538_Envolvidos.csv",
+  "document_kind": "rif",
+  "model": "qwen3:32b",
+  "anon_version": "1.8.39",
+  "source_sha256": "614318C8CB24882A9CBD75F7EB27A314A910ACFAF9CD324EBA01D99B86A6926F",
+  "processing": {
+    "time_seconds": 0.008,
+    "ocr_used": false,
+    "structure_preserved": true,
+    "validation_status": "Concluída com avisos"
+  },
+  "counts": {
+    "entities_found": 4,
+    "replacements_applied": 4,
+    "validation_warnings": 2,
+    "control_rows": 4
+  },
+  "ollama_json": {
+    "chunks_processed": 0,
+    "json_rejected_chunks": 0,
+    "correction_attempts": 0,
+    "correction_successes": 0,
+    "json_rejection_reasons": [],
+    "failure_reason": null
+  },
+  "communication_summary": {
+    "events": 12,
+    "levels": {
+      "info": 10,
+      "warning": 2
+    },
+    "cells": {
+      "ANON": 2,
+      "NCE": 1,
+      "Parser": 1,
+      "OCR": 1,
+      "Regex": 1,
+      "IA local": 2,
+      "Validador": 3,
+      "Anonimizador": 1
+    },
+    "last_stage": "validacao_saida"
+  },
+  "nce_context": {
+    "nce_group_id": "2fc7a583-2980-49d5-82a5-7c292ca0943f",
+    "request_title": "Corpus controlado RIF",
+    "document_kind": "rif",
+    "model": "qwen3:32b",
+    "created_at": "2026-06-25T02:04:14",
+    "files": [
+      {
+        "filename": "RIF138538_Envolvidos.csv",
+        "subtype": "rif_envolvidos",
+        "role_label": "RIF Envolvidos"
+      }
+    ],
+    "dictionary_size": 4,
+    "counters": {
+      "CPF": 1,
+      "PESSOA": 1,
+      "AGENCIA": 1,
+      "CONTA": 1
+    }
+  },
+  "nce_file_context": {
+    "subtype": "rif_envolvidos",
+    "role_label": "RIF Envolvidos"
+  },
+  "product_policy": {
+    "external_products": [
+      "csv",
+      "docx",
+      "pdf",
+      "txt"
+    ],
+    "internal_restricted_products": [
+      "auditoria",
+      "avisos",
+      "controle"
+    ],
+    "note": "Produtos externos sao destinados a uso apos revisao humana. Arquivos internos restritos servem para auditoria, conferencia, avisos e cadeia de custodia."
+  },
+  "products": [
+    {
+      "format": "avisos",
+      "sha256": "92A2F1C97873F6CB49CA220709EF12614AE96BA0CAF42681E88EB37FBAB02ABA",
+      "usage_classification": "interno_restrito_avisos_de_validacao",
+      "contains_original_values": false,
+      "external_sharing_allowed": false
+    },
+    {
+      "format": "controle",
+      "sha256": "23E7CAA6CF4DF57F72BCC6955909476CA09B13CA7883423C1873714F09CC9A4B",
+      "usage_classification": "interno_restrito_tabela_de_correspondencia",
+      "contains_original_values": true,
+      "external_sharing_allowed": false
+    },
+    {
+      "format": "csv",
+      "sha256": "17F234D3C355136CA1158789AFDAD7C2F2786D724AAA409D6C737078D899B11B",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "docx",
+      "sha256": "7DD459B0C2E343C8E118F4E3A326E53B909A661002F56D7A3EF825C2F5A5175B",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "pdf",
+      "sha256": "D5E3C7348F80C62BF6CD4324407BC259ACC51FF4C6E3349FCE4B5E65921703A6",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "txt",
+      "sha256": "A2D1B15EC5BD921D6512BC33AC21EE59F26ED54F0D9BA4CB04AC7DE0CA93303B",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    }
+  ]
+}

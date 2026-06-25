@@ -1,0 +1,124 @@
+{
+  "schema": "ANON-AUDITORIA-INTERNA-v1",
+  "created_at": "2026-06-25T02:06:13",
+  "request_title": "Nao informada",
+  "original_filename": "relatorio.txt",
+  "document_kind": "rif",
+  "model": "qwen3:32b",
+  "anon_version": "1.8.39",
+  "source_sha256": "A49CBB6DE6E00D0AA7553DCAD1B9F5A20B8A2697997BA0E85C85095EAAEC0E35",
+  "processing": {
+    "time_seconds": 0.004,
+    "ocr_used": false,
+    "structure_preserved": true,
+    "validation_status": "Concluída com avisos"
+  },
+  "counts": {
+    "entities_found": 2,
+    "replacements_applied": 2,
+    "validation_warnings": 3,
+    "control_rows": 2
+  },
+  "ollama_json": {
+    "chunks_processed": 0,
+    "json_rejected_chunks": 0,
+    "correction_attempts": 0,
+    "correction_successes": 0,
+    "json_rejection_reasons": [
+      "Ollama local nao respondeu."
+    ],
+    "failure_reason": "Ollama local nao respondeu."
+  },
+  "communication_summary": {
+    "events": 13,
+    "levels": {
+      "info": 8,
+      "warning": 5
+    },
+    "cells": {
+      "ANON": 2,
+      "NCE": 1,
+      "Parser": 1,
+      "OCR": 2,
+      "Regex": 1,
+      "IA local": 2,
+      "Validador": 3,
+      "Anonimizador": 1
+    },
+    "last_stage": "validacao_saida"
+  },
+  "nce_context": {
+    "nce_group_id": "e8cab02f-e035-4752-a2d1-f4ac008b6201",
+    "request_title": null,
+    "document_kind": "rif",
+    "model": "qwen3:32b",
+    "created_at": "2026-06-25T02:06:13",
+    "files": [
+      {
+        "filename": "relatorio.txt",
+        "subtype": "rif_desconhecido",
+        "role_label": "RIF nao classificado"
+      }
+    ],
+    "dictionary_size": 2,
+    "counters": {
+      "PESSOA": 1,
+      "CPF": 1
+    }
+  },
+  "nce_file_context": {
+    "subtype": "rif_desconhecido",
+    "role_label": "RIF nao classificado"
+  },
+  "product_policy": {
+    "external_products": [
+      "csv",
+      "docx",
+      "pdf",
+      "txt"
+    ],
+    "internal_restricted_products": [
+      "auditoria",
+      "avisos",
+      "controle"
+    ],
+    "note": "Produtos externos sao destinados a uso apos revisao humana. Arquivos internos restritos servem para auditoria, conferencia, avisos e cadeia de custodia."
+  },
+  "products": [
+    {
+      "format": "avisos",
+      "sha256": "A88647F7170F9E086F3595897749D32559CED712598E2D586C64C669714A7249",
+      "usage_classification": "interno_restrito_avisos_de_validacao",
+      "contains_original_values": false,
+      "external_sharing_allowed": false
+    },
+    {
+      "format": "controle",
+      "sha256": "A5DA51D6357C69244D337E6B9183EE9068D799609134C9D99C61D26BE0641FCB",
+      "usage_classification": "interno_restrito_tabela_de_correspondencia",
+      "contains_original_values": true,
+      "external_sharing_allowed": false
+    },
+    {
+      "format": "docx",
+      "sha256": "4175E684BF6C8BF5ED72C868752477DB0AF1A8D49F4453A26B307DE973AD528C",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "pdf",
+      "sha256": "4B24F9A53F48B90ABC4D825BE8B89A41A939B77AB5237B98EBC5DF4DD62C4583",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    },
+    {
+      "format": "txt",
+      "sha256": "5DE39AA036BAAFA43E4903966573676128F0FD2AF788A3DEDF98BB8DED2D4047",
+      "usage_classification": "produto_externo_revisao_obrigatoria",
+      "contains_original_values": false,
+      "external_sharing_allowed": true
+    }
+  ]
+}

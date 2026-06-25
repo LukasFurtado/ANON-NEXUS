@@ -1,0 +1,128 @@
+{
+  "schema": "ANON-EXTERNAL-API-POLICY-v1",
+  "purpose": "Catalogar APIs externas permitidas e bloqueadas para enriquecimento seguro do ANON.",
+  "default": {
+    "document_processing": "offline_only",
+    "external_uploads": "blocked",
+    "online_mode": "enrichment_only",
+    "enabled_by_default": false
+  },
+  "allowed_public_downloads": [
+    {
+      "key": "ibge_municipios",
+      "provider": "IBGE",
+      "url": "https://servicodados.ibge.gov.br/api/v1/localidades/municipios",
+      "use": "Atualizar biblioteca local de municipios.",
+      "sensitive_input_required": false
+    },
+    {
+      "key": "ibge_estados",
+      "provider": "IBGE",
+      "url": "https://servicodados.ibge.gov.br/api/v1/localidades/estados",
+      "use": "Atualizar biblioteca local de unidades federativas.",
+      "sensitive_input_required": false
+    },
+    {
+      "key": "brasilapi_banks",
+      "provider": "BrasilAPI",
+      "url": "https://brasilapi.com.br/api/banks/v1",
+      "use": "Atualizar biblioteca local de bancos.",
+      "sensitive_input_required": false
+    }
+  ],
+  "blocked_parameterized_queries": [
+    {
+      "key": "cpf_lookup",
+      "reason": "Exige enviar CPF para terceiro.",
+      "safe_alternative": "Validacao local por digito verificador."
+    },
+    {
+      "key": "cnpj_lookup_from_document",
+      "reason": "CNPJ extraido de documento pode integrar investigacao sigilosa.",
+      "safe_alternative": "Usar bases publicas previamente baixadas ou validar formato localmente."
+    },
+    {
+      "key": "cep_lookup_from_document",
+      "reason": "CEP pode identificar endereco ou local sensivel.",
+      "safe_alternative": "Usar bibliotecas locais; consulta externa apenas com entrada manual nao sensivel em etapa futura."
+    },
+    {
+      "key": "cloud_ai_document_processing",
+      "reason": "IA externa receberia conteudo sigiloso.",
+      "safe_alternative": "Ollama local."
+    }
+  ],
+  "external_ai_advisors": {
+    "status": "permitido_somente_com_gateway_de_seguranca",
+    "enabled_by_default": false,
+    "providers": [
+      "OpenAI",
+      "Anthropic",
+      "Google",
+      "Azure",
+      "AWS"
+    ],
+    "allowed_purposes": [
+      {
+        "key": "prompt_review",
+        "use": "Revisar prompts e regras do ANON sem dados reais."
+      },
+      {
+        "key": "json_contract_improvement",
+        "use": "Sugerir melhorias de contrato JSON com exemplos ficticios."
+      },
+      {
+        "key": "technical_documentation",
+        "use": "Gerar documentacao tecnica sem documentos, nomes, casos ou arquivos reais."
+      },
+      {
+        "key": "generic_error_explanation",
+        "use": "Explicar erros genericos sem receber documento ou conteudo sensivel."
+      },
+      {
+        "key": "sanitized_log_classification",
+        "use": "Classificar mensagens de log ja sanitizadas."
+      },
+      {
+        "key": "synthetic_validation_patterns",
+        "use": "Sugerir padroes de validacao com dados ficticios."
+      },
+      {
+        "key": "synthetic_tests",
+        "use": "Criar testes sinteticos sem dados reais."
+      }
+    ],
+    "blocked_payloads": [
+      "documentos reais",
+      "trechos extraidos de documentos",
+      "nomes de pessoas ou empresas",
+      "CPF, CNPJ, RG, CNH, passaporte, CEP, endereco, telefone, e-mail, PIX e dados bancarios",
+      "arquivos ou nomes de arquivos vinculados a caso real",
+      "logs sem sanitizacao",
+      "qualquer informacao que identifique investigacao, vitima, testemunha, investigado ou operador"
+    ],
+    "required_classifications": [
+      "sanitized",
+      "synthetic",
+      "public"
+    ],
+    "safe_architecture": "A API externa atua apenas como consultoria tecnica. O documento e a anonimização permanecem locais."
+  },
+  "candidate_future_apis": [
+    {
+      "provider": "ViaCEP",
+      "status": "referencia_futura",
+      "policy": "Nao consultar CEP extraido de documento durante processamento."
+    },
+    {
+      "provider": "REST Countries",
+      "status": "avaliacao_futura",
+      "policy": "Usar apenas se houver endpoint publico compativel sem envio de dado sigiloso."
+    },
+    {
+      "provider": "BACEN Dados Abertos",
+      "status": "avaliacao_futura",
+      "policy": "Preferir datasets publicos em lote."
+    }
+  ]
+}

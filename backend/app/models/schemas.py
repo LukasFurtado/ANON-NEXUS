@@ -44,6 +44,9 @@ class Entity(BaseModel):
     start: int
     end: int
     source: str = Field(description="regex, ollama, ocr or validator")
+    confidence: float | None = None
+    reason: str | None = None
+    action: str | None = None
 
 
 class AnonymizationStats(BaseModel):
@@ -56,11 +59,19 @@ class AnonymizationStats(BaseModel):
     ollama_json_rejected_chunks: int = 0
     ollama_correction_attempts: int = 0
     ollama_correction_successes: int = 0
+    ollama_json_rejection_reasons: list[str] = Field(default_factory=list)
+    ollama_failure_reason: str | None = None
+    ollama_preserved_items: int = 0
+    post_validation_warnings: list[str] = Field(default_factory=list)
+    post_validation_score: int | None = None
     communication_events: list[dict] = Field(default_factory=list)
     communication_summary: dict = Field(default_factory=dict)
     quality_status: str | None = None
     quality_score: int | None = None
     quality_reasons: list[str] = Field(default_factory=list)
+    confidence_score: int | None = None
+    confidence_level: str | None = None
+    confidence_reasons: list[str] = Field(default_factory=list)
 
 
 class AnonymizationControlRow(BaseModel):
@@ -68,6 +79,23 @@ class AnonymizationControlRow(BaseModel):
     entity_type: str
     anonymous_id: str
     occurrences: int
+
+
+class AnonymizationSyncEntry(BaseModel):
+    original_value: str
+    entity_type: EntityType
+    anonymous_id: str
+    source: str = "sync_package"
+
+
+class HumanReviewItem(BaseModel):
+    id: str
+    category: str
+    label: str
+    status: str = "pendente"
+    recommendation: str
+    severity: str = "media"
+    metadata: dict = Field(default_factory=dict)
 
 
 class AuditInfo(BaseModel):
@@ -91,6 +119,7 @@ class AnonymizationResult(BaseModel):
     anonymized_text: str
     entities: list[Entity]
     control_table: list[AnonymizationControlRow] = []
+    review_items: list[HumanReviewItem] = []
     stats: AnonymizationStats
     audit: AuditInfo
     export_paths: dict[str, str]
@@ -111,3 +140,15 @@ class AnonymizeOptions(BaseModel):
     use_ollama: bool = True
     preserve_layout: bool = True
     request_title: str | None = None
+    sync_entries: list[AnonymizationSyncEntry] = Field(default_factory=list)
+
+
+class ManualCorrection(BaseModel):
+    original_value: str
+    entity_type: EntityType = EntityType.person
+    anonymous_id: str | None = None
+
+
+class ManualReanalysisRequest(BaseModel):
+    corrections: list[ManualCorrection]
+    note: str | None = None

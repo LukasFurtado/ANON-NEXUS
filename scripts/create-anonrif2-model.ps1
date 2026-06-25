@@ -1,13 +1,21 @@
 $ErrorActionPreference = "Stop"
-Set-Location "$PSScriptRoot\.."
 
-if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
-    Write-Host "Ollama nao foi encontrado no PATH." -ForegroundColor Red
-    Write-Host "Instale o Ollama e abra um novo PowerShell."
+Write-Host "ANON - verificacao do modelo qwen3:32b" -ForegroundColor Cyan
+Write-Host "O modelo derivado NEXUS-anon:latest nao e mais criado pelo fluxo padrao."
+Write-Host "A especializacao do ANON fica nos prompts, perfis, regras, validador e corretor JSON internos."
+
+$ollama = Get-Command "ollama" -ErrorAction SilentlyContinue
+if (-not $ollama) {
+    Write-Host "Ollama nao encontrado. Instale o Ollama e execute: ollama pull qwen3:32b" -ForegroundColor Red
     exit 1
 }
 
-$modelfile = Resolve-Path ".\backend\resources\ollama\AnonRIF2.modelfile"
-ollama create NEXUS-anon -f $modelfile
+$models = (& ollama list) -join "`n"
+if ($models -match "qwen3:32b") {
+    Write-Host "qwen3:32b detectado. Modelo padrao pronto para o ANON." -ForegroundColor Green
+    exit 0
+}
 
-Write-Host "Modelo local 'NEXUS-anon:latest' criado com sucesso a partir do Qwen3 32B." -ForegroundColor Green
+Write-Host "qwen3:32b nao foi encontrado." -ForegroundColor Yellow
+Write-Host "Execute: ollama pull qwen3:32b"
+exit 1

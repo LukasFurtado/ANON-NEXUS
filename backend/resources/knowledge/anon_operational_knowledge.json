@@ -4,8 +4,39 @@
   "json_contract": {
     "required_root": "entities",
     "required_entity_fields": ["type", "text"],
-    "recommended_entity_fields": ["start", "end"],
+    "recommended_entity_fields": ["start", "end", "action", "reason", "confidence", "field", "source_hint"],
+    "accepted_actions": ["anonymize", "preserve", "review"],
+    "entity_type_catalog": [
+      "PERSON",
+      "ORGANIZATION",
+      "CPF",
+      "CNPJ",
+      "RG",
+      "CNH",
+      "PASSPORT",
+      "PIS_NIS",
+      "FUNCTIONAL_ID",
+      "BANK_ACCOUNT",
+      "BANK_BRANCH",
+      "PIX",
+      "BOLETO",
+      "CARD",
+      "PHONE",
+      "EMAIL",
+      "ADDRESS",
+      "CEP",
+      "VEHICLE_PLATE",
+      "RENAVAM",
+      "CHASSIS",
+      "IP",
+      "MAC",
+      "QR_CODE",
+      "PROTOCOL",
+      "PROCEEDING",
+      "OTHER_IDENTIFIER"
+    ],
     "accepted_empty_response": "{\"entities\":[]}",
+    "example_response": "{\"entities\":[{\"type\":\"PERSON\",\"text\":\"JOAO DA SILVA\",\"action\":\"anonymize\",\"reason\":\"nome de pessoa fisica\",\"confidence\":0.94}],\"preserve\":[{\"text\":\"Banco do Brasil\",\"reason\":\"instituicao financeira operacional\"}]}",
     "forbidden_outputs": [
       "markdown",
       "explicacao fora do JSON",
@@ -18,6 +49,31 @@
     ],
     "operator_summary": "A IA deve devolver somente entidades candidatas. O backend do ANON aplica as substituicoes, preserva a estrutura e gera os arquivos."
   },
+  "institutional_retention_library": {
+    "schema": "ANON-INSTITUTIONAL-RETENTION-v1",
+    "resource": "backend/resources/knowledge/institutional_retention_library.json",
+    "purpose": "Preservar instituicoes publicas, bancos, autoridades reguladoras, orgaos de controle e entidades operacionais quando forem contexto factual e nao identificador privado sensivel.",
+    "active_in_validator": true,
+    "geographic_scope": "Biblioteca geografica absorvida como apoio contextual. Nesta etapa, cidades e estados nao bloqueiam a anonimizacao de endereco completo para evitar falso negativo."
+  },
+  "hybrid_security_architecture": {
+    "schema": "ANON-HYBRID-SECURITY-v1",
+    "default_mode": "OFFLINE",
+    "processing_rule": "Documentos sigilosos so podem ser processados no modo OFFLINE.",
+    "enrichment_rule": "Modo de enriquecimento e opcional, desabilitado por padrao, e destinado somente a baixar dados publicos para bibliotecas locais. Downloads reais exigem NEXUS_ANON_HYBRID_ENRICHMENT_ENABLED=true.",
+    "blocked": ["upload de documentos", "processamento conectado", "envio de dados sensiveis", "download de fonte fora da whitelist"],
+    "allowed_public_sources": ["IBGE", "BrasilAPI Bancos"],
+    "external_api_policy": "backend/resources/knowledge/external_api_policy.json",
+    "documentation": "docs/ANON_HYBRID_SECURITY_ARCHITECTURE.yaml"
+  },
+  "document_processing_priority_5": {
+    "schema": "ANON-DOCUMENT-PROCESSING-P5-v1",
+    "pdf": "PyMuPDF extrai tabelas quando possivel, depois blocos ordenados visualmente e texto simples como fallback.",
+    "excel": "XLSX/XLSM suportados via openpyxl quando instalado localmente.",
+    "docx": "python-docx extrai paragrafos e tabelas.",
+    "recommended_local_tools": ["Tesseract OCR", "OCRmyPDF", "LibreOffice", "PyMuPDF", "openpyxl"],
+    "documentation": "docs/ANON_DOCUMENT_PROCESSING_PRIORITY_5.yaml"
+  },
   "communication_rules": [
     "Nunca enviar documentos para a internet.",
     "Usar Ollama local como motor semantico obrigatorio quando o operador concordar com as regras de uso.",
@@ -28,6 +84,10 @@
   "cell_protocol": {
     "purpose": "Fazer cada celula informar o que precisa, o que recebeu, o que pode oferecer e onde precisou de apoio.",
     "cells": {
+      "NCE": {
+        "needs": ["perfil documental", "nome dos arquivos", "texto extraido", "resultado dos detectores", "estado de substituicao do grupo"],
+        "offers": ["classificacao de subtipo documental", "dicionario canonico compartilhado", "consistencia entre arquivos", "metadados de coordenacao"]
+      },
       "Parser": {
         "needs": ["arquivo legivel", "extensao suportada", "codificacao interpretavel"],
         "offers": ["texto extraido", "metadados basicos", "sinalizacao de OCR quando necessario"]
@@ -38,7 +98,7 @@
       },
       "Regex": {
         "needs": ["texto extraido", "perfil documental"],
-        "offers": ["entidades deterministicas", "ancoras estruturadas", "reduz dependencia exclusiva da IA"]
+        "offers": ["entidades deterministicas", "ancoras estruturadas", "detectores CPF/CNPJ/telefone/bancario/nomes", "reduz dependencia exclusiva da IA"]
       },
       "IA local": {
         "needs": ["prompt curto", "contrato JSON claro", "perfil documental", "Ollama em execucao"],
@@ -86,17 +146,51 @@
   "profiles": {
     "rif": {
       "focus": "Relatorio de Inteligencia Financeira, comunicacoes COAF e CSVs relacionados.",
-      "must_anonymize": ["pessoas", "empresas privadas sensiveis", "CPF", "CNPJ", "contas", "agencias", "PIX", "enderecos", "telefones", "emails"],
-      "must_preserve": ["valores", "datas", "percentuais", "tipoEnvolvido", "natureza da operacao", "colunas CSV", "ordem das linhas", "delimitador"],
-      "protected_terms": ["PIX", "TED", "DOC", "SAQUE", "DEPOSITO", "TRANSFERENCIA", "CREDITO", "DEBITO", "FRACIONAMENTO", "idComunicacao", "idOcorrencia", "NumeroOcorrenciaBC"],
-      "prompt_guidance": "Em RIF, a IA deve localizar entidades sensiveis sem alterar semantica financeira, colunas, valores, datas ou classificacoes operacionais."
+      "must_anonymize": ["pessoas", "empresas privadas sensiveis", "CPF/CNPJ de envolvido ou contraparte", "contas", "agencias de envolvido", "PIX", "enderecos", "telefones", "emails"],
+      "must_preserve": ["Indexador", "idComunicacao", "idOcorrencia", "NumeroOcorrenciaBC", "cpfCnpjComunicante", "nomeComunicante", "valores", "datas", "percentuais", "tipoEnvolvido", "natureza da operacao", "colunas CSV", "ordem das linhas", "delimitador"],
+      "protected_terms": ["PIX", "TED", "DOC", "SAQUE", "DEPOSITO", "TRANSFERENCIA", "CREDITO", "DEBITO", "FRACIONAMENTO", "Indexador", "idComunicacao", "idOcorrencia", "NumeroOcorrenciaBC", "CodigoSegmento", "CampoA", "CampoB", "CampoC", "CampoD", "CampoE"],
+      "prompt_guidance": "Em RIF, a IA deve localizar entidades sensiveis sem alterar semantica financeira, colunas, valores, datas ou classificacoes operacionais. O NCE reconhece Envolvidos, Ocorrencias e Comunicacoes por nome e cabecalho.",
+      "rif_reverse_engineering": {
+        "filename_patterns": {
+          "envolvidos": "RIF[numeros]_Envolvidos.csv",
+          "ocorrencias": "RIF[numeros]_Ocorrencias.csv",
+          "comunicacoes": "RIF[numeros]_Comunicacoes.csv"
+        },
+        "subtypes": {
+          "rif_envolvidos": "Anonimizar cpfCnpjEnvolvido, nomeEnvolvido, agenciaEnvolvido e contaEnvolvido; preservar Indexador, tipoEnvolvido, datas e flags.",
+          "rif_ocorrencias": "Preservar Indexador, idOcorrencia e Ocorrencia; anonimizar somente dado pessoal acidental.",
+          "rif_comunicacoes": "Preservar metadados, comunicante institucional, agencias, datas e valores; anonimizar dados pessoais apenas em informacoesAdicionais."
+        },
+        "cross_file_rules": [
+          "Indexador e chave relacional e deve ser preservado.",
+          "Mesma entidade no grupo deve receber mesmo identificador anonimo.",
+          "IA devolve apenas entidades; ANON aplica substituicoes.",
+          "CSV deve manter cabecalho, delimitador, linhas, ordem e campos vazios."
+        ]
+      }
     },
     "extrato_bancario": {
       "focus": "Extrato bancario em PDF ou dados DELOS, com prioridade em preservar layout e movimentacoes.",
       "must_anonymize": ["titular", "beneficiario", "depositante", "remetente", "contraparte", "CPF", "CNPJ", "conta vinculada a titular", "chave PIX sensivel"],
       "must_preserve": ["Doc.", "Inst.", "datas", "valores", "saldo", "debito", "credito", "historico", "nomes de colunas", "codigos bancarios", "natureza da operacao"],
-      "protected_terms": ["PAGTO CARTAO CREDITO", "PAGAMENTO CONTA AGUA", "PAGAMENTO CONTA LUZ", "ESTORNO ACERTO-CREDITO", "SAQUE", "TARIFA", "JUROS", "DEPOSITO ONLINE"],
-      "prompt_guidance": "Em extrato bancario, a IA deve separar pessoa/empresa sensivel de historico operacional. Nao anonimizar coluna Doc. nem descricao tecnica da operacao."
+      "protected_terms": ["PAGTO CARTAO CREDITO", "PAGAMENTO CONTA AGUA", "PAGAMENTO CONTA LUZ", "PAGAMENTO CONTA TELEFONE", "ESTORNO ACERTO-CREDITO", "ESTORNO DE DEBITO", "SAQUE", "SAQUE COM CARTAO", "TARIFA", "JUROS", "DEPOSITO ONLINE", "DEPOSITO BLOQUEADO 1 DIA UTIL", "DESBLOQUEIO DE DEPOSITO", "TRANSF.CRED.", "TRANSF CTA", "CRED.AUTOR", "RESG AUTOM", "APLICACAO"],
+      "prompt_guidance": "Em extrato bancario, a IA deve separar pessoa/empresa sensivel de historico operacional. Nao anonimizar coluna Doc. nem descricao tecnica da operacao.",
+      "delos_reverse_engineering": {
+        "source_sections": ["document_fingerprint", "global_architecture", "field_catalog.campos_operacionais", "ambiguity_register", "validation_specification", "classification_specification", "extraction_specification", "confidence_and_gaps"],
+        "column_rules": [
+          "Data, Valor, D/C, saldo, totais e percentuais sao informacao operacional preservada.",
+          "Doc. e Inst. sao identificadores tecnicos da operacao ou do banco e nao devem ser anonimizados.",
+          "CPF/CNPJ e Nome Benef/Depos devem ser anonimizados quando identificarem titular, contraparte, beneficiario, depositante ou pessoa juridica privada sensivel.",
+          "Observacoes deve ser tratada como campo livre: preservar texto operacional e anonimizar somente nomes, CPF/CNPJ, contas ou chaves sensiveis dentro do campo."
+        ],
+        "ambiguity_rules": [
+          "Encerramento 31/12/9999 e Doc. 0 sao marcadores tecnicos, nao entidades pessoais.",
+          "Campos vazios de CPF/CNPJ nao geram marcador anonimo.",
+          "DOCUMENTO EXIGE RECUPERACAO MANUAL e PESQUISA CONCLUIDA sao avisos operacionais preservados.",
+          "Saques, depositos, estornos, aplicacoes e resgates sao padroes de operacao; nao sao nomes de pessoas."
+        ],
+        "validation_focus": ["preservar layout PDF", "preservar colunas", "preservar valores", "preservar datas", "preservar Doc.", "anonimizar contrapartes preenchidas"]
+      }
     },
     "relatorio_investigativo": {
       "focus": "Relatorio policial, ministerial, administrativo ou de controle.",
@@ -105,6 +199,68 @@
       "protected_terms": ["IP", "BO", "SEI", "PROCESSO", "PORTARIA", "OFICIO", "RELATORIO", "ARTIGO", "LEI", "CPP", "CP"],
       "prompt_guidance": "Em relatorio investigativo, a IA deve anonimizar identificadores pessoais sem reescrever narrativa, conclusao, fundamento legal ou referencias tecnicas."
     }
+  },
+  "detector_suite": {
+    "schema": "ANON-DETECTOR-SUITE-v1",
+    "purpose": "Camada deterministica do NCE executada antes da IA local para aumentar cobertura, reduzir falsos positivos e preservar estrutura.",
+    "precedence": [
+      "cpf_validado",
+      "cnpj_validado",
+      "telefone_brasileiro",
+      "dados_bancarios_contextuais",
+      "nomes_brasileiros_contextuais",
+      "biblioteca_institucional_preservacao",
+      "ia_local_semantica"
+    ],
+    "detectors": {
+      "cpf_validado": {
+        "formats": ["000.000.000-00", "00000000000", "000 000 000 00", "000-000-000-00", "0 + 11 digitos"],
+        "validation": "digito verificador, rejeicao de sequencias genericas",
+        "output_entity": "CPF"
+      },
+      "cnpj_validado": {
+        "formats": ["00.000.000/0000-00", "00000000000000", "00 000 000 0000 00"],
+        "validation": "digito verificador, rejeicao de sequencias genericas",
+        "output_entity": "CNPJ"
+      },
+      "telefone_brasileiro": {
+        "formats": ["celular com DDD", "fixo com DDD", "+55 opcional"],
+        "validation": "DDD brasileiro valido e primeiro digito plausivel",
+        "output_entity": "PHONE"
+      },
+      "dados_bancarios_contextuais": {
+        "formats": ["Agencia", "Ag.", "Conta", "C/C", "banco-agencia-conta na mesma linha"],
+        "validation": "contexto obrigatorio para reduzir falsos positivos",
+        "output_entities": ["BANK_BRANCH", "BANK_ACCOUNT"]
+      },
+      "nomes_brasileiros_contextuais": {
+        "strategy": "lista local expansivel de nomes e sobrenomes brasileiros combinada com contexto policial/financeiro",
+        "validation": "primeiro nome conhecido + sobrenome conhecido, sem instituicao protegida",
+        "output_entity": "PERSON"
+      },
+      "biblioteca_institucional_preservacao": {
+        "strategy": "normalizacao sem acento e lista local expansivel de bancos, orgaos publicos, estatais e instituicoes operacionais",
+        "effect": "preservar orgaos, bancos e entidades operacionais quando nao forem alvo privado sensivel"
+      }
+    },
+    "llm_guidance": "A IA local deve complementar lacunas semanticas. Ela nao deve reprocessar como texto livre entidades ja detectadas deterministicamente, nem sugerir anonimizar instituicoes preservadas."
+  },
+  "nce_core": {
+    "schema": "ANON-NCE-CORE-v1",
+    "purpose": "Modulo central que coordena estrategia documental, subtipo do arquivo e consistencia de marcadores anonimos entre arquivos da mesma solicitacao.",
+    "responsibilities": [
+      "criar contexto de grupo para cada solicitacao",
+      "identificar subtipo documental por perfil, nome de arquivo e cabecalho",
+      "manter dicionario compartilhado de substituicoes",
+      "gerar chaves canonicas para a mesma entidade com variacoes de acento, caixa, pontuacao e formatacao numerica",
+      "expor metadados seguros para auditoria"
+    ],
+    "consistency_rules": [
+      "mesma entidade no mesmo grupo deve receber mesmo marcador anonimo",
+      "CPF/CNPJ/telefone/conta/agencia usam chave canonica por digitos",
+      "pessoas e empresas usam chave canonica sem acento, sem pontuacao e com espacos normalizados",
+      "o dicionario compartilhado nao reescreve documentos; apenas garante marcadores consistentes"
+    ]
   },
   "diagnostic_guidance": {
     "json_refusal": "JSON recusado significa que a IA respondeu, mas a estrutura nao permitiu auditoria automatica segura.",

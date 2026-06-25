@@ -1,0 +1,29 @@
+{
+  "schema": "ANON-INSTITUTIONAL-RETENTION-v1",
+  "purpose": "Base local de instituicoes e referencias operacionais que devem ser preservadas quando aparecerem como contexto factual, orgao publico, banco, entidade reguladora ou agente institucional.",
+  "source_guides": [
+    "comando-anon-whitelist-institucional-retencao.yaml",
+    "comando-anon-bibliotecas-geograficas.yaml"
+  ],
+  "rules": {
+    "preserve_institutions": "Preservar nomes de instituicoes publicas, orgaos de Estado, bancos oficiais, autoridades reguladoras, empresas estatais e organismos internacionais quando nao identificarem pessoa fisica ou juridica privada sensivel.",
+    "never_preserve_personal_ids": "CPF, CNPJ, RG, CNH, telefone, e-mail, chave PIX, conta, agencia e endereco completo continuam anonimizaveis mesmo quando a instituicao ao redor for preservada.",
+    "geography_scope": "Cidades, estados, paises e regioes servem como apoio contextual. Nao devem preservar endereco completo, logradouro, numero, complemento, CEP ou residencia."
+  },
+  "institutional_categories": {
+    "autoridades_financeiras": ["Banco Central do Brasil", "Banco Central", "BACEN", "BCB", "COAF", "Conselho de Controle de Atividades Financeiras", "CVM", "Comissao de Valores Mobiliarios", "SUSEP"],
+    "bancos_publicos_e_operacionais": ["Banco do Brasil", "Banco do Brasil S.A.", "BB", "Caixa Economica Federal", "Caixa", "CEF", "Banco do Nordeste", "BNB", "Banco da Amazonia", "BNDES", "Banco Nacional de Desenvolvimento Economico e Social", "Loterias Caixa", "Loterias"],
+    "bancos_privados_operacionais": ["Bradesco", "Itau", "Itau Unibanco", "Santander", "Nubank", "Inter", "Banco Inter", "Sicredi", "Sicoob", "Banco Safra", "BTG Pactual", "C6 Bank"],
+    "orgaos_fiscais_e_controle": ["Receita Federal", "Receita Federal do Brasil", "RFB", "Controladoria-Geral da Uniao", "CGU", "Tribunal de Contas da Uniao", "TCU", "Tribunal de Contas do Estado", "TCE", "Tribunal de Contas do Estado de Pernambuco", "TCE-PE"],
+    "justica_e_ministerio_publico": ["Ministerio Publico", "Ministerio Publico de Pernambuco", "MPPE", "Ministerio Publico Federal", "MPF", "Tribunal de Justica", "Tribunal de Justica de Pernambuco", "TJPE", "Supremo Tribunal Federal", "STF", "Superior Tribunal de Justica", "STJ", "Justica Federal", "Tribunal Regional Federal"],
+    "seguranca_publica": ["Policia Civil", "Policia Civil de Pernambuco", "PCPE", "Policia Federal", "PF", "Policia Militar", "Secretaria de Defesa Social", "SDS", "Secretaria de Seguranca Publica", "SSP", "Delegacia", "Delegacia de Policia", "Interpol", "Organizacao Internacional de Policia Criminal"],
+    "administracao_publica": ["Prefeitura", "Prefeitura Municipal", "Camara Municipal", "Secretaria Municipal", "Secretaria Estadual", "Governo do Estado", "Governo do Estado de Pernambuco", "Ministerio da Justica", "Ministerio da Fazenda", "Ministerio da Educacao", "Ministerio da Saude", "Gabinete de Seguranca Institucional", "GSI", "Congresso Nacional", "Senado Federal", "Camara dos Deputados", "Assembleia Legislativa"],
+    "estatais_e_servicos_publicos": ["Correios", "ECT", "Petrobras", "Petroleo Brasileiro S.A.", "Eletrobras", "Empresa Brasileira de Correios e Telegrafos"],
+    "organismos_internacionais": ["ONU", "Organizacao das Nacoes Unidas", "OEA", "Organizacao dos Estados Americanos"]
+  },
+  "geographic_context": {
+    "states": ["Pernambuco", "PE", "Sao Paulo", "SP", "Rio de Janeiro", "RJ", "Minas Gerais", "MG", "Bahia", "BA", "Distrito Federal", "DF"],
+    "cities_seed": ["Recife", "Jaboatao dos Guararapes", "Olinda", "Paulista", "Caruaru", "Petrolina", "Sao Paulo", "Rio de Janeiro", "Brasilia", "Salvador", "Belo Horizonte"],
+    "protected_usage": "Uso apenas contextual nesta etapa. Nao usado para impedir anonimizar endereco completo."
+  }
+}

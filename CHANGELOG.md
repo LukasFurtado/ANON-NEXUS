@@ -1,5 +1,74 @@
 # Changelog
 
+## [1.8.39] - 2026-06-24
+
+### Adicionado
+
+- Janela de processamento passa a exibir monitor local de recursos em tempo real, com uso de processador, GPU quando detectada e consumo de memoria.
+- Backend passa a disponibilizar leitura local de metricas do sistema sem envio de dados para a internet.
+
+## [1.8.38] - 2026-06-24
+
+### Corrigido
+
+- Corrigida a causa-raiz da contamina??o do campo `Indexador` em CSV/RIF: valores num?ricos curtos n?o s?o mais propagados globalmente por substitui??o textual.
+- Adicionado bloqueio anti double-hit para impedir duas substitui??es sobre o mesmo intervalo textual.
+- Entidades p?blicas e institui??es operacionais passam a ser preservadas no perfil `rif`.
+- Avisos repetidos de preserva??o do perfil `extrato_bancario` passam a ser consolidados, evitando relat?rios extensos e pouco acion?veis.
+- A Tabela de Controle de Anonimiza??o deixa de ser anexada aos produtos finais TXT, DOCX e PDF; agora ? gerada como arquivo separado `controle_interno.pdf`.
+- Removido o ap?ndice interno revers?vel do PDF fac-s?mile para impedir vazamento de valores originais no documento anonimizado.
+
+### Adicionado
+
+- Novo download complementar `CONTROLE`, destinado exclusivamente a auditoria interna e cadeia de cust?dia.
+- Testes de regress?o para `Indexador`, sobreposi??o de entidades, preserva??o de entidades p?blicas no RIF e consolida??o de avisos DELOS.
+
+## [1.8.37] - 2026-06-24
+
+### Corrigido
+
+- Corrigida a acentua??o dos textos vis?veis da interface, da janela de regras institucionais, do guia de instala??o e do README.
+- Normalizados textos UTF-8 que apareciam como caracteres quebrados em navegadores e documentos de orienta??o.
+
+## [1.8.36] - 2026-06-24
+
+### Alterado
+
+- `qwen3:32b` passa a ser o único modelo local padrão do ANON e da IA NEXUS.
+- `NEXUS-anon:latest` deixou de ser recomendado, criado pelo instalador ou exibido como opção selecionável quando detectado no Ollama.
+- A especialização antes concentrada no Modelfile passa a ficar no próprio ecossistema do ANON: prompts, perfis JSON, regras determinísticas, validador, corretor de JSON, classificador de qualidade e resumo seguro.
+- Formalizado o `NCE-ANON`, Núcleo de Comportamento Especializado do ANON, com documentação própria em `docs/COMPORTAMENTO_ESPECIALIZADO.md`.
+- Chamadas ao `qwen3:32b` para detecção passam a enviar `temperature=0`, `top_p=0.9`, `repeat_penalty=1.1`, `think=false`, `/no_think` e `format=json`.
+- `scripts/create-anonrif2-model.ps1` passa a verificar a presença do `qwen3:32b`, sem recriar modelo derivado.
+- Documentação do Ollama atualizada para tratar o Modelfile como referência técnica arquivada, não como etapa obrigatória de instalação.
+
+### Auditoria
+
+- Mantida a avaliação da comunicação IA/JSON: blocos enviados à IA, blocos recusados por JSON não aproveitável, tentativas de correção e correções aceitas.
+- Essas métricas seguem registradas nos metadados do resultado e no arquivo complementar de avisos para revisão humana.
+
+## [1.8.35] - 2026-06-24
+
+### Adicionado
+
+- Perfis documentais estruturados em JSON para `RIF/COAF`, `Extrato bancario` e `Relatorio investigativo`, com regras de preservacao, anonimização, campos ambiguos, falsos positivos e criterios de validacao.
+- Carregador central de perfis documentais para alimentar prompt local, regras internas e contexto seguro da IA NEXUS.
+- Resumo seguro por documento, persistido localmente sem texto original, com métricas agregadas, tipos de entidades, hashes, avisos sanitizados e etapas concluídas.
+- Classificador automático de qualidade (`Bom`, `Revisar`, `Atenção crítica`) exibido no histórico com janela explicativa.
+- Emissor de estado do pipeline, registrando etapas como parser, regex, IA local, validação, substituição e exportação.
+- Endpoints locais para consulta de resumo seguro e estado do processamento.
+- Painel visual de estado do processamento dentro do resumo operacional.
+- Scripts `install.py` e `install_check.py` para facilitar instalação e diagnóstico do ecossistema em outro computador.
+- Testes unitários para carregamento de perfis, resumo seguro, classificação de qualidade e estado do pipeline.
+
+### Alterado
+
+- IA NEXUS passa a receber apenas contexto seguro persistido, sem conteúdo original do documento.
+- Chat institucional passa a ocultar nomes de arquivos, caminhos, formatos internos de resposta, eventos internos, logs e estrutura interna do ANON.
+- Prompt enviado ao Ollama passa a incorporar o contexto estruturado do perfil documental selecionado.
+- Regras determinísticas foram reforçadas para RIF/COAF, incluindo contexto de empresas, envolvidos, comunicantes e chaves PIX por e-mail.
+- O manifesto de integridade passa a abranger os novos módulos críticos de comunicação, perfil, resumo seguro, qualidade e instalação.
+
 ## [1.8.34] - 2026-06-24
 
 ### Alterado

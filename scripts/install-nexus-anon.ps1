@@ -2,7 +2,6 @@ $ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot\.."
 $backend = Join-Path $root "backend"
 $frontend = Join-Path $root "frontend"
-$modelfile = Join-Path $root "backend\resources\ollama\AnonRIF2.modelfile"
 
 function Write-Step($message) {
     Write-Host ""
@@ -76,17 +75,12 @@ if ($hasOllama) {
             ollama pull qwen3:32b
             Write-Ok "qwen3:32b baixado."
         } else {
-            Write-Warn "Download do qwen3:32b ignorado. O modelo NEXUS-anon so podera ser criado depois."
+            Write-Warn "Download do qwen3:32b ignorado. O ANON precisara desse modelo para executar a IA local."
         }
     } else {
         Write-Ok "qwen3:32b ja esta instalado."
     }
-
-    $models = (& ollama list) -join "`n"
-    if ($models -match 'qwen3:32b') {
-        ollama create NEXUS-anon -f $modelfile
-        Write-Ok "Modelo NEXUS-anon:latest criado/atualizado."
-    }
+    Write-Ok "Padrao de IA local: qwen3:32b. O ANON aplica prompts, perfis e validadores internamente."
 }
 
 Write-Step "5. Criando atalho de abertura"

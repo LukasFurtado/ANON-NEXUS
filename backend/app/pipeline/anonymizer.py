@@ -92,17 +92,21 @@ def apply_anonymization(
     applied = 0
     applied_by_key: dict[str, AppliedReplacement] = {}
     accepted: list[tuple[Entity, str, str, str]] = []
+    occupied_spans: list[tuple[int, int]] = []
 
-    for entity in sorted(entities, key=lambda item: item.start):
+    for entity in sorted(entities, key=_entity_priority):
+        if _overlaps_existing(entity.start, entity.end, occupied_spans):
+            continue
         original = text[entity.start : entity.end]
         if not original.strip():
             continue
-        key = f"{entity.type.value}:{original.casefold()}"
+        key = _replacement_key(entity.type.value, original)
         if key not in state.replacements:
             label = LABELS.get(entity.type.value, "DADO")
             state.counters[label] = state.counters.get(label, 0) + 1
             state.replacements[key] = f"[{label}_{state.counters[label]:03d}]"
         accepted.append((entity, key, original, state.replacements[key]))
+        occupied_spans.append((entity.start, entity.end))
 
     for entity, key, original, anonymous_id in sorted(accepted, key=lambda item: item[0].start, reverse=True):
         output = output[: entity.start] + anonymous_id + output[entity.end :]
@@ -120,7 +124,7 @@ def apply_anonymization(
         applied_by_key[key].count += 1
 
     for item in sorted(applied_by_key.values(), key=lambda row: row.first_start):
-        output, extra_count = _replace_remaining_occurrences(output, item.original, item.anonymous_id)
+        output, extra_count = _replace_remaining_occurrences(output, item.original, item.anonymous_id, item.entity_type)
         if extra_count:
             item.count += extra_count
             applied += extra_count
@@ -139,9 +143,49 @@ def apply_anonymization(
     return output, applied, control_rows
 
 
-def _replace_remaining_occurrences(text: str, original: str, anonymous_id: str) -> tuple[str, int]:
+def _replace_remaining_occurrences(text: str, original: str, anonymous_id: str, entity_type: str) -> tuple[str, int]:
     if not original.strip() or original == anonymous_id:
+        return text, 0
+    if not _can_replace_globally(original, entity_type):
         return text, 0
 
     pattern = re.compile(rf"(?<![\w\[\]]){re.escape(original)}(?![\w\[\]])")
     return pattern.subn(anonymous_id, text)
+
+
+ENTITY_PRIORITY = {
+    "CPF": 0,
+    "CNPJ": 1,
+    "BANK_ACCOUNT": 2,
+    "BANK_BRANCH": 3,
+    "PIX": 4,
+    "EMAIL": 5,
+    "PERSON": 6,
+    "ORGANIZATION": 7,
+    "OTHER_IDENTIFIER": 8,
+    "PHONE": 9,
+}
+
+
+def _entity_priority(entity: Entity) -> tuple[int, int, int]:
+    return (entity.start, ENTITY_PRIORITY.get(entity.type.value, 50), -(entity.end - entity.start))
+
+
+def _overlaps_existing(start: int, end: int, occupied_spans: list[tuple[int, int]]) -> bool:
+    return any(start < occupied_end and end > occupied_start for occupied_start, occupied_end in occupied_spans)
+
+
+def _can_replace_globally(original: str, entity_type: str) -> bool:
+    clean = original.strip()
+    digits = re.sub(r"\D", "", clean)
+    if len(clean) < 5:
+        return False
+    if digits and len(digits) >= max(3, len(clean) - 2):
+        return False
+    return entity_type in {"PERSON", "ORGANIZATION", "EMAIL", "ADDRESS", "PIX"}
+
+
+def _replacement_key(entity_type: str, original: str) -> str:
+    from app.core.nce import canonical_entity_key
+
+    return canonical_entity_key(entity_type, original)

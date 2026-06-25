@@ -1,17 +1,16 @@
 import re
 
 from app.models.schemas import DocumentKind, Entity, EntityType
+from app.pipeline.identifier_detectors import detect_structured_identifiers, is_valid_cnpj_digits, is_valid_cpf_digits
 from app.pipeline.profile_strategy import profile_regex_patterns
+from app.pipeline.rif_rules import detect_rif_csv_subtype, normalize_rif_header, rif_column_types_for_headers
 
 
 NAME_CHARS = r"A-ZÀ-ÖØ-Ý"
 WORD_CHARS = r"A-Za-zÀ-ÖØ-öø-ÿ"
 
 PATTERNS: list[tuple[EntityType, re.Pattern[str]]] = [
-    (EntityType.cpf, re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")),
-    (EntityType.cnpj, re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b")),
     (EntityType.email, re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)),
-    (EntityType.phone, re.compile(r"\b(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?(?:9\s?)?\d{4}[-\s]?\d{4}\b")),
     (EntityType.cep, re.compile(r"\b\d{5}-?\d{3}\b")),
     (EntityType.vehicle_plate, re.compile(r"\b[A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}\b", re.I)),
     (EntityType.ip, re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")),
@@ -22,8 +21,6 @@ PATTERNS: list[tuple[EntityType, re.Pattern[str]]] = [
     (EntityType.chassis, re.compile(r"\b[A-HJ-NPR-Z0-9]{17}\b", re.I)),
     (EntityType.proceeding, re.compile(r"\b\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}\b")),
     (EntityType.protocol, re.compile(r"\b(?:PROTOCOLO|PROCESSO|SEI|IP|BO)\s*(?:N[O.]*)?\s*[:\-]?\s*[\w./-]{5,}\b", re.I)),
-    (EntityType.bank_branch, re.compile(r"\bAG(?:ENCIA|\.)?\s*[:\-]?\s*\d{3,5}(?:-\d)?\b", re.I)),
-    (EntityType.bank_account, re.compile(r"\b(?:CONTA|C/C|CC)\s*[:\-]?\s*\d{3,12}(?:-\d)?\b", re.I)),
     (EntityType.functional_id, re.compile(r"\bMATRICULA\s*(?:FUNCIONAL)?\s*[:\-]?\s*\d{3,12}\b", re.I)),
     (EntityType.rg, re.compile(r"\bRG\s*[:\-]?\s*[\d.xX-]{5,14}\b", re.I)),
     (EntityType.cnh, re.compile(r"\bCNH\s*[:\-]?\s*\d{9,11}\b", re.I)),
@@ -54,10 +51,10 @@ NAME_AFTER_TRANSACTION = re.compile(
 TRANSACTION_FRAGMENT_BLOCKLIST = ("transferencia", " pix", " ted", " doc", "realizou", "pagamento")
 
 
-def detect_entities_by_regex(text: str, document_kind: DocumentKind) -> list[Entity]:
-    entities: list[Entity] = []
+def detect_entities_by_regex(text: str, document_kind: DocumentKind, original_filename: str | None = None) -> list[Entity]:
+    entities: list[Entity] = detect_structured_identifiers(text)
     if document_kind == DocumentKind.rif:
-        entities.extend(_detect_rif_csv_entities(text))
+        entities.extend(_detect_rif_csv_entities(text, original_filename))
         for match in RIF_SUSPECT_COMPANY_CONTEXT.finditer(text):
             fragment = match.group(1).strip()
             if len(fragment) >= 5 and not fragment.upper().startswith(("CPF", "CNPJ", "VALOR", "DATA")):
@@ -72,6 +69,7 @@ def detect_entities_by_regex(text: str, document_kind: DocumentKind) -> list[Ent
                 )
         for match in PIX_EMAIL_HINT.finditer(text):
             entities.append(Entity(type=EntityType.pix, text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
+        entities.extend(_detect_rif_narrative_entities(text))
     if document_kind == DocumentKind.extrato_bancario:
         entities.extend(_detect_bank_statement_entities(text))
 
@@ -84,12 +82,15 @@ def detect_entities_by_regex(text: str, document_kind: DocumentKind) -> list[Ent
 
     for pattern in (NAME_BEFORE_DOCUMENT, NAME_AFTER_TRANSACTION):
         for match in pattern.finditer(text):
+            start = match.start(1)
             fragment = match.group(1).strip()
+            if document_kind == DocumentKind.rif:
+                fragment, start = _clean_rif_person_fragment(match.group(1), match.start(1))
             if fragment.lower().startswith(("rua ", "avenida ", "av ", "travessa ", "estrada ")):
                 continue
             if any(term in f" {fragment.lower()} " for term in TRANSACTION_FRAGMENT_BLOCKLIST):
                 continue
-            entities.append(Entity(type=EntityType.person, text=fragment, start=match.start(1), end=match.end(1), source="regex"))
+            entities.append(Entity(type=EntityType.person, text=fragment, start=start, end=start + len(fragment), source="regex"))
 
     for match in ADDRESS_HINT.finditer(text):
         entities.append(Entity(type=EntityType.address, text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
@@ -149,9 +150,9 @@ def _detect_bank_statement_entities(text: str) -> list[Entity]:
 def _typed_identifier_entity(text: str, start: int, end: int) -> Entity:
     value = text[start:end]
     digits = re.sub(r"\D", "", value)
-    if 9 <= len(digits) <= 11:
+    if len(digits) == 11 and is_valid_cpf_digits(value):
         entity_type = EntityType.cpf
-    elif len(digits) == 14:
+    elif len(digits) == 14 and is_valid_cnpj_digits(value):
         entity_type = EntityType.cnpj
     else:
         entity_type = EntityType.other_identifier
@@ -184,25 +185,25 @@ def _bank_counterparty_type(value: str) -> EntityType:
     return EntityType.organization if any(term in normalized for term in company_terms) else EntityType.person
 
 
-RIF_CSV_COLUMN_TYPES = {
-    "idcomunicacao": EntityType.protocol,
-    "idocorrencia": EntityType.protocol,
-    "numeroocorrenciabc": EntityType.protocol,
-    "cpfcnpjcomunicante": EntityType.other_identifier,
-    "cpfcnpjenvolvido": EntityType.other_identifier,
-    "nomecomunicante": EntityType.organization,
-    "nomeenvolvido": EntityType.person,
-    "nomeagencia": EntityType.bank_branch,
-    "numeroagencia": EntityType.bank_branch,
-    "agenciaenvolvido": EntityType.bank_branch,
-    "contaenvolvido": EntityType.bank_account,
-}
+RIF_NARRATIVE_NAME_BEFORE_ID = re.compile(
+    rf"\b([{NAME_CHARS}][{WORD_CHARS}'\.-]+(?:\s+(?:DA|DE|DO|DAS|DOS|E)\s+|\s+)[{NAME_CHARS}][{WORD_CHARS}'\.-]+(?:\s+[{NAME_CHARS}][{WORD_CHARS}'\.-]+){{0,5}})\s*[-,]?\s*(?:CPF|CNPJ)\b",
+    re.I,
+)
+RIF_NARRATIVE_NAME_IN_PARENS_AFTER_ID = re.compile(
+    rf"\b(?:CPF|CNPJ)?\s*\d{{3}}\.?\d{{3}}\.?\d{{3}}-?\d{{2}}\s*\(\s*([{NAME_CHARS}][{WORD_CHARS}'\.-]+(?:\s+[{NAME_CHARS}][{WORD_CHARS}'\.-]+){{1,6}})\s*\)",
+    re.I,
+)
+RIF_NARRATIVE_LABEL_NAME = re.compile(
+    rf"\b(?:TITULAR|REMETENTE|BENEFICIARIO|BENEFICIARIA|SACADOR|DEPOSITANTE|FAVORECIDO|FAVORECIDA)\s*[:\-]\s*([{NAME_CHARS}][{WORD_CHARS}'\.-]+(?:\s+[{NAME_CHARS}][{WORD_CHARS}'\.-]+){{1,6}})",
+    re.I,
+)
 
 
-def _detect_rif_csv_entities(text: str) -> list[Entity]:
+def _detect_rif_csv_entities(text: str, original_filename: str | None = None) -> list[Entity]:
     lines = text.splitlines(keepends=True)
     if len(lines) < 2:
         return []
+    subtype = detect_rif_csv_subtype(text, original_filename)
 
     offset = 0
     for index, line in enumerate(lines[:-1]):
@@ -211,8 +212,8 @@ def _detect_rif_csv_entities(text: str) -> list[Entity]:
             offset += len(line)
             continue
 
-        headers = [cell.strip().strip('"').lower() for cell in line.rstrip("\r\n").split(delimiter)]
-        sensitive_columns = {column_index: RIF_CSV_COLUMN_TYPES[header] for column_index, header in enumerate(headers) if header in RIF_CSV_COLUMN_TYPES}
+        headers = [normalize_rif_header(cell) for cell in line.rstrip("\r\n").split(delimiter)]
+        sensitive_columns = rif_column_types_for_headers(headers, subtype)
         if not sensitive_columns:
             offset += len(line)
             continue
@@ -220,6 +221,49 @@ def _detect_rif_csv_entities(text: str) -> list[Entity]:
         return _detect_rif_rows(text, lines[index + 1 :], offset + len(line), delimiter, sensitive_columns)
 
     return []
+
+
+def _detect_rif_narrative_entities(text: str) -> list[Entity]:
+    entities: list[Entity] = []
+    for pattern in (RIF_NARRATIVE_NAME_BEFORE_ID, RIF_NARRATIVE_NAME_IN_PARENS_AFTER_ID, RIF_NARRATIVE_LABEL_NAME):
+        for match in pattern.finditer(text):
+            fragment, start = _clean_rif_person_fragment(match.group(1), match.start(1))
+            if _is_rif_operational_fragment(fragment):
+                continue
+            entities.append(Entity(type=EntityType.person, text=fragment, start=start, end=start + len(fragment), source="regex"))
+    return entities
+
+
+def _clean_rif_person_fragment(value: str, start: int) -> tuple[str, int]:
+    fragment = re.sub(r"\s+", " ", value.strip())
+    prefix = re.match(r"(?i)^.*\b(?:por|para|de)\s+", fragment)
+    if prefix:
+        fragment = fragment[prefix.end() :].strip()
+        start = start + prefix.end()
+    suffix = re.search(r"(?i)\s+(?:CPF|CNPJ|RG|CNH|PASSAPORTE)\b.*$", fragment)
+    if suffix:
+        fragment = fragment[: suffix.start()].strip()
+    return fragment, start
+
+
+def _is_rif_operational_fragment(value: str) -> bool:
+    normalized = re.sub(r"\s+", " ", value.upper()).strip()
+    protected = (
+        "BANCO",
+        "BACEN",
+        "COAF",
+        "PIX",
+        "TED",
+        "DOC",
+        "DEPOSITO",
+        "TRANSFERENCIA",
+        "SAQUE",
+        "PAGAMENTO",
+        "CREDITO",
+        "DEBITO",
+        "LOTERIAS",
+    )
+    return any(term in normalized for term in protected)
 
 
 def _detect_rif_rows(

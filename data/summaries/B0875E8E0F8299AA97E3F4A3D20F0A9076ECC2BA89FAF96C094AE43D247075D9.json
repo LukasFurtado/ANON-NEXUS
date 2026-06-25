@@ -1,0 +1,49 @@
+{
+  "document_id": "B0875E8E0F8299AA97E3F4A3D20F0A9076ECC2BA89FAF96C094AE43D247075D9",
+  "profile": "extrato_bancario",
+  "total_entities_detected": 4,
+  "entities_by_type": {
+    "CPF": 2,
+    "PERSON": 2
+  },
+  "substitution_method_used": {
+    "pseudonimizacao": 4,
+    "mascaramento": 0
+  },
+  "fields_preserved": [
+    "data_lancamento",
+    "valor_lancamento",
+    "saldo",
+    "tipo_operacao",
+    "coluna_valor",
+    "coluna_saldo",
+    "coluna_data",
+    "coluna_doc",
+    "coluna_inst",
+    "historico_operacional_delos",
+    "codigo_ispb_compe",
+    "numero_requisicao",
+    "numero_caso"
+  ],
+  "warnings_raised": [],
+  "processing_duration_ms": 330,
+  "integrity_hash_output": "F91E133AD203536F16707E18C6159AD7F0E15BD2881D066C8D17265714484EBB",
+  "pipeline_stages_ok": [
+    "parser",
+    "regex",
+    "ner",
+    "validation",
+    "substitution",
+    "export"
+  ],
+  "quality_status": "REVISAR",
+  "quality_score": 85,
+  "quality_reasons": [
+    "Volume de entidades detectadas abaixo do esperado para o perfil."
+  ],
+  "confidence_score": 96,
+  "confidence_level": "ALTA",
+  "confidence_reasons": [
+    "Ha 1 aviso(s) de validacao."
+  ]
+}

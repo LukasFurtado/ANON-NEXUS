@@ -23,28 +23,39 @@ ALLOWLIST_HISTORICO = {
     "DEPOS.COMPE",
     "DEP.DINHEIRO",
     "DP DINH AG",
+    "DEPOSITO EM CHEQUE",
+    "DEPOSITO BLOQ. 1 DIA UTIL",
     "PAGAMENTO DE TITULO",
     "PAGAMENTO CONTA AGUA",
     "PAGAMENTO CONTA LUZ",
     "PAGAMENTO CONTA TELEFONE",
+    "PAGAMENTO CONTA",
     "PAGTO CARTAO CREDITO",
     "MOVIMENTO DO DIA",
+    "MOVIMENTACAO DO DIA",
     "AVISO CREDIT",
     "CRED.AUTOR",
+    "CREDITO AUTORIZADO",
     "TRANSF.CRED.",
     "TRANSF CTA",
     "TRANSFERENCIA",
     "TRANSFERENCIA ON LINE",
+    "TRANSFERIDO PARA POUPANCA",
+    "TRANSFERIDO DA POUPANCA",
     "TED",
     "TED TRANSFERENCIA ELETR.DISPON",
     "DEBITO TED",
     "TEDPESSOAL",
+    "DOC",
     "BLOQ. 1 DIA",
     "BLOQUEIO 1 DIA UTIL",
     "APLICACAO",
     "APLICACAO EM POUPANCA",
+    "INVESTIMENTO APLICACAO",
     "RESG AUTOM",
     "RESGATE DE APLICACAO",
+    "RESGATE AUTOM",
+    "RESGATE",
     "RETIRADA",
     "DEB CESTA",
     "SAQ CARTAO",
@@ -58,6 +69,7 @@ ALLOWLIST_HISTORICO = {
     "TARIFA MSG",
     "ESTORNO ACERTO-CREDITO",
     "ESTORNO DE DEBITO",
+    "ESTORNO SISTEMA AGE",
     "BB-PRESTACAO SERVICOS",
     "POUPANCA OURO-DEP A PRAZO",
     "RECEITA DE TARIFAS",
@@ -67,6 +79,7 @@ ALLOWLIST_HISTORICO = {
     "PORTADORES DE NUMERARIOS INFERIORES A DEZ MIL REAIS NAO SAO IDENTIFICADOS",
     "RELATIVO A TRANSACAO COM CARTAO DE DEBITO",
     "SAQUE EM TERMINAL DE AUTOATENDIMENTO",
+    "DOCUMENTO EXIGE RECUPERACAO MANUAL",
 }
 
 PREFIXOS_OPERACIONAIS = ("BB1-", "BB2-", "CEF-", "CRED ", "DEB ", "TAR ", "SAQ ", "DEP ", "DP ", "TED")
@@ -123,6 +136,7 @@ PROTECTED_OPERATIONAL_TYPES = {
     EntityType.person,
     EntityType.organization,
     EntityType.phone,
+    EntityType.cep,
     EntityType.card,
     EntityType.other_identifier,
 }
@@ -174,6 +188,8 @@ def should_preserve_entity(fragment: str, line_context: str, entity_type: Entity
         return True, "identificador do caso preservado"
     if "DOC." in line and digits and entity_type in {EntityType.other_identifier, EntityType.phone, EntityType.card}:
         return True, "valor operacional da coluna Doc. preservado"
+    if entity_type in {EntityType.cep, EntityType.phone, EntityType.card, EntityType.other_identifier} and _numero_operacional_bancario(digits, line):
+        return True, "numero operacional de extrato bancario preservado"
     if re.search(r"\bINST\.?\b", line) and cnpj_cabecalho_preservar(value):
         return True, "codigo de instituicao financeira preservado"
     if entity_type == EntityType.phone and re.fullmatch(r"\d{4,12}", digits):
@@ -181,3 +197,17 @@ def should_preserve_entity(fragment: str, line_context: str, entity_type: Entity
             return True, "agencia, conta ou codigo bancario preservado"
     return False, ""
 
+
+def _numero_operacional_bancario(digits: str, line: str) -> bool:
+    if not digits:
+        return False
+    if len(digits) <= 4 and re.search(r"\b(?:DOC|DOC\.|INST|AG|CONTA|HISTORICO|VALOR)\b", line):
+        return True
+    if len(digits) in {5, 6, 7, 8} and not re.search(r"\b(?:CEP|ENDERECO|RUA|AVENIDA|TELEFONE|FONE|CELULAR)\b", line):
+        return True
+    if len(digits) >= 9 and re.search(
+        r"\b(?:PAGTO|PAGAMENTO|CARTAO|CREDITO|DEBITO|SAQUE|TARIFA|TED|DOC|TRANSFERENCIA|HISTORICO|VALOR|D/C|INST|AG|CONTA)\b",
+        line,
+    ):
+        return True
+    return False

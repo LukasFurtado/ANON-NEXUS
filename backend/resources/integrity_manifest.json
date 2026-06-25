@@ -1,15 +1,31 @@
 {
     "schema":  "ANON-INTEGRITY-MANIFEST-v1",
-    "generated_at":  "2026-06-24T18:21:29-03:00",
+    "generated_at":  "2026-06-24T21:35:04-03:00",
     "purpose":  "Protecao de dados institucional",
     "files":  [
                   {
                       "path":  "backend/app/api/routes.py",
-                      "sha256":  "0377C9F1B55F09F434FD4107B27A5042C7225EC4708E4BEFF594660F489F47E4"
+                      "sha256":  "3DF779AC6BE290F2A8611CF7E85182E26D848946BE571BCE2C04F4320BBEC450"
                   },
                   {
                       "path":  "backend/app/core/config.py",
-                      "sha256":  "889FB912B1A2159A5D214A656D820C120C12574F95AB23BD9433BC145592493B"
+                      "sha256":  "31BB13A68D8F25D57BAB3B7B1F0CE0027E59833FA562F1E1ED7F38EDF27FD3A6"
+                  },
+                  {
+                      "path":  "backend/app/core/pipeline_state.py",
+                      "sha256":  "583F36797F0C29C5139B68C41DA07F9939D711B6CD18D74C90F279C83780FEE5"
+                  },
+                  {
+                      "path":  "backend/app/core/profile_loader.py",
+                      "sha256":  "E983BA8F29D0ECC9CB7A553D86E51A74554B1A975B8A01AC51C55C413A0AEF5F"
+                  },
+                  {
+                      "path":  "backend/app/core/quality_classifier.py",
+                      "sha256":  "8B073D3CCF9C0448654863FB8E1B6B07032628916FC298EFA2A7E0500E9E87F8"
+                  },
+                  {
+                      "path":  "backend/app/core/safe_summary.py",
+                      "sha256":  "CC0C98E7DB7C9A4498983DC04A2FA46B3679361019EAB8B92C2F846E96DC2C51"
                   },
                   {
                       "path":  "backend/app/main.py",
@@ -17,15 +33,19 @@
                   },
                   {
                       "path":  "backend/app/models/schemas.py",
-                      "sha256":  "EFF04EA5072993D848F47A5890E108BC91FB638F7C15ED0F24740967E826B434"
+                      "sha256":  "6A22C76E223A79CDA7213B3BD96AD5ADD6E57F60D475A5A1B996930B4675EF5A"
                   },
                   {
                       "path":  "backend/app/pipeline/anonymizer.py",
-                      "sha256":  "FE56BD46C0A6A65E9532CFA873673CED3A1CDFAAD4B773D90A2E57DD07F9E92C"
+                      "sha256":  "322406D9E6CF1D1147065DB2D760F230632837D5E285E6C9AE51A18300A2946E"
+                  },
+                  {
+                      "path":  "backend/app/pipeline/delos_rules.py",
+                      "sha256":  "504A55A5AD0FB97504AD93D34D31FEDA808279C16028587C08D42FBFC57C2DEA"
                   },
                   {
                       "path":  "backend/app/pipeline/exporter.py",
-                      "sha256":  "8E71C458D27774B25BA76A20FCBE3006B13AA24B6F0965E68C5A1C1D6B7DC220"
+                      "sha256":  "8731C1619E49FFB8E67961B42BBC846DEFCBA19B79F9B770C5048B61F8DB8A70"
                   },
                   {
                       "path":  "backend/app/pipeline/ocr.py",
@@ -37,19 +57,19 @@
                   },
                   {
                       "path":  "backend/app/pipeline/profile_strategy.py",
-                      "sha256":  "CCEB98B3F264BBC7F13924613CA4B9044EABC1357F55609E16089F407D81A5CB"
+                      "sha256":  "83207EFD7C155B9172E1C3ED6D5B4C097F1D2522C12B01B5378A85CF9155DA17"
                   },
                   {
                       "path":  "backend/app/pipeline/regex_rules.py",
-                      "sha256":  "1A0674AD96ED913378EE0E972B9AC19271DB9F215F7219D39820C9F9948E877F"
+                      "sha256":  "9FF7D94B50C2F76A8AF450D487D26F94ACA69F45917F620F79E21B6B56305871"
                   },
                   {
                       "path":  "backend/app/pipeline/runner.py",
-                      "sha256":  "CC6C53DDEAFBF26AA991C6EF3E295F672C3362A701598AC169D49C1A1E8874A7"
+                      "sha256":  "2740D7F7B3671664CEDCE8CE0A22BBE2BA123397103072C1AB8F0FE7A0B0523B"
                   },
                   {
                       "path":  "backend/app/pipeline/validator.py",
-                      "sha256":  "E59B6D7A176DB545823854C80292EBADCE07FDCC49C4D27D274DD4C11C528688"
+                      "sha256":  "F8CA97AE3427B6A143577CCE16B512D7B9D3A885CD76363D27400006CE16FC5E"
                   },
                   {
                       "path":  "backend/app/services/data_protection.py",
@@ -64,6 +84,10 @@
                       "sha256":  "0A8EA614FF8D905946C7C9DFBEE6B5EF3E31239E90ED4EF99DCCEAD8581A2C4B"
                   },
                   {
+                      "path":  "backend/app/services/diagnostic_chat.py",
+                      "sha256":  "2E7DB32723E7CDB6730EBBB0AE8328807D812BBEAB1046E71B0B8ED9D874ADBE"
+                  },
+                  {
                       "path":  "backend/app/services/error_logger.py",
                       "sha256":  "FE1F04DAE8151934A36071D07F399545AB28F8331F64B0E365605313E4E6B4DC"
                   },
@@ -73,35 +97,71 @@
                   },
                   {
                       "path":  "backend/app/services/knowledge_base.py",
-                      "sha256":  "3D043DB027F369DFE0BA5024FC862AC6E95F325F0A9C457B1676F5109714A838"
+                      "sha256":  "2A3AF2B339CF2BDB98975624954152C98AEC06A03C65342F8A3EBB2FD0E1623B"
                   },
                   {
                       "path":  "backend/app/services/ollama.py",
-                      "sha256":  "958AE469EEDAD2B8E962D4BA86FEBD579DE695D540AA46730AFC06B26D5D97C6"
+                      "sha256":  "A0A7B0D44415F27668657972188FE150681B2BB64023DE07EDEA9739AE0D413D"
+                  },
+                  {
+                      "path":  "backend/app/services/system_metrics.py",
+                      "sha256":  "5A8E26EF3C4558AA3D774E53C47B2F1B39966337141E02E66BEB30A3F75FD52A"
                   },
                   {
                       "path":  "backend/resources/knowledge/anon_operational_knowledge.json",
-                      "sha256":  "2985AC4ED19B64172E5237906EFCCD6D3F94E09A6B19D7DCB26CFE4F0F7969F9"
+                      "sha256":  "48F699068B17557C7F699083A3BDFF4CA28EF71ED937CD820F0AB2D638C028F2"
+                  },
+                  {
+                      "path":  "backend/resources/profiles/extrato_bancario.json",
+                      "sha256":  "9B939CFE25D72EE265FD61A3710A9633CE7636711006A83B25DFD1050CF77C28"
+                  },
+                  {
+                      "path":  "backend/resources/profiles/relatorio_investigativo.json",
+                      "sha256":  "94FF73C66D6B45A8143EA00BBA244C619038EB3E431278947E582D5C264936F3"
+                  },
+                  {
+                      "path":  "backend/resources/profiles/rif.json",
+                      "sha256":  "5E4DA206E461CA2315A5E9EE9454F2227184743867725B3305A12875ADB6AD92"
                   },
                   {
                       "path":  "backend/app/version.py",
-                      "sha256":  "30200FE17EABAE25B239E9B816D1656FD61D6C205664D492FF91BC77FC24BFE1"
+                      "sha256":  "D3D4B39BA180D6DB45F18B9FC0263FF3551E1F3AB7D7546ECC3BAEAE3208E2AA"
                   },
                   {
                       "path":  "backend/requirements.txt",
-                      "sha256":  "0B730ED0E383053CF5ACF551ABEF011E41CDE4D53D2177A9D31CC0C701E0DA9B"
+                      "sha256":  "9B999B056FF497750086AAF4A12C626D900764817E31D6855597DF150E0C5798"
                   },
                   {
                       "path":  "frontend/src/App.tsx",
-                      "sha256":  "7C19C5970FAB165ECECF82ABFE8A496CBCA2FB82AB18268822541FEBBD4FB557"
+                      "sha256":  "EDE7555D957E3ECBB2B3CC919989596CACD898AEF7AB9A3B38D2225D224AD79C"
                   },
                   {
                       "path":  "frontend/src/styles/app.css",
-                      "sha256":  "1A16B36D9A6D9B4EDB04E2785148FCBB5DB37F056820C2F4B10134C1CBD2E970"
+                      "sha256":  "037288AC840948FB65D7B83B81DB807F3DBB157CF3C7FE156D0DA59F8FA2C23E"
                   },
                   {
                       "path":  "frontend/package.json",
-                      "sha256":  "A8C32C8211718ECCBBBCE9A56BED975946861CCA13FE7E20F038179A9087930D"
+                      "sha256":  "76B8C1FFED74C1FE74A30C070CD3BD79D97C16B9FFCD5810513E8D5B54CE076D"
+                  },
+                  {
+                      "path":  "install.py",
+                      "sha256":  "11AC5B7357A5F801F2D9297E6389ECC582D93115F2214BA4829D333B79D29AC8"
+                  },
+                  {
+                      "path":  "install_check.py",
+                      "sha256":  "5AE8B83F050942539070335A6CAEA6D32B8FD88DD66E84407742D6BD943B6AB2"
+                  },
+                  {
+                      "path":  "scripts/build-installer-package.ps1",
+                      "sha256":  "BF89A9C16F51B1A40D53085B051F9770B2E0C791782740626A29C650088BC5FE"
+                  },
+                  {
+                      "path":  "scripts/create-integrity-manifest.ps1",
+                      "sha256":  "58D564D60EC0F09644E78621DBF83981ADDBD8D5EF0DE09A398FFAAC86771350"
+                  },
+                  {
+                      "path":  "scripts/install-nexus-anon.ps1",
+                      "sha256":  "42CB09F8BC71C4BB108B82F52C12E054D94338B2DBB0964341A62092242EBB2D"
                   },
                   {
                       "path":  "scripts/start-backend.ps1",

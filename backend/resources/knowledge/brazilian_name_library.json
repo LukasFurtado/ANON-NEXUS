@@ -1,0 +1,13 @@
+{
+  "schema": "ANON-BRAZILIAN-NAME-LIBRARY-v1",
+  "purpose": "Biblioteca local expansivel para apoiar deteccao deterministica de nomes brasileiros sem substituir a validacao da IA local.",
+  "first_names": ["Aline", "Ana", "Andre", "Antonio", "Beatriz", "Bruna", "Camila", "Carlos", "Claudia", "Daniel", "Eduardo", "Fernanda", "Francinete", "Gabriel", "Gorete", "Joao", "Jose", "Juliana", "Luiz", "Luis", "Marcelo", "Marcos", "Maria", "Mariana", "Paulo", "Pedro", "Rafael", "Renata", "Roberto", "Sandra", "Silvia", "Thiago", "Vanessa"],
+  "surnames": ["Almeida", "Alves", "Araujo", "Barbosa", "Barros", "Batista", "Bezerra", "Cavalcanti", "Costa", "Ferreira", "Gomes", "Lima", "Medeiros", "Melo", "Monteiro", "Moreira", "Nascimento", "Nunes", "Oliveira", "Pereira", "Rocha", "Rodrigues", "Santos", "Silva", "Siqueira", "Souza", "Sousa", "Teixeira", "Vieira"],
+  "particles": ["de", "da", "do", "das", "dos", "e"],
+  "context_terms": ["vitima", "investigado", "testemunha", "acusado", "autor", "beneficiario", "titular", "remetente", "depositante", "favorecido"],
+  "rules": [
+    "Nome completo exige primeiro nome conhecido e ao menos um sobrenome conhecido.",
+    "Instituicoes preservadas continuam bloqueadas antes da classificacao como pessoa.",
+    "A biblioteca e apoio deterministico; a IA local continua obrigatoria."
+  ]
+}

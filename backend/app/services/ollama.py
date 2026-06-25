@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.core.profile_loader import profile_context_prompt
 from app.models.schemas import DocumentKind, Entity, EntityType
 from app.pipeline.profile_strategy import profile_prompt
-from app.services.knowledge_base import compact_profile_guidance, json_contract_prompt
+from app.services.knowledge_base import compact_profile_guidance, json_contract_prompt, specialized_behavior_prompt
 
 
 SYSTEM_PROMPT = """
@@ -23,7 +23,7 @@ Analise todo o trecho recebido e indique tambem entidades evidentes, ainda que p
 Identifique apenas dados pessoais, identificadores, pessoas, empresas e contatos.
 Nao marque datas, valores monetarios, percentuais, artigos de lei, jurisprudencia,
 fundamentacao juridica, conclusoes tecnicas ou analise financeira.
-Formato obrigatorio: {"entities":[{"type":"PERSON","text":"...","start":0,"end":10}]}
+Formato obrigatorio: {"entities":[{"type":"PERSON","text":"...","start":0,"end":10,"action":"anonymize","reason":"...","confidence":0.90}],"preserve":[{"text":"...","reason":"..."}]}
 Se nenhuma entidade sensivel for localizada, responda exatamente: {"entities":[]}
 Types permitidos: PERSON, ORGANIZATION, CPF, CNPJ, RG, CNH, PASSPORT, PIS_NIS,
 FUNCTIONAL_ID, BANK_ACCOUNT, BANK_BRANCH, PIX, BOLETO, CARD, PHONE, EMAIL,
@@ -31,6 +31,8 @@ ADDRESS, CEP, VEHICLE_PLATE, RENAVAM, CHASSIS, IP, MAC, QR_CODE, PROTOCOL,
 PROCEEDING, OTHER_IDENTIFIER.
 Indices devem usar offsets exatos no texto recebido.
 O campo "text" deve ser copia literal do trecho encontrado entre "start" e "end".
+O campo "action" deve ser anonymize, preserve ou review. Use preserve somente para item tecnico que voce reconheceu e decidiu manter.
+O campo "confidence" deve ser numero entre 0 e 1. O campo "reason" deve ser curto e sem dados sensiveis novos.
 """
 NO_THINK_PREFIX = "/no_think"
 THINK_BLOCK_PATTERN = re.compile(r"<think>.*?</think>", re.I | re.S)
@@ -51,6 +53,8 @@ class OllamaDetectionResult:
     json_rejected_chunks: int = 0
     correction_attempts: int = 0
     correction_successes: int = 0
+    json_rejection_reasons: list[str] | None = None
+    preserved_items: int = 0
 
 
 def detect_entities_with_ollama(text: str, model: str, document_kind: DocumentKind) -> OllamaDetectionResult:
@@ -65,6 +69,12 @@ def detect_entities_with_ollama(text: str, model: str, document_kind: DocumentKi
         result.json_rejected_chunks += chunk_result.json_rejected_chunks
         result.correction_attempts += chunk_result.correction_attempts
         result.correction_successes += chunk_result.correction_successes
+        result.preserved_items += chunk_result.preserved_items
+        if chunk_result.json_rejection_reasons:
+            result.json_rejection_reasons = [
+                *(result.json_rejection_reasons or []),
+                *chunk_result.json_rejection_reasons,
+            ]
         entities.extend(chunk_result.entities)
     result.entities = _deduplicate_entities(entities)
     return result
@@ -83,6 +93,7 @@ def _detect_entities_with_ollama_chunk(
         "prompt": (
             f"{NO_THINK_PREFIX}\n"
             f"{SYSTEM_PROMPT}\n\n"
+            f"{specialized_behavior_prompt()}\n\n"
             f"{json_contract_prompt()}\n\n"
             f"{profile_context_prompt(document_kind.value)}\n\n"
             f"{profile_prompt(document_kind)}\n\n"
@@ -90,34 +101,43 @@ def _detect_entities_with_ollama_chunk(
             f"TEXTO:\n{text}"
         ),
         "think": False,
-        "options": {"temperature": 0},
+        "options": {"temperature": 0, "top_p": 0.9, "repeat_penalty": 1.1, "num_predict": 4096},
     }
 
     raw = _request_ollama_generate(payload)
     json_rejected = 0
     correction_attempts = 0
     correction_successes = 0
+    rejection_reasons: list[str] = []
     try:
         items = _load_entity_items(raw)
     except OllamaResponseFormatError:
         json_rejected = 1
+        rejection_reasons.append("Resposta inicial fora do contrato JSON de entidades.")
         correction_attempts = 1
         corrected_raw = _request_ollama_generate(_correction_payload(raw, model))
         try:
             items = _load_entity_items(corrected_raw)
             correction_successes = 1
         except OllamaResponseFormatError:
+            rejection_reasons.append("Resposta de correcao tambem ficou fora do contrato JSON aproveitavel.")
             return OllamaDetectionResult(
                 entities=[],
                 chunks_processed=1,
                 json_rejected_chunks=json_rejected,
                 correction_attempts=correction_attempts,
                 correction_successes=correction_successes,
+                json_rejection_reasons=rejection_reasons,
             )
 
     entities: list[Entity] = []
+    preserved_items = 0
     for item in items:
         try:
+            action = _normalize_action(item.get("action", "anonymize"))
+            if action == "preserve":
+                preserved_items += 1
+                continue
             entity_text = str(item["text"]).strip()
             if not entity_text:
                 continue
@@ -137,6 +157,9 @@ def _detect_entities_with_ollama_chunk(
                     start=chunk_start + start,
                     end=chunk_start + end,
                     source="ollama",
+                    confidence=_normalize_confidence(item.get("confidence")),
+                    reason=_safe_reason(item.get("reason")),
+                    action=action,
                 )
             )
         except (KeyError, ValueError, TypeError):
@@ -147,6 +170,8 @@ def _detect_entities_with_ollama_chunk(
         json_rejected_chunks=json_rejected,
         correction_attempts=correction_attempts,
         correction_successes=correction_successes,
+        json_rejection_reasons=rejection_reasons,
+        preserved_items=preserved_items,
     )
 
 
@@ -188,7 +213,7 @@ RESPOSTA_ANTERIOR:
         "format": "json",
         "prompt": prompt,
         "think": False,
-        "options": {"temperature": 0},
+        "options": {"temperature": 0, "top_p": 0.9, "repeat_penalty": 1.1, "num_predict": 2048},
     }
 
 
@@ -212,6 +237,17 @@ def _normalize_entity_type(value: str) -> EntityType | None:
         "IDENTIFIER": "OTHER_IDENTIFIER",
         "IDENTIFICADOR": "OTHER_IDENTIFIER",
         "VEHICLE": "VEHICLE_PLATE",
+        "PLACA": "VEHICLE_PLATE",
+        "PLACA_VEICULO": "VEHICLE_PLATE",
+        "CHASSI": "CHASSIS",
+        "ENDERECO": "ADDRESS",
+        "TELEFONE": "PHONE",
+        "E-MAIL": "EMAIL",
+        "PROCESSO": "PROCEEDING",
+        "PROCEDIMENTO": "PROCEEDING",
+        "PROTOCOLO": "PROTOCOL",
+        "ORGAO": "ORGANIZATION",
+        "INSTITUICAO": "ORGANIZATION",
     }
     normalized = aliases.get(normalized, normalized)
     blocked = {"VALUE", "AMOUNT", "MONEY", "DATE", "TIME", "PERCENTAGE", "HISTORY", "DESCRIPTION"}
@@ -221,6 +257,41 @@ def _normalize_entity_type(value: str) -> EntityType | None:
         return EntityType(normalized)
     except ValueError:
         return None
+
+
+def _normalize_action(value: object) -> str:
+    normalized = str(value or "anonymize").strip().lower()
+    aliases = {
+        "anonimizar": "anonymize",
+        "substituir": "anonymize",
+        "mask": "anonymize",
+        "mascarar": "anonymize",
+        "preservar": "preserve",
+        "manter": "preserve",
+        "reter": "preserve",
+        "revisar": "review",
+        "review_required": "review",
+    }
+    return aliases.get(normalized, normalized if normalized in {"anonymize", "preserve", "review"} else "anonymize")
+
+
+def _normalize_confidence(value: object) -> float | None:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        return None
+    if confidence > 1 and confidence <= 100:
+        confidence = confidence / 100
+    if confidence < 0 or confidence > 1:
+        return None
+    return round(confidence, 3)
+
+
+def _safe_reason(value: object) -> str | None:
+    reason = " ".join(str(value or "").split())
+    if not reason:
+        return None
+    return reason[:180]
 
 
 def _resolve_span(text: str, entity_text: str, start: int, end: int) -> tuple[int, int] | None:
@@ -313,6 +384,9 @@ def _extract_entity_items(value: object) -> list[dict] | None:
     category_items = _extract_category_map_items(value)
     if category_items:
         return category_items
+    contract_items = _extract_contract_items(value)
+    if contract_items is not None:
+        return contract_items
     preferred_keys = (
         "entities",
         "entidades",
@@ -342,6 +416,29 @@ def _extract_entity_items(value: object) -> list[dict] | None:
         if items:
             return items
     return None
+
+
+def _extract_contract_items(value: dict) -> list[dict] | None:
+    entity_items: list[dict] = []
+    found_contract_key = False
+    for key in ("entities", "entidades", "detected_entities", "detectedEntities"):
+        if key not in value:
+            continue
+        found_contract_key = True
+        items = _extract_entity_items(value[key])
+        if items:
+            entity_items.extend(items)
+    for key in ("preserve", "preservar", "preserved", "retencao", "retenção"):
+        if key not in value:
+            continue
+        found_contract_key = True
+        items = _extract_entity_items(value[key])
+        if items:
+            for item in items:
+                item.setdefault("action", "preserve")
+                item.setdefault("type", "OTHER_IDENTIFIER")
+                entity_items.append(item)
+    return entity_items if found_contract_key else None
 
 
 def _extract_category_map_items(value: dict) -> list[dict]:
@@ -377,6 +474,17 @@ def _normalize_item_keys(item: dict) -> dict:
         "original": "text",
         "entity": "text",
         "entidade": "text",
+        "acao": "action",
+        "ação": "action",
+        "operacao": "action",
+        "operação": "action",
+        "motivo": "reason",
+        "justificativa": "reason",
+        "confianca": "confidence",
+        "confiança": "confidence",
+        "campo": "field",
+        "coluna": "field",
+        "fonte": "source_hint",
         "inicio": "start",
         "início": "start",
         "offset_start": "start",

@@ -47,6 +47,8 @@ Para uso por pessoas sem familiaridade com terminal, utilize os arquivos da raiz
 - `ABRIR_NEXUS_ANON.bat`: liga os serviços locais e abre automaticamente `http://localhost:5173/` no navegador.
 - `INSTALACAO_NEXUS_ANON.html`: guia visual de instalação e requisitos para operadores não técnicos.
 - `GERAR_PACOTE_NEXUS_ANON.bat`: gera um pacote ZIP limpo para distribuição local.
+- `install.py`: assistente Python alternativo para preparar backend e interface quando o `.bat` não for usado.
+- `install_check.py`: verificador rápido de ambiente, dependências e modelos locais antes da execução.
 
 O pacote não inclui o peso do modelo `qwen3:32b`, pois ele é grande e deve ser instalado ou baixado pelo Ollama na máquina de destino.
 
@@ -81,11 +83,7 @@ ollama serve
 
 O Ollama deve permanecer em execução durante o uso do ANON. Sem resposta local do Ollama, a anonimização é bloqueada para evitar processamento sem IA.
 
-Depois, crie o modelo especializado do NEXUS ANON:
-
-```powershell
-.\scripts\create-anonrif2-model.ps1
-```
+O modelo operacional padrão é `qwen3:32b`. O ANON não exige criação de `NEXUS-anon:latest`; a especialização institucional fica nos prompts, perfis JSON, regras determinísticas, validação e corretor de JSON.
 
 ### 3. Frontend
 
@@ -150,7 +148,7 @@ Esta versão entrega:
 
 ## Versionamento
 
-Versão atual: **1.8.34**.
+Versão atual: **1.8.39**.
 
 Toda atualização funcional, visual ou documental deve incrementar a versão e registrar a mudança em `CHANGELOG.md`.
 
@@ -163,4 +161,3 @@ Toda atualização funcional, visual ou documental deve incrementar a versão e 
 5. Perfis especializados por documento.
 6. Tela de revisão humana com aceite/rejeição de entidades.
 7. Empacotamento com instalador e verificador de dependências locais.
-
