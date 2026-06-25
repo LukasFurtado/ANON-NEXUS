@@ -1,0 +1,27 @@
+{
+  "pipeline_id": "c59f40aa-fcf6-4b2b-bb0f-cd4a3f307906",
+  "started_at": "2026-06-25T15:25:15.426447+00:00",
+  "finished_at": "2026-06-25T15:25:15.432447+00:00",
+  "stages": [
+    {
+      "name": "parser",
+      "status": "ok",
+      "duration_ms": 0,
+      "note": "33 caracteres extraidos"
+    },
+    {
+      "name": "manual_setup",
+      "status": "ok",
+      "duration_ms": 0,
+      "note": "aguardando operador"
+    },
+    {
+      "name": "export",
+      "status": "ok",
+      "duration_ms": 1,
+      "note": "1 produto(s)"
+    }
+  ],
+  "overall_status": "ok",
+  "total_duration_ms": 5
+}

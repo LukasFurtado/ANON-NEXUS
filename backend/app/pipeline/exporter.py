@@ -105,6 +105,7 @@ def export_audit_manifest(
         "ollama_json": metadata.get("ollama_metrics") or {},
         "post_validation": metadata.get("post_validation") or {},
         "confidence": metadata.get("confidence") or {},
+        "consistency_audit": metadata.get("consistency_audit") or {},
         "human_review": {
             "mode": "enabled",
             "status": "pending_operator_review" if metadata.get("review_items") else "no_items",
@@ -150,6 +151,7 @@ def _product_usage_classification(format_name: str) -> str:
 def _summary_lines(original_filename: str, metadata: dict[str, Any]) -> list[str]:
     generated_at = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     communication_summary = metadata.get("communication_summary") if isinstance(metadata.get("communication_summary"), dict) else {}
+    consistency = metadata.get("consistency_audit") if isinstance(metadata.get("consistency_audit"), dict) else {}
     lines = [
         "RESUMO OPERACIONAL",
         f"Solicitacao: {metadata.get('request_title') or 'Nao informada'}",
@@ -166,6 +168,10 @@ def _summary_lines(original_filename: str, metadata: dict[str, Any]) -> list[str
         f"Substituicoes aplicadas: {metadata.get('replacements_applied', 0)}",
         f"Eventos internos de comunicacao: {communication_summary.get('events', 0)}",
         f"Ultimo estagio interno: {communication_summary.get('last_stage') or 'Nao informado'}",
+        f"Dicionario central: {'Ativo' if consistency.get('central_dictionary_active') else 'Nao informado'}",
+        f"Consistencia entre arquivos: {consistency.get('status') or 'Nao informada'}",
+        f"Sincronizacao aplicada: {'Sim' if int(consistency.get('sync_entries_loaded') or 0) else 'Nao'}",
+        f"Codigos sincronizados: {consistency.get('sync_entities_found', 0)}/{consistency.get('sync_entries_loaded', 0)}",
         f"Gerado em: {generated_at}",
     ]
     protection = _data_protection(metadata)
@@ -209,6 +215,16 @@ def _warning_explanation(warning: str) -> str:
 def _control_rows(metadata: dict[str, Any]) -> list[Any]:
     rows = metadata.get("control_table") or []
     return rows if isinstance(rows, list) else []
+
+
+def _manual_reanalysis_rows(metadata: dict[str, Any]) -> list[dict[str, Any]]:
+    manual_reanalysis = metadata.get("manual_reanalysis")
+    if not isinstance(manual_reanalysis, dict):
+        return []
+    report = manual_reanalysis.get("report") or []
+    if not isinstance(report, list):
+        return []
+    return [item for item in report if isinstance(item, dict)]
 
 
 def _row_value(row: Any, key: str) -> Any:
@@ -689,6 +705,46 @@ def _export_control_pdf(path: Path, original_filename: str, metadata: dict[str, 
         )
     )
     story.append(control_table)
+    manual_section = _manual_reanalysis_rows(metadata)
+    if manual_section:
+        story.append(Spacer(1, 0.35 * cm))
+        story.append(Paragraph("ATUALIZACOES POR REANALISE DIRIGIDA", title_style))
+        story.append(
+            Paragraph(
+                "Esta secao registra correcoes solicitadas pelo operador apos o processamento inicial. "
+                "Os dados abaixo integram o controle interno e devem ser conferidos junto ao novo produto gerado.",
+                body_style,
+            )
+        )
+        manual_table_data = [["Valor solicitado", "Tipo", "Marcador aplicado", "Status", "Observacao"]]
+        for item in manual_section:
+            manual_table_data.append(
+                [
+                    Paragraph(_escape_pdf_text(_compact_cell(item.get("requested_value", ""), 130)), body_style),
+                    Paragraph(_escape_pdf_text(_compact_cell(item.get("entity_type", ""), 45)), body_style),
+                    Paragraph(_escape_pdf_text(_compact_cell(item.get("anonymous_id", ""), 55)), body_style),
+                    Paragraph(_escape_pdf_text(_compact_cell(item.get("status", ""), 35)), body_style),
+                    Paragraph(_escape_pdf_text(_compact_cell(item.get("note", ""), 120)), body_style),
+                ]
+            )
+        manual_table = Table(manual_table_data, colWidths=[6.5 * cm, 2.8 * cm, 3.6 * cm, 2.5 * cm, 6.8 * cm], repeatRows=1)
+        manual_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#7A5A12")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 7),
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#B8C3CF")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]
+            )
+        )
+        story.append(manual_table)
     doc.build(story)
     _apply_pdf_protection_metadata(path, metadata)
 

@@ -12,7 +12,7 @@ from app.core.nce import NCEGroupContext
 from app.core.profile_loader import load_profile
 from app.core.quality_classifier import classify_quality
 from app.core.safe_summary import generate_safe_summary, persist_safe_summary
-from app.models.schemas import AnonymizationResult, AnonymizationStats, AnonymizeOptions, AuditInfo, BatchAnonymizationResult
+from app.models.schemas import AnonymizationResult, AnonymizationStats, AnonymizeOptions, AuditInfo, BatchAnonymizationResult, DocumentKind
 from app.pipeline.anonymizer import ReplacementState, apply_anonymization
 from app.pipeline.exporter import export_audit_manifest, export_processing_log, export_text
 from app.pipeline.ocr import needs_ocr, run_ocr
@@ -140,6 +140,26 @@ def run_pipeline(
     if not options.use_ollama:
         trace.emit("Politica", "ia_obrigatoria", "Processamento bloqueado porque a ciencia de uso da IA local nao foi confirmada.", level="error")
         raise ValueError("IA local obrigatoria. Marque ciencia das regras e mantenha o Ollama em execucao.")
+
+    if options.document_kind == DocumentKind.personalizado:
+        if options.sync_entries:
+            raise ValueError("O perfil Personalizado nao aceita sincronizacao de anonimizacao.")
+        return _run_personalized_initial(
+            started_at=started_at,
+            job_id=job_id,
+            state=state,
+            trace=trace,
+            nce_context=nce_context,
+            nce_file_context=nce_file_context,
+            original_text=original_text,
+            original_filename=original_filename,
+            options=options,
+            sha256=sha256,
+            source_copy_path=source_copy_path,
+            parser_metadata=parser_metadata,
+            source_layout=source_layout,
+            ocr_used=ocr_used,
+        )
 
     state.stage_start("regex", "regras locais")
     nce_context.coordinate(
@@ -434,8 +454,22 @@ def run_pipeline(
         formats=list(export_hashes.keys()),
         exports=len(export_hashes),
     )
+    consistency_notes = _consistency_notes(
+        replacement_state,
+        sync_entries_loaded=len(options.sync_entries),
+        sync_entities_found=len(sync_entities),
+    )
+    consistency_status = "Validada" if not consistency_notes else "Validada com avisos"
     export_metadata["nce_context"] = nce_context.public_metadata()
     export_metadata["nce_file_context"] = nce_file_context.public_metadata()
+    export_metadata["consistency_audit"] = {
+        "central_dictionary_active": True,
+        "dictionary_size": len(replacement_state.replacements),
+        "status": consistency_status,
+        "notes": consistency_notes,
+        "sync_entries_loaded": len(options.sync_entries),
+        "sync_entities_found": len(sync_entities),
+    }
     audit_manifest_path = export_audit_manifest(job_id, original_filename, export_metadata, export_hashes)
     if Path(audit_manifest_path).exists():
         export_paths["auditoria"] = audit_manifest_path
@@ -546,6 +580,11 @@ def run_pipeline(
             confidence_score=confidence.score,
             confidence_level=confidence.level,
             confidence_reasons=confidence.reasons,
+            sync_entries_loaded=len(options.sync_entries),
+            sync_entities_found=len(sync_entities),
+            nce_dictionary_size=len(replacement_state.replacements),
+            consistency_status=consistency_status,
+            consistency_notes=consistency_notes,
         ),
         audit=AuditInfo(
             source_sha256=sha256,
@@ -598,6 +637,10 @@ def run_batch_pipeline(
                 "Processamento declarado: local/offline, com hashes SHA-256 para controle de integridade.",
                 f"NCE grupo: {nce_context.group_id}",
                 f"NCE dicionario compartilhado: {len(nce_context.replacement_state.replacements)} entidade(s) canonica(s)",
+                f"Sincronizacao importada: {'Sim' if options.sync_entries else 'Nao'}",
+                f"Entradas de sincronizacao carregadas: {len(options.sync_entries)}",
+                f"Entradas de sincronizacao localizadas: {sum(result.stats.sync_entities_found for result in results)}",
+                f"Consistencia entre arquivos: {'Validada' if not any(result.stats.consistency_notes for result in results) else 'Validada com avisos'}",
             ],
             "files": [
                 {
@@ -634,11 +677,222 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest().upper()
 
 
+def _run_personalized_initial(
+    *,
+    started_at: float,
+    job_id: str,
+    state: PipelineStateEmitter,
+    trace: CommunicationTrace,
+    nce_context: NCEGroupContext,
+    nce_file_context,
+    original_text: str,
+    original_filename: str,
+    options: AnonymizeOptions,
+    sha256: str,
+    source_copy_path: Path,
+    parser_metadata: dict[str, object],
+    source_layout: dict[str, object],
+    ocr_used: bool,
+) -> AnonymizationResult:
+    state.stage_start("manual_setup", "preparacao de finalizacao manual")
+    nce_context.coordinate(
+        nce_file_context,
+        stage="manual_setup",
+        status="waiting",
+        decision="manual_review",
+        summary="Documento preparado para finalizacao dirigida pelo operador.",
+    )
+    trace.emit(
+        "NCE",
+        "personalizado_preparado",
+        "Documento preparado para finalizacao dirigida pelo operador.",
+        level="info",
+    )
+    elapsed_for_summary = round(time.perf_counter() - started_at, 3)
+    validation_status = "Aguardando finalizacao auditiva manual"
+    export_metadata = {
+        "model": options.model,
+        "anon_version": APP_VERSION,
+        "request_title": options.request_title,
+        "document_kind": options.document_kind.value,
+        "processing_time_seconds": elapsed_for_summary,
+        "ocr_used": ocr_used,
+        "structure_preserved": True,
+        "validation_status": validation_status,
+        "source_sha256": sha256,
+        "parser_metadata": parser_metadata,
+        "entities_found": 0,
+        "replacements_applied": 0,
+        "sync_entries_loaded": 0,
+        "sync_entities_found": 0,
+        "validation_warnings": [],
+        "ollama_metrics": {
+            "chunks_processed": 0,
+            "json_rejected_chunks": 0,
+            "correction_attempts": 0,
+            "correction_successes": 0,
+            "json_rejection_reasons": [],
+            "failure_reason": None,
+            "preserved_items": 0,
+        },
+        "post_validation": {},
+        "confidence": {
+            "score": 100,
+            "level": "MANUAL_DIRIGIDA",
+            "reasons": ["Documento preparado para finalizacao dirigida pelo operador."],
+        },
+        "review_items": [],
+        "communication_events": trace.public_events(),
+        "communication_summary": trace.summary(),
+        "nce_context": nce_context.public_metadata(),
+        "nce_file_context": nce_file_context.public_metadata(),
+        "consistency_audit": {
+            "central_dictionary_active": True,
+            "dictionary_size": len(nce_context.replacement_state.replacements),
+            "status": "Aguardando finalizacao manual",
+            "notes": [],
+            "sync_entries_loaded": 0,
+            "sync_entities_found": 0,
+        },
+        "control_table": [],
+        "source_path": str(source_copy_path),
+        "source_copy_path": str(source_copy_path),
+        **source_layout,
+    }
+    state.stage_ok("manual_setup", "aguardando operador")
+    state.stage_start("export", "registro inicial")
+    export_paths: dict[str, str] = {}
+    export_hashes: dict[str, str] = {}
+    audit_manifest_path = export_audit_manifest(job_id, original_filename, export_metadata, export_hashes)
+    if Path(audit_manifest_path).exists():
+        export_paths["auditoria"] = audit_manifest_path
+        export_hashes["auditoria"] = _sha256_file(Path(audit_manifest_path))
+    export_metadata["export_sha256"] = export_hashes
+    _persist_reanalysis_state(
+        job_id,
+        {
+            "schema": "ANON-REANALISE-DIRIGIDA-v1",
+            "job_id": job_id,
+            "original_filename": original_filename,
+            "document_kind": options.document_kind.value,
+            "model": options.model,
+            "request_title": options.request_title,
+            "source_sha256": sha256,
+            "source_copy_path": str(source_copy_path),
+            "original_text": original_text,
+            "anonymized_text": original_text,
+            "control_table": [],
+            "export_metadata": export_metadata,
+            "export_sha256": export_hashes,
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+        },
+    )
+    state.stage_ok("export", f"{len(export_hashes)} produto(s)")
+    elapsed = round(time.perf_counter() - started_at, 3)
+    trace.emit("ANON", "personalizado_registrado", "Registro inicial concluido.", elapsed_seconds=elapsed)
+    pipeline_state = state.finalize()
+    safe_summary = {
+        "document_id": sha256,
+        "profile": options.document_kind.value,
+        "total_entities_detected": 0,
+        "warnings_raised": [],
+        "pipeline_stages_ok": [
+            stage["name"]
+            for stage in pipeline_state.get("stages", [])
+            if stage.get("status") in {"ok", "warn"}
+        ],
+        "quality_status": "REVISAR",
+        "quality_score": 100,
+        "quality_reasons": ["Aguardando finalizacao dirigida pelo operador."],
+        "confidence_score": 100,
+        "confidence_level": "MANUAL_DIRIGIDA",
+        "confidence_reasons": ["Arquivo preparado para reanalise dirigida."],
+    }
+    persist_safe_summary(safe_summary)
+    save_job(
+        job_id=job_id,
+        filename=original_filename,
+        document_kind=options.document_kind.value,
+        model=options.model,
+        entities_found=0,
+        replacements_applied=0,
+        sha256=sha256,
+    )
+    return AnonymizationResult(
+        job_id=job_id,
+        original_filename=original_filename,
+        document_kind=options.document_kind,
+        model=options.model,
+        original_text=original_text,
+        anonymized_text=original_text,
+        entities=[],
+        control_table=[],
+        review_items=[],
+        stats=AnonymizationStats(
+            entities_found=0,
+            replacements_applied=0,
+            preserved_dates=0,
+            preserved_values=0,
+            validation_warnings=[],
+            communication_events=trace.public_events(),
+            communication_summary=trace.summary(),
+            quality_status="REVISAR",
+            quality_score=100,
+            quality_reasons=["Aguardando finalizacao dirigida pelo operador."],
+            confidence_score=100,
+            confidence_level="MANUAL_DIRIGIDA",
+            confidence_reasons=["Arquivo preparado para reanalise dirigida."],
+            nce_dictionary_size=len(nce_context.replacement_state.replacements),
+            consistency_status="Aguardando finalizacao manual",
+        ),
+        audit=AuditInfo(
+            source_sha256=sha256,
+            export_sha256=export_hashes,
+            processing_time_seconds=elapsed,
+            ocr_used=ocr_used,
+            structure_preserved=True,
+            validation_status=validation_status,
+            anon_version=APP_VERSION,
+            safe_summary_id=sha256,
+            pipeline_state_id=job_id,
+        ),
+        export_paths=export_paths,
+        safe_summary=safe_summary,
+        pipeline_state=pipeline_state,
+    )
+
+
 def _safe_ollama_failure_reason(exc: Exception) -> str:
     message = " ".join(str(exc).split())
     if not message:
         return "IA local nao retornou resposta aproveitavel."
     return message[:240]
+
+
+def _consistency_notes(
+    replacement_state: ReplacementState,
+    *,
+    sync_entries_loaded: int,
+    sync_entities_found: int,
+) -> list[str]:
+    notes: list[str] = []
+    marker_to_keys: dict[str, set[str]] = {}
+    for key, marker in replacement_state.replacements.items():
+        marker_to_keys.setdefault(marker, set()).add(key)
+    duplicated_markers = {
+        marker: keys
+        for marker, keys in marker_to_keys.items()
+        if len(keys) > 1
+    }
+    if duplicated_markers:
+        notes.append(
+            f"Marcadores compartilhados por entidades distintas: {len(duplicated_markers)}. Revisao humana recomendada."
+        )
+    if sync_entries_loaded and not sync_entities_found:
+        notes.append(
+            "Pacote de sincronizacao importado, mas nenhum termo correspondente foi localizado no arquivo processado."
+        )
+    return notes
 
 
 def _local_machine_identity() -> str:

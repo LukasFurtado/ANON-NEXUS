@@ -1,0 +1,28 @@
+{
+  "profile_id": "personalizado",
+  "display_name": "Personalizado",
+  "preserve_always": [
+    "estrutura_original",
+    "texto_original",
+    "valores",
+    "datas",
+    "titulos",
+    "tabelas",
+    "ordem_das_informacoes"
+  ],
+  "anonymize_always": [],
+  "ambiguous_fields": [
+    "dados_definidos_pelo_operador"
+  ],
+  "ambiguity_resolution": "manual_dirigido",
+  "entity_patterns": [],
+  "false_positive_guards": [
+    "processamento_manual_dirigido"
+  ],
+  "validation_rules": [
+    "exigir_revisao_humana",
+    "registrar_hashes",
+    "gerar_estado_para_reanalise_dirigida"
+  ],
+  "notes": "Perfil para documentos atipicos ou pequenos que devem ser preparados para finalizacao manual dirigida pelo operador."
+}

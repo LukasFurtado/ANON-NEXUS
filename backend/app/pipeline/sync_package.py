@@ -18,6 +18,8 @@ def build_sync_package_from_state(job_id: str) -> dict[str, Any]:
     if not state_path.exists():
         raise ValueError("Estado de anonimização não encontrado para gerar pacote de sincronização.")
     state = json.loads(state_path.read_text(encoding="utf-8"))
+    if state.get("document_kind") == "personalizado":
+        raise ValueError("O perfil Personalizado nao permite pacote de sincronizacao.")
     rows = []
     for item in state.get("control_table") or []:
         try:
@@ -62,9 +64,9 @@ def write_sync_package(job_id: str) -> Path:
 
 
 def parse_sync_package(content: bytes, filename: str | None = None) -> list[AnonymizationSyncEntry]:
+    if filename and not filename.lower().endswith(".json"):
+        raise ValueError("A sincronizacao de anonimizacao aceita somente pacote JSON gerado pelo ANON.")
     text = content.decode("utf-8-sig", errors="replace")
-    if (filename or "").lower().endswith(".txt") or text.lstrip().startswith("ANON - LOG DA REANALISE"):
-        return _parse_reanalysis_log_text(text)
     payload = json.loads(text)
     entries = payload.get("entries") or payload.get("control_table") or []
     output: list[AnonymizationSyncEntry] = []

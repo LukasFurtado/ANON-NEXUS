@@ -152,6 +152,7 @@ def document_role_label(document_kind: DocumentKind, subtype: str) -> str:
     return {
         DocumentKind.extrato_bancario: "Extrato bancario",
         DocumentKind.relatorio_investigativo: "Relatorio investigativo",
+        DocumentKind.personalizado: "Personalizado",
     }.get(document_kind, document_kind.value)
 
 
@@ -168,6 +169,8 @@ def expected_sensitive_domains(document_kind: DocumentKind, subtype: str) -> lis
         return ["titular", "CPF/CNPJ", "contraparte", "conta", "agencia", "PIX"]
     if document_kind == DocumentKind.relatorio_investigativo:
         return ["pessoa", "empresa", "CPF/CNPJ", "endereco", "telefone", "email", "processo"]
+    if document_kind == DocumentKind.personalizado:
+        return ["definidos pelo operador", "revisao humana", "marcadores manuais"]
     return ["identificadores pessoais"]
 
 

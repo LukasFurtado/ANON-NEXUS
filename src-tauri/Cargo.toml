@@ -1,6 +1,6 @@
 [package]
 name = "nexus-anon"
-version = "1.8.39"
+version = "2.0.0"
 description = "Anonimizacao documental local e offline"
 authors = ["NEXUS"]
 edition = "2021"

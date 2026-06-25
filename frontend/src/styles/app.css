@@ -506,6 +506,30 @@ select {
   line-height: 1.35;
 }
 
+.syncHelp {
+  margin-top: 4px;
+  border: 1px solid rgba(103, 183, 255, 0.16);
+  border-radius: 6px;
+  padding: 7px 8px;
+  background: rgba(5, 18, 35, 0.32);
+}
+
+.syncHelp summary {
+  color: #dceeff;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.syncHelp p {
+  margin: 7px 0 0;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .syncPackageBox input[type="file"] {
   width: 100%;
   color: var(--text-dim);
@@ -526,6 +550,16 @@ select {
   font-size: 11px;
   font-weight: 900;
   cursor: pointer;
+}
+
+.syncPackageBox.disabled {
+  border-color: rgba(130, 140, 155, 0.22);
+  background: rgba(255, 255, 255, 0.025);
+  opacity: 0.72;
+}
+
+.syncPackageBox.disabled input[type="file"] {
+  cursor: not-allowed;
 }
 
 .requestNameInput,
@@ -613,14 +647,21 @@ select:focus {
 
 .workspace {
   padding: 28px;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 18px;
   min-width: 0;
   min-height: 100vh;
   min-height: 100dvh;
   width: 100%;
   overflow-x: hidden;
+}
+
+.workspace > .processingHome,
+.workspace > .requestsLayout,
+.workspace > .auditWorkspace,
+.workspace > .emptyState {
+  flex: 1 1 auto;
 }
 
 .topbar {
@@ -1350,6 +1391,326 @@ pre {
   color: var(--text);
 }
 
+.auditWorkspace {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+}
+
+.auditGroups {
+  max-height: calc(100vh - 180px);
+}
+
+.auditReviewPanel {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background:
+    linear-gradient(145deg, rgba(0, 75, 141, 0.16), rgba(255, 255, 255, 0.02)),
+    rgba(8, 14, 25, 0.74);
+}
+
+.auditReviewPanel > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.auditReviewPanel h2,
+.auditReviewPanel h3,
+.auditReviewPanel p {
+  margin: 0;
+}
+
+.auditReviewPanel p {
+  margin-top: 6px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.auditFileTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.auditFileTabs button {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.auditFileTabs button.selected {
+  border-color: rgba(103, 183, 255, 0.56);
+  background: rgba(74, 169, 255, 0.12);
+}
+
+.auditDecisionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.auditCompactColumns {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(360px, 1.15fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.auditIndications,
+.auditSubstitutionTable {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+}
+
+.auditSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.auditSectionHeader h3 {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffe7a1;
+}
+
+.auditSectionHeader span {
+  min-width: 32px;
+  min-height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 210, 92, 0.35);
+  color: #ffe7a1;
+  background: rgba(255, 210, 92, 0.1);
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.auditScrollableList {
+  display: grid;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.auditIndications article,
+.auditSubstitutionTable article {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(220px, 1.2fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.auditIndications article {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.auditSubstitutionTable article {
+  grid-template-columns: minmax(120px, 0.75fr) minmax(140px, 1fr) auto auto;
+}
+
+.auditIndications strong,
+.auditSubstitutionTable strong {
+  color: var(--text);
+}
+
+.auditIndications span,
+.auditSubstitutionTable span,
+.auditSubstitutionTable p,
+.auditSubstitutionTable em,
+.auditIndications small {
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.auditDecisionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: flex-end;
+}
+
+.auditDecisionActions button {
+  min-height: 32px;
+  border: 1px solid rgba(200, 160, 32, 0.34);
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #fff2ba;
+  background: rgba(200, 160, 32, 0.1);
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.auditCorrectionEditor {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(220px, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.auditCorrectionEditor label {
+  display: grid;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auditCorrectionEditor input {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--text);
+  background: rgba(10, 17, 30, 0.86);
+  font-weight: 800;
+}
+
+.auditCorrectionEditor button,
+.auditExecutionQueue header button,
+.auditGeneratedProduct button {
+  min-height: 36px;
+  border: 1px solid rgba(103, 183, 255, 0.42);
+  border-radius: 7px;
+  padding: 0 12px;
+  color: var(--text);
+  background: rgba(74, 169, 255, 0.14);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.auditCorrectionEditor button:disabled,
+.auditExecutionQueue header button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.auditExecutionQueue {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(103, 183, 255, 0.25);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(0, 75, 141, 0.12);
+}
+
+.auditExecutionQueue > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.auditExecutionQueue > header strong {
+  display: block;
+  color: var(--text);
+}
+
+.auditExecutionQueue p {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.auditQueueList {
+  display: grid;
+  gap: 8px;
+  max-height: 210px;
+  overflow: auto;
+}
+
+.auditQueueList article,
+.auditGeneratedProduct {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.auditQueueList article div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.auditQueueList strong,
+.auditGeneratedProduct strong {
+  color: var(--text);
+}
+
+.auditQueueList span,
+.auditQueueList small {
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.auditQueueList button {
+  min-height: 32px;
+  border: 1px solid rgba(255, 110, 110, 0.35);
+  border-radius: 6px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #ffd0d0;
+  background: rgba(255, 110, 110, 0.1);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.auditGeneratedProduct {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  border-color: rgba(43, 217, 143, 0.32);
+  background: rgba(43, 217, 143, 0.08);
+}
+
+.auditEmptyNotice {
+  border: 1px dashed rgba(103, 183, 255, 0.24);
+  border-radius: 8px;
+  padding: 14px;
+  color: var(--text-dim);
+  background: rgba(74, 169, 255, 0.06);
+}
+
 .productPanel {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
@@ -1403,35 +1764,90 @@ pre {
   min-height: 0;
 }
 
-.processingIntegrity {
+.processingHome {
   display: grid;
-  gap: 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
-  background:
-    linear-gradient(135deg, rgba(46, 204, 138, 0.1), rgba(0, 75, 141, 0.12)),
-    rgba(14, 19, 32, 0.88);
+  gap: 12px;
+  align-content: start;
 }
 
-.processingIntegrity header {
+.processingInfoPanel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  background:
+    linear-gradient(135deg, rgba(0, 75, 141, 0.14), rgba(255, 255, 255, 0.018)),
+    rgba(9, 15, 27, 0.82);
+}
+
+.lastProcessPanel {
+  background:
+    linear-gradient(135deg, rgba(200, 160, 32, 0.08), rgba(0, 75, 141, 0.1)),
+    rgba(9, 15, 27, 0.82);
+}
+
+.processingIntegrity {
+  background:
+    linear-gradient(135deg, rgba(46, 204, 138, 0.08), rgba(0, 75, 141, 0.08)),
+    rgba(9, 15, 27, 0.82);
+}
+
+.processingInfoPanel header {
   display: flex;
   justify-content: space-between;
   gap: 14px;
   align-items: center;
 }
 
-.processingIntegrity h2 {
+.processingInfoPanel h2 {
   margin: 4px 0 0;
   font-family: "Space Grotesk", Inter, sans-serif;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
-.processingIntegrity p {
+.processingInfoPanel p {
   margin: 0;
   color: var(--text-dim);
   line-height: 1.55;
   text-align: justify;
+}
+
+.processingHomeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 10px;
+}
+
+.processingHomeGrid article {
+  display: grid;
+  gap: 5px;
+  min-height: 92px;
+  border: 1px solid rgba(103, 183, 255, 0.16);
+  border-radius: 8px;
+  padding: 11px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.processingHomeGrid span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.processingHomeGrid strong {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.processingHomeGrid small {
+  color: var(--text-dim);
+  line-height: 1.35;
 }
 
 .integrityFiles {
@@ -1439,10 +1855,43 @@ pre {
   gap: 8px;
 }
 
+.integrityCompactList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+}
+
+.integrityCompactList div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: rgba(4, 6, 9, 0.2);
+}
+
+.integrityCompactList span {
+  min-width: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.integrityCompactList code {
+  color: #dceeff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .integrityEmpty {
   border: 1px dashed var(--border-strong);
   border-radius: 7px;
-  padding: 12px;
+  padding: 10px;
   color: var(--text-faint);
   background: rgba(4, 6, 9, 0.22);
 }
@@ -1618,6 +2067,19 @@ pre {
   box-shadow: 0 0 18px rgba(46, 204, 138, 0.65);
 }
 
+.successStamp.manualWaiting {
+  border-color: rgba(226, 189, 87, 0.44);
+  color: #fff0b8;
+  background:
+    linear-gradient(135deg, rgba(226, 189, 87, 0.2), rgba(74, 169, 255, 0.06)),
+    rgba(4, 6, 9, 0.24);
+}
+
+.successStamp.manualWaiting::before {
+  background: #e2bd57;
+  box-shadow: 0 0 18px rgba(226, 189, 87, 0.65);
+}
+
 .auditGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1779,11 +2241,16 @@ pre {
 
 .manualMarkerPreview {
   display: block;
+  max-width: 100%;
+  min-width: 0;
+  line-height: 1.35;
   color: #f6d98b;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0;
   text-transform: none;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .manualReanalysisPanel button {
@@ -2066,6 +2533,26 @@ pre {
   font-size: 13px;
 }
 
+.consistencyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.consistencyNotes {
+  display: grid;
+  gap: 6px;
+}
+
+.consistencyNotes span {
+  border: 1px solid rgba(200, 160, 32, 0.28);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #ffefba;
+  background: rgba(200, 160, 32, 0.08);
+  font-size: 12px;
+}
+
 .pipelineStages {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
@@ -2110,6 +2597,7 @@ pre {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-top: auto;
   min-height: 38px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
@@ -2693,9 +3181,58 @@ pre {
 
 .diagnosticMetrics,
 .diagnosticQuick {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
+}
+
+.diagnosticPromptPicker,
+.nexusPromptPicker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  background: rgba(4, 6, 9, 0.22);
+}
+
+.diagnosticPromptPicker label,
+.nexusPromptPicker label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diagnosticPromptPicker select,
+.nexusPromptPicker select {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid rgba(103, 183, 255, 0.28);
+  border-radius: 7px;
+  color: #e8f6ff;
+  background:
+    linear-gradient(135deg, rgba(29, 122, 194, 0.16), rgba(255, 255, 255, 0.025)),
+    rgba(7, 17, 31, 0.96);
+  padding: 0 10px;
+  font-weight: 800;
+}
+
+.diagnosticPromptPicker button,
+.nexusPromptPicker button {
+  align-self: end;
+  min-height: 40px;
+  border: 1px solid rgba(200, 160, 32, 0.42);
+  border-radius: 7px;
+  padding: 0 14px;
+  color: #fff2ba;
+  background: rgba(200, 160, 32, 0.12);
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .diagnosticMetrics span,
@@ -2707,6 +3244,7 @@ pre {
   padding: 8px 11px;
   font-size: 12px;
   font-weight: 800;
+  text-align: center;
 }
 
 .diagnosticQuick button {
@@ -2747,6 +3285,16 @@ pre {
     rgba(255, 255, 255, 0.018);
 }
 
+.chatPlaceholder {
+  border: 1px dashed rgba(103, 183, 255, 0.22);
+  border-radius: 8px;
+  padding: 16px;
+  color: var(--text-faint);
+  background: rgba(74, 169, 255, 0.045);
+  font-size: 13px;
+  text-align: center;
+}
+
 .chatUser,
 .chatAnon {
   margin: 0;
@@ -2771,10 +3319,10 @@ pre {
 
 .chatAnon {
   justify-self: start;
-  border-color: rgba(74, 169, 255, 0.32);
+  border-color: rgba(46, 204, 138, 0.28);
   background:
-    linear-gradient(135deg, rgba(29, 122, 194, 0.17), rgba(255, 255, 255, 0.025)),
-    rgba(29, 122, 194, 0.08);
+    linear-gradient(135deg, rgba(46, 204, 138, 0.12), rgba(74, 169, 255, 0.06)),
+    rgba(13, 48, 42, 0.16);
 }
 
 .emptyChat {
@@ -2983,8 +3531,8 @@ pre {
 }
 
 .nexusQuickPrompts {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
   gap: 7px;
   padding: 0 12px 12px;
 }
@@ -2999,6 +3547,7 @@ pre {
     rgba(74, 169, 255, 0.08);
   font-size: calc(11px * var(--nexus-font-scale));
   font-weight: 850;
+  text-align: center;
   cursor: pointer;
   transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
 }
@@ -3012,8 +3561,10 @@ pre {
 }
 
 .nexusMessage.nexus {
-  border-color: rgba(74, 169, 255, 0.28);
-  background: rgba(29, 122, 194, 0.11);
+  border-color: rgba(46, 204, 138, 0.3);
+  background:
+    linear-gradient(135deg, rgba(46, 204, 138, 0.12), rgba(74, 169, 255, 0.06)),
+    rgba(13, 48, 42, 0.16);
 }
 
 .nexusMessage.user {
@@ -3189,6 +3740,9 @@ pre {
   .auditGrid,
   .auditStrengthGrid,
   .auditCounters,
+  .auditWorkspace,
+  .auditCompactColumns,
+  .auditCorrectionEditor,
   .exports,
   .requestsLayout,
   .fileProducts {

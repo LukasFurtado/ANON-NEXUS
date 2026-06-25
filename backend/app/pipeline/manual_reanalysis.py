@@ -111,6 +111,10 @@ def run_manual_reanalysis(source_job_id: str, corrections: list[ManualCorrection
     )
     export_paths["reanalise_log"] = reanalysis_log_path
     export_hashes["reanalise_log"] = _sha256_file(Path(reanalysis_log_path))
+    export_hash_reasons = {
+        format_name: "Hash atualizado em decorrencia de REANALISE DIRIGIDA."
+        for format_name in export_hashes
+    }
 
     _persist_reanalysis_state(
         job_id,
@@ -123,6 +127,7 @@ def run_manual_reanalysis(source_job_id: str, corrections: list[ManualCorrection
             "control_table": [row.model_dump() for row in rows],
             "export_metadata": metadata,
             "export_sha256": export_hashes,
+            "export_sha256_reason": export_hash_reasons,
             "manual_note": note or "",
             "manual_reanalysis_report": [report.__dict__ for report in manual_reports],
             "created_at": datetime.now().isoformat(timespec="seconds"),
@@ -164,6 +169,7 @@ def run_manual_reanalysis(source_job_id: str, corrections: list[ManualCorrection
         audit=AuditInfo(
             source_sha256=source_sha256,
             export_sha256=export_hashes,
+            export_sha256_reason=export_hash_reasons,
             processing_time_seconds=elapsed,
             ocr_used=bool(metadata.get("ocr_used")),
             structure_preserved=True,
@@ -219,6 +225,29 @@ def _merge_manual_corrections(
         occurrences = _count_occurrences(original_text, value)
         if normalized in existing_by_original:
             existing = existing_by_original[normalized]
+            requested_marker = (correction.anonymous_id or "").strip()
+            if requested_marker and requested_marker != existing.anonymous_id:
+                updated = AnonymizationControlRow(
+                    original_value=existing.original_value,
+                    entity_type=existing.entity_type,
+                    anonymous_id=requested_marker,
+                    occurrences=existing.occurrences,
+                )
+                output = [updated if _normalize(row.original_value) == normalized else row for row in output]
+                existing_by_original[normalized] = updated
+                reports.append(
+                    ManualCorrectionReport(
+                        requested_value=value,
+                        entity_type=updated.entity_type,
+                        anonymous_id=updated.anonymous_id,
+                        occurrences=occurrences,
+                        status="aplicado" if occurrences > 0 else "nao_encontrado",
+                        note="Marcador existente atualizado por decisao registrada no painel de auditoria."
+                        if occurrences > 0
+                        else "Marcador atualizado, mas o termo nao foi localizado no texto extraido desta versao.",
+                    )
+                )
+                continue
             reports.append(
                 ManualCorrectionReport(
                     requested_value=value,

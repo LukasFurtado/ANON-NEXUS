@@ -35,6 +35,12 @@ Anonimize nomes de pessoas fisicas, investigados, vitimas, testemunhas, comunica
 Quando o papel estiver claro, prefira marcadores semanticamente uteis como [INVESTIGADO_001], [VITIMA_001], [TESTEMUNHA_001] ou [AUTORIDADE_001]. Quando o papel for ambiguo, use [PESSOA_001]. Mantenha o mesmo identificador para a mesma entidade em todo o documento e em todo o conjunto processado.
 Em citacoes, transcricoes, tabelas e documentos reproduzidos dentro do relatorio, anonimize apenas os dados pessoais internos e preserve o texto tecnico ao redor. Nao resuma, nao reescreva, nao interprete e nao crie nova narrativa.
 """,
+    DocumentKind.personalizado: """
+Perfil documental ativo: Personalizado.
+Trate o documento como caso atipico que sera finalizado por revisao dirigida do operador.
+Preserve integralmente texto, estrutura, valores, datas, tabelas, titulos e ordem das informacoes.
+Somente os termos definidos pelo operador devem ser substituidos na etapa de finalizacao manual.
+""",
 }
 
 

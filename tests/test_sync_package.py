@@ -31,6 +31,10 @@ class SyncPackageTest(unittest.TestCase):
         self.assertEqual(len(entities), 1)
         self.assertEqual(entities[0].text, "AYLA DE ARAUJO BESERRA")
 
+    def test_sync_package_rejects_non_json_files(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_sync_package(b"ANON - LOG DA REANALISE", "log_reanalise.txt")
+
 
 if __name__ == "__main__":
     unittest.main()

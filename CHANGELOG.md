@@ -1,5 +1,51 @@
 # Changelog
 
+## [2.0.0] - 2026-06-25
+
+### Marco institucional
+
+- Consolidada a versão `2.0.0` do ANON como plataforma local de anonimização documental com foco em consistência, auditoria, rastreabilidade e operação institucional.
+- Fortalecido o NCE como camada de coordenação do processamento, articulando parser, regras determinísticas, IA local, validação, substituição, exportação e histórico.
+- Reforçado o princípio operacional do ANON: substituir identificadores sensíveis sem interpretar, resumir ou reescrever o conteúdo documental.
+
+### Adicionado
+
+- Sincronização de anonimização por pacote interno JSON, permitindo reutilizar em nova demanda os mesmos termos e os mesmos marcadores de uma anonimização anterior.
+- Botão de download do pacote de sincronização em cada resultado processado, separado dos produtos externos e tratado como artefato interno restrito.
+- Caixa de importação de pacote de sincronização na tela de processamento para reaplicar marcadores já usados em outro arquivo ou outra solicitação.
+- Suporte inicial à leitura de log TXT de reanálise dirigida quando houver dados suficientes para reconstruir pares de substituição.
+- Log próprio da reanálise dirigida, com termos aplicados, termos não encontrados, marcador usado, ocorrências substituídas, hashes e orientação de revisão.
+- Reanálise dirigida acumulativa, permitindo informar vários termos antes de reprocessar.
+- Janela de carregamento da reanálise dirigida durante a geração do novo produto.
+- Botão de download do novo produto e do log da reanálise no próprio painel.
+- Detecção de possível CPF incompleto por remoção de zero inicial, com aviso específico para revisão humana.
+- Testes de regressão para sincronização de anonimização, reanálise dirigida, detecção de CPF com zero inicial ausente e validação pós-anonimização.
+
+### Alterado
+
+- Campo de marcador da reanálise dirigida deixou de ser opcional e passou a funcionar como complemento informado pelo operador.
+- O tipo escolhido monta automaticamente o marcador completo; por exemplo, tipo `Pessoa` e complemento `123` geram `[PESSOA_123]`.
+- Menu de tipo da reanálise recebeu correção visual para evitar fundo branco com texto ilegível.
+- Painel de processamento passa a exibir somente mensagens informativas em transição, sem texto fixo concorrente.
+- Conjunto de mensagens rotativas do processamento foi ampliado para orientar o operador sobre extração, regras, IA local, preservação documental, hashes, auditoria e revisão humana.
+- A reanálise dirigida deixa de registrar como substituição bem-sucedida termos que não foram encontrados no texto extraído.
+- Produtos gerados pela reanálise carregam hashes próprios e preservam o registro original da solicitação anterior.
+- Importação de pacote de sincronização pré-carrega o dicionário de substituições e força a detecção dos termos sincronizados no novo documento.
+
+### Corrigido
+
+- Corrigida situação em que termos adicionados manualmente poderiam aparecer como controlados mesmo sem ocorrência real no texto reprocessado.
+- Melhorada a rastreabilidade de correções posteriores ao processamento inicial, permitindo unir o resultado final corrigido em um pacote reutilizável.
+- Adicionado alerta de CPF possivelmente incompleto quando um valor de 10 dígitos, em contexto de CPF, se torna válido ao recolocar zero inicial.
+- Evitada exposição do número suspeito no aviso de CPF incompleto, mantendo apenas indicação de linha e quantidade para revisão.
+
+### Auditoria e segurança
+
+- Pacotes de sincronização são gerados como artefatos internos e não como produto externo para compartilhamento.
+- O pacote de sincronização contém correspondências necessárias à consistência entre demandas e deve ser tratado como material restrito.
+- Logs de reanálise indicam explicitamente que o texto informado pelo operador deve ser exatamente igual ao texto extraído pelo ANON.
+- Resultados históricos em `data/exports` não foram regravados para preservar a versão real que gerou cada auditoria anterior.
+
 ## [1.8.39] - 2026-06-24
 
 ### Adicionado

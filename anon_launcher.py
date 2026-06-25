@@ -21,6 +21,17 @@ BACKEND_PYTHON = BACKEND / ".venv" / "Scripts" / "python.exe"
 ANON_URL = "http://127.0.0.1:5173/"
 BACKEND_HEALTH = "http://127.0.0.1:8000/health"
 OLLAMA_HEALTH = "http://127.0.0.1:11434/api/tags"
+GITHUB_CREATOR_URL = "https://github.com/LukasFurtado"
+
+
+def read_app_version() -> str:
+    version_file = ROOT / "backend" / "app" / "version.py"
+    try:
+        namespace: dict[str, str] = {}
+        exec(version_file.read_text(encoding="utf-8"), namespace)
+        return str(namespace.get("APP_VERSION") or "2.0.0")
+    except Exception:
+        return "2.0.0"
 
 
 def http_ok(url: str, timeout: float = 1.5) -> bool:
@@ -35,17 +46,19 @@ class AnonLauncher(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("ANON - Painel Local")
-        self.geometry("760x560")
-        self.minsize(680, 500)
+        self.geometry("780x640")
+        self.minsize(700, 600)
         self.configure(bg="#07111f")
 
         self.processes: dict[str, subprocess.Popen] = {}
         self.log_queue: queue.Queue[str] = queue.Queue()
         self.opened_browser = False
         self.starting = False
+        self.app_version = read_app_version()
 
         self._build_ui()
         self.after(300, self._drain_logs)
+        self.after(500, self._refresh_footer_clock)
         self.after(900, self._refresh_status_loop)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -118,7 +131,7 @@ class AnonLauncher(tk.Tk):
 
         self.log_text = tk.Text(
             body,
-            height=14,
+            height=9,
             bg="#050b14",
             fg="#dce8f3",
             insertbackground="#ffffff",
@@ -129,6 +142,70 @@ class AnonLauncher(tk.Tk):
         )
         self.log_text.pack(fill="both", expand=True, pady=(6, 0))
         self.log_text.configure(state="disabled")
+
+        self._build_footer(body)
+
+    def _build_footer(self, parent: tk.Frame) -> None:
+        footer = tk.Frame(
+            parent,
+            bg="#0e1d32",
+            padx=14,
+            pady=11,
+            highlightbackground="#1e4f7d",
+            highlightthickness=1,
+        )
+        footer.pack(fill="x", pady=(12, 0))
+
+        top_line = tk.Frame(footer, bg="#0e1d32")
+        top_line.pack(fill="x")
+
+        self.footer_clock = tk.Label(
+            top_line,
+            text="",
+            fg="#dce8f3",
+            bg="#0e1d32",
+            anchor="w",
+            font=("Segoe UI", 9, "bold"),
+        )
+        self.footer_clock.pack(side="left", fill="x", expand=True)
+
+        version = tk.Label(
+            top_line,
+            text=f"Versao {self.app_version}",
+            fg="#f1c84c",
+            bg="#0e1d32",
+            anchor="e",
+            font=("Segoe UI", 9, "bold"),
+        )
+        version.pack(side="right")
+
+        credit_line = tk.Frame(footer, bg="#0e1d32")
+        credit_line.pack(fill="x", pady=(6, 0))
+
+        tk.Label(
+            credit_line,
+            text=f"Copyright {time.strftime('%Y')} ANON - Uso institucional e interno. Criador e Programador - ",
+            fg="#a9c4dc",
+            bg="#0e1d32",
+            anchor="w",
+            font=("Segoe UI", 9),
+        ).pack(side="left")
+
+        creator = tk.Label(
+            credit_line,
+            text="Lukas Furtado",
+            fg="#67b7ff",
+            bg="#0e1d32",
+            cursor="hand2",
+            font=("Segoe UI", 9, "bold underline"),
+        )
+        creator.pack(side="left")
+        creator.bind("<Button-1>", lambda _event: webbrowser.open(GITHUB_CREATOR_URL))
+
+    def _refresh_footer_clock(self) -> None:
+        if hasattr(self, "footer_clock"):
+            self.footer_clock.configure(text=f"Data e hora local: {time.strftime('%d/%m/%Y %H:%M:%S')}")
+        self.after(1000, self._refresh_footer_clock)
 
     def _status_line(self, parent: tk.Frame, label: str) -> tk.Label:
         row = tk.Frame(parent, bg="#0e1d32")
@@ -274,7 +351,13 @@ class AnonLauncher(tk.Tk):
         if name in self.processes and self.processes[name].poll() is None:
             return
 
-        flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+        flags = 0
+        startupinfo = None
+        if os.name == "nt":
+            flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0
         env = os.environ.copy()
         env.setdefault("PYTHONIOENCODING", "utf-8")
         process = subprocess.Popen(
@@ -287,6 +370,7 @@ class AnonLauncher(tk.Tk):
             encoding="utf-8",
             errors="replace",
             creationflags=flags,
+            startupinfo=startupinfo,
             env=env,
         )
         self.processes[name] = process

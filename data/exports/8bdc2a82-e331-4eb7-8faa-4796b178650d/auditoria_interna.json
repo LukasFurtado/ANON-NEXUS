@@ -1,0 +1,224 @@
+{
+  "schema": "ANON-AUDITORIA-INTERNA-v1",
+  "created_at": "2026-06-25T12:26:20",
+  "request_title": "Teste personalizado",
+  "original_filename": "documento.txt",
+  "document_kind": "personalizado",
+  "model": "qwen3:32b",
+  "anon_version": "2.0.0",
+  "source_sha256": "1A110EEDA1214DC020149A6FC8CB1C47A06174C7B9F926ED3C74A66DC541F1A7",
+  "processing": {
+    "time_seconds": 0.003,
+    "ocr_used": false,
+    "structure_preserved": true,
+    "validation_status": "Aguardando finalizacao auditiva manual"
+  },
+  "counts": {
+    "entities_found": 0,
+    "replacements_applied": 0,
+    "validation_warnings": 0,
+    "control_rows": 0
+  },
+  "ollama_json": {
+    "chunks_processed": 0,
+    "json_rejected_chunks": 0,
+    "correction_attempts": 0,
+    "correction_successes": 0,
+    "json_rejection_reasons": [],
+    "failure_reason": null,
+    "preserved_items": 0
+  },
+  "post_validation": {},
+  "confidence": {
+    "score": 100,
+    "level": "MANUAL_DIRIGIDA",
+    "reasons": [
+      "Documento preparado para finalizacao dirigida pelo operador."
+    ]
+  },
+  "consistency_audit": {
+    "central_dictionary_active": true,
+    "dictionary_size": 0,
+    "status": "Aguardando finalizacao manual",
+    "notes": [],
+    "sync_entries_loaded": 0,
+    "sync_entities_found": 0
+  },
+  "human_review": {
+    "mode": "enabled",
+    "status": "no_items",
+    "items": []
+  },
+  "communication_summary": {
+    "events": 7,
+    "levels": {
+      "info": 5,
+      "warning": 2
+    },
+    "cells": {
+      "ANON": 2,
+      "NCE": 2,
+      "Parser": 1,
+      "OCR": 2
+    },
+    "last_stage": "personalizado_preparado"
+  },
+  "nce_context": {
+    "nce_group_id": "28e42002-c9a5-4243-add4-96fb64f96c1e",
+    "request_title": "Teste personalizado",
+    "document_kind": "personalizado",
+    "model": "qwen3:32b",
+    "created_at": "2026-06-25T12:26:20",
+    "files": [
+      {
+        "filename": "documento.txt",
+        "document_kind": "personalizado",
+        "subtype": "personalizado",
+        "role_label": "Personalizado",
+        "source_sha256": "1A110EEDA1214DC020149A6FC8CB1C47A06174C7B9F926ED3C74A66DC541F1A7",
+        "extension": ".txt",
+        "text_length": 33,
+        "expected_sensitive_domains": [
+          "definidos pelo operador",
+          "revisao humana",
+          "marcadores manuais"
+        ],
+        "coordination_log": [
+          {
+            "stage": "context",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "Arquivo classificado pelo NCE e vinculado ao grupo de consistencia.",
+            "data": {
+              "dictionary_size": 0
+            },
+            "created_at": "2026-06-25T12:26:20"
+          },
+          {
+            "stage": "parser",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "Texto extraido recebido pelo NCE para coordenacao das etapas seguintes.",
+            "data": {
+              "extension": ".txt",
+              "size_bytes": 33,
+              "text_characters": 33,
+              "text_lines": 1,
+              "likely_delimiter": "",
+              "has_tabular_text": false,
+              "ocr_recommended": true
+            },
+            "created_at": "2026-06-25T12:26:20"
+          },
+          {
+            "stage": "ocr",
+            "status": "authorized",
+            "decision": "continue",
+            "summary": "NCE avaliou necessidade de OCR local.",
+            "data": {},
+            "created_at": "2026-06-25T12:26:20"
+          },
+          {
+            "stage": "ocr",
+            "status": "warning",
+            "decision": "continue",
+            "summary": "OCR local nao retornou texto aproveitavel.",
+            "data": {},
+            "created_at": "2026-06-25T12:26:20"
+          },
+          {
+            "stage": "manual_setup",
+            "status": "waiting",
+            "decision": "manual_review",
+            "summary": "Documento preparado para finalizacao dirigida pelo operador.",
+            "data": {},
+            "created_at": "2026-06-25T12:26:20"
+          }
+        ]
+      }
+    ],
+    "dictionary_size": 0,
+    "counters": {}
+  },
+  "nce_file_context": {
+    "filename": "documento.txt",
+    "document_kind": "personalizado",
+    "subtype": "personalizado",
+    "role_label": "Personalizado",
+    "source_sha256": "1A110EEDA1214DC020149A6FC8CB1C47A06174C7B9F926ED3C74A66DC541F1A7",
+    "extension": ".txt",
+    "text_length": 33,
+    "expected_sensitive_domains": [
+      "definidos pelo operador",
+      "revisao humana",
+      "marcadores manuais"
+    ],
+    "coordination_log": [
+      {
+        "stage": "context",
+        "status": "authorized",
+        "decision": "continue",
+        "summary": "Arquivo classificado pelo NCE e vinculado ao grupo de consistencia.",
+        "data": {
+          "dictionary_size": 0
+        },
+        "created_at": "2026-06-25T12:26:20"
+      },
+      {
+        "stage": "parser",
+        "status": "authorized",
+        "decision": "continue",
+        "summary": "Texto extraido recebido pelo NCE para coordenacao das etapas seguintes.",
+        "data": {
+          "extension": ".txt",
+          "size_bytes": 33,
+          "text_characters": 33,
+          "text_lines": 1,
+          "likely_delimiter": "",
+          "has_tabular_text": false,
+          "ocr_recommended": true
+        },
+        "created_at": "2026-06-25T12:26:20"
+      },
+      {
+        "stage": "ocr",
+        "status": "authorized",
+        "decision": "continue",
+        "summary": "NCE avaliou necessidade de OCR local.",
+        "data": {},
+        "created_at": "2026-06-25T12:26:20"
+      },
+      {
+        "stage": "ocr",
+        "status": "warning",
+        "decision": "continue",
+        "summary": "OCR local nao retornou texto aproveitavel.",
+        "data": {},
+        "created_at": "2026-06-25T12:26:20"
+      },
+      {
+        "stage": "manual_setup",
+        "status": "waiting",
+        "decision": "manual_review",
+        "summary": "Documento preparado para finalizacao dirigida pelo operador.",
+        "data": {},
+        "created_at": "2026-06-25T12:26:20"
+      }
+    ]
+  },
+  "product_policy": {
+    "external_products": [
+      "csv",
+      "docx",
+      "pdf",
+      "txt"
+    ],
+    "internal_restricted_products": [
+      "auditoria",
+      "avisos",
+      "controle"
+    ],
+    "note": "Produtos externos sao destinados a uso apos revisao humana. Arquivos internos restritos servem para auditoria, conferencia, avisos e cadeia de custodia."
+  },
+  "products": []
+}

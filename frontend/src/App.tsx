@@ -24,6 +24,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 type Result = {
   job_id: string;
   original_filename: string;
+  document_kind?: string;
   model: string;
   original_text: string;
   anonymized_text: string;
@@ -78,6 +79,11 @@ type Result = {
     confidence_score?: number;
     confidence_level?: string;
     confidence_reasons?: string[];
+    sync_entries_loaded?: number;
+    sync_entities_found?: number;
+    nce_dictionary_size?: number;
+    consistency_status?: string;
+    consistency_notes?: string[];
   };
   audit: {
     source_sha256: string;
@@ -143,7 +149,7 @@ type BatchResult = {
   log_sha256?: string;
 };
 
-type ViewMode = "processamento" | "solicitacoes";
+type ViewMode = "processamento" | "solicitacoes" | "auditoria";
 
 type ModelsResponse = {
   recommended: string[];
@@ -157,6 +163,17 @@ type ManualCorrectionPayload = {
   original_value: string;
   entity_type: string;
   anonymous_id?: string;
+};
+
+type AuditQueueItem = {
+  id: string;
+  action: "accept_review" | "reject_review" | "correct_substitution" | "revert_substitution";
+  title: string;
+  detail: string;
+  original_value?: string;
+  entity_type?: string;
+  anonymous_id?: string;
+  note?: string;
 };
 
 type SystemMetrics = {
@@ -185,7 +202,7 @@ const REQUESTS_STORAGE_KEY = "nexus-anon.requests.v1";
 const REQUESTS_RECOVERY_KEY = "nexus-anon.requests.recovery.v1";
 const FALLBACK_MODELS = ["qwen3:32b"];
 const MAX_FILES = 3;
-const VALID_DOCUMENT_KINDS = new Set(["rif", "extrato_bancario", "relatorio_investigativo"]);
+const VALID_DOCUMENT_KINDS = new Set(["rif", "extrato_bancario", "relatorio_investigativo", "personalizado"]);
 const LOCAL_AI_PROCESSING_MESSAGES = [
   "Preparando o documento para leitura local e identificacao segura do formato.",
   "Extraindo o texto preservando a ordem original das informacoes sempre que possivel.",
@@ -210,12 +227,18 @@ const LOCAL_AI_PROCESSING_MESSAGES = [
 ];
 
 const NEXUS_QUICK_PROMPTS = [
-  "Qual e a finalidade do ANON?",
-  "O que devo revisar ao final?",
+  "O que fazer se um dado sensivel ficou visivel?",
+  "O que revisar antes de usar o produto?",
   "Como conferir um RIF?",
-  "Como conferir extrato bancario?",
-  "O que fazer se algo nao foi anonimizado?",
-  "O que significa produto interno e externo?"
+  "Como conferir um extrato bancario?",
+  "O que e produto interno e produto externo?",
+  "Como usar a sincronizacao de anonimizacao?",
+  "Como usar a reanalise dirigida?",
+  "Como usar correcoes de anonimização?",
+  "Como interpretar a auditoria da solicitacao?",
+  "Como conferir downloads e hashes?",
+  "Qual e a finalidade do ANON?",
+  "Fazer uma nova pergunta"
 ];
 
 const ENTITY_MARKER_PREFIXES: Record<string, string> = {
@@ -260,6 +283,7 @@ export function App() {
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const syncPackageInputRef = useRef<HTMLInputElement | null>(null);
+  const isPersonalizedMode = documentKind === "personalizado";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const selectedGroup = requests.find((group) => group.id === selectedGroupId) ?? requests[0];
@@ -702,14 +726,20 @@ export function App() {
   }
 
   function handleSyncPackageChange(fileList: FileList | null) {
+    if (isPersonalizedMode) {
+      setSyncPackage(null);
+      if (syncPackageInputRef.current) syncPackageInputRef.current.value = "";
+      setError("No perfil Personalizado, a sincronizacao fica desabilitada.");
+      return;
+    }
     const file = fileList?.[0] || null;
     if (!file) {
       setSyncPackage(null);
       return;
     }
     const lowerName = file.name.toLowerCase();
-    if (!lowerName.endsWith(".json") && !lowerName.endsWith(".txt")) {
-      setError("O pacote de sincronizacao deve ser um arquivo JSON do ANON ou log TXT de reanalise dirigida.");
+    if (!lowerName.endsWith(".json")) {
+      setError("A sincronizacao de anonimizacao aceita somente pacote JSON gerado pelo ANON. PDF, TXT e logs nao devem ser usados para sincronizar marcadores.");
       if (syncPackageInputRef.current) {
         syncPackageInputRef.current.value = "";
       }
@@ -717,6 +747,14 @@ export function App() {
     }
     setSyncPackage(file);
     setError(null);
+  }
+
+  function handleDocumentKindChange(value: string) {
+    setDocumentKind(value);
+    if (value === "personalizado") {
+      setSyncPackage(null);
+      if (syncPackageInputRef.current) syncPackageInputRef.current.value = "";
+    }
   }
 
   return (
@@ -782,6 +820,13 @@ export function App() {
             <ListChecks size={17} />
             SolicitaÃ§Ãµes
           </button>
+          <button
+            className={activeView === "auditoria" ? "active" : ""}
+            onClick={() => setActiveView("auditoria")}
+          >
+            <ShieldCheck size={17} />
+            Auditoria
+          </button>
         </nav>
 
         <label
@@ -813,7 +858,7 @@ export function App() {
                 <CheckCircle2 size={18} />
                 <div>
                   <strong>{item.name}</strong>
-                  <span>Pronto para anonimizaÃ§Ã£o</span>
+                  <span>Arquivo recebido. Verificacao local concluida e pronto para anonimizacao.</span>
                   {fileHashes[fileKey(item)] && <code>{shortHash(fileHashes[fileKey(item)])}</code>}
                 </div>
                 <button
@@ -863,29 +908,42 @@ export function App() {
 
           <label>
             Perfil documental estratÃ©gico
-            <select value={documentKind} onChange={(event) => setDocumentKind(event.target.value)}>
+            <select value={documentKind} onChange={(event) => handleDocumentKindChange(event.target.value)}>
               <option value="" disabled>Selecione o perfil documental</option>
               <option value="rif">RIF / COAF</option>
               <option value="extrato_bancario">Extrato bancÃ¡rio</option>
               <option value="relatorio_investigativo">RelatÃ³rio investigativo</option>
+              <option value="personalizado">Personalizado</option>
             </select>
             <small className="modelStatus">Altera prompt local, regras regex e critÃ©rios de validaÃ§Ã£o.</small>
           </label>
 
-          <div className="syncPackageBox">
+          <div className={`syncPackageBox ${isPersonalizedMode ? "disabled" : ""}`}>
             <div>
               <span className="panelLabel">SincronizaÃ§Ã£o de anonimizaÃ§Ã£o</span>
-              <strong>{syncPackage ? syncPackage.name : "Nenhum pacote vinculado"}</strong>
-              <small>Use pacote de uma anonimizaÃ§Ã£o anterior para manter os mesmos marcadores em nova demanda.</small>
+              <strong>{isPersonalizedMode ? "Indisponivel no perfil Personalizado" : syncPackage ? syncPackage.name : "Nenhum pacote vinculado"}</strong>
+              <small>
+                {isPersonalizedMode
+                  ? "Este perfil usa finalizacao dirigida na propria solicitacao, sem reaproveitar pacote de sincronizacao."
+                  : "Use somente o pacote JSON de uma anonimizacao anterior para manter os mesmos marcadores em nova demanda."}
+              </small>
+              <details className="syncHelp">
+                <summary>Como funciona</summary>
+                <p>
+                  Carregue apenas o pacote JSON gerado pelo ANON. Quando o mesmo termo aparecer na nova demanda, o
+                  sistema reutiliza o marcador anterior para manter consistencia entre trabalhos. PDFs, TXT e logs sao
+                  apenas para consulta e auditoria.
+                </p>
+              </details>
             </div>
             <input
               ref={syncPackageInputRef}
               type="file"
-              accept=".json,.txt"
+              accept=".json"
               onChange={(event) => handleSyncPackageChange(event.target.files)}
-              disabled={loading}
+              disabled={loading || isPersonalizedMode}
             />
-            {syncPackage ? (
+            {syncPackage && !isPersonalizedMode ? (
               <button
                 type="button"
                 onClick={() => {
@@ -931,10 +989,18 @@ export function App() {
         <header className="topbar">
           <div>
             <span className="eyebrow">
-              {activeView === "solicitacoes" ? "Consulta de solicitaÃ§Ãµes" : "Fluxo operacional"}
+              {activeView === "solicitacoes"
+                ? "Consulta de solicitaÃ§Ãµes"
+                : activeView === "auditoria"
+                  ? "Revisao institucional"
+                  : "Fluxo operacional"}
             </span>
             <h1>
-              {activeView === "solicitacoes" ? "HistÃ³rico de anonimizaÃ§Ã£o" : "AnonimizaÃ§Ã£o Forense de Documentos"}
+              {activeView === "solicitacoes"
+                ? "HistÃ³rico de anonimizaÃ§Ã£o"
+                : activeView === "auditoria"
+                  ? "Auditoria de anonimizaÃ§Ãµes"
+                  : "AnonimizaÃ§Ã£o Forense de Documentos"}
             </h1>
           </div>
           {loading ? <div className="status active">{progressLabel}</div> : null}
@@ -953,13 +1019,28 @@ export function App() {
 
         {activeView === "processamento" ? (
           <ProcessingPage
-            selectedResult={selectedResult}
-            selectedFile={selectedProcessedFile}
-            requestTitle={selectedGroup?.title || requestName}
-            requestCreatedAt={selectedGroup?.createdAt}
+            requests={requests}
+            requestTitle={requestName}
             files={files}
             fileHashes={fileHashes}
             model={model}
+          />
+        ) : activeView === "auditoria" ? (
+          <AuditReviewPage
+            requests={requests}
+            selectedGroup={selectedGroup}
+            selectedFile={selectedProcessedFile}
+            onManualCorrection={(groupId, fileId, corrections) => applyManualCorrection(groupId, fileId, corrections)}
+            onSelectGroup={(groupId) => {
+              setError(null);
+              setSelectedGroupId(groupId);
+              const group = requests.find((item) => item.id === groupId);
+              setSelectedFileId(group?.files[0]?.id ?? null);
+            }}
+            onSelectFile={(fileId) => {
+              setError(null);
+              setSelectedFileId(fileId);
+            }}
           />
         ) : (
           <RequestsPage
@@ -991,74 +1072,159 @@ export function App() {
 }
 
 function ProcessingPage({
-  selectedResult,
-  selectedFile,
+  requests,
   requestTitle,
-  requestCreatedAt,
   files,
   fileHashes,
   model
 }: {
-  selectedResult?: Result;
-  selectedFile?: ProcessedFile;
+  requests: RequestGroup[];
   requestTitle?: string;
-  requestCreatedAt?: string;
   files: File[];
   fileHashes: Record<string, string>;
   model: string;
 }) {
   return (
-    <>
-      <ProcessingIntegrityPanel files={files} fileHashes={fileHashes} model={model} />
-      <WorkSummary
-        result={selectedResult}
-        fileName={selectedFile?.name}
-        status={selectedFile?.status}
-        requestTitle={requestTitle}
-        requestCreatedAt={requestCreatedAt}
-        summaryLabel="Resumo operacional - Ãšltima solicitaÃ§Ã£o"
-      />
-      <ExportBar result={selectedResult} fileName={selectedFile?.name} />
-    </>
+    <section className="processingHome">
+      <ProcessingOverviewPanel requests={requests} files={files} model={model} />
+      <LastProcessPanel requests={requests} />
+      <ProcessingIntegrityPanel files={files} fileHashes={fileHashes} requestTitle={requestTitle} />
+    </section>
+  );
+}
+
+function ProcessingOverviewPanel({
+  requests,
+  files,
+  model
+}: {
+  requests: RequestGroup[];
+  files: File[];
+  model: string;
+}) {
+  const allFiles = requests.flatMap((group) => group.files);
+  const completedFiles = allFiles.filter((file) => file.status === "concluÃ­do").length;
+  const errorFiles = allFiles.filter((file) => file.status === "erro").length;
+  const pendingFiles = allFiles.filter((file) => file.status === "pendente" || file.status === "processando").length;
+
+  return (
+    <section className="processingInfoPanel">
+      <header>
+        <div>
+          <span className="panelLabel">Painel local</span>
+          <h2>Visao geral do ANON</h2>
+        </div>
+        <div className="summaryPills">
+          <span>{formatModelName(model)}</span>
+          <span>{files.length} anexo(s) agora</span>
+        </div>
+      </header>
+      <div className="processingHomeGrid">
+        <article>
+          <span>Solicitacoes</span>
+          <strong>{requests.length}</strong>
+          <small>Grupos registrados no historico local.</small>
+        </article>
+        <article>
+          <span>Arquivos concluidos</span>
+          <strong>{completedFiles}</strong>
+          <small>Produtos disponiveis para consulta em Solicitacoes.</small>
+        </article>
+        <article>
+          <span>Pendencias</span>
+          <strong>{pendingFiles}</strong>
+          <small>Arquivos aguardando ou em processamento.</small>
+        </article>
+        <article>
+          <span>Erros</span>
+          <strong>{errorFiles}</strong>
+          <small>Falhas registradas para revisao.</small>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function LastProcessPanel({ requests }: { requests: RequestGroup[] }) {
+  const latestGroup = [...requests].sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
+  const latestFile = latestGroup?.files.find((file) => file.result) || latestGroup?.files[0];
+
+  return (
+    <section className="processingInfoPanel lastProcessPanel">
+      <header>
+        <div>
+          <span className="panelLabel">Ultimo processo feito</span>
+          <h2>{latestGroup?.title || "Nenhum processo registrado"}</h2>
+        </div>
+        <div className="summaryPills">
+          <span>{latestGroup ? formatDate(latestGroup.createdAt) : "Aguardando"}</span>
+          <span>{latestGroup?.files.length ?? 0} arquivo(s)</span>
+        </div>
+      </header>
+      <div className="processingHomeGrid">
+        <article>
+          <span>Arquivo</span>
+          <strong>{latestFile?.name || "Sem arquivo processado"}</strong>
+          <small>{latestFile?.status ? statusLabel(latestFile.status) : "Aguardando primeira solicitacao"}</small>
+        </article>
+        <article>
+          <span>Modelo</span>
+          <strong>{latestGroup ? formatModelName(latestGroup.model) : "Nao informado"}</strong>
+          <small>Modelo local registrado na solicitacao.</small>
+        </article>
+        <article>
+          <span>Perfil</span>
+          <strong>{latestGroup?.documentKind || "Nao informado"}</strong>
+          <small>Estrategia documental usada no processamento.</small>
+        </article>
+        <article>
+          <span>Hash original</span>
+          <strong>{latestFile?.result?.audit.source_sha256 ? shortHash(latestFile.result.audit.source_sha256) : "Indisponivel"}</strong>
+          <small>Hash completo em Solicitacoes.</small>
+        </article>
+      </div>
+    </section>
   );
 }
 
 function ProcessingIntegrityPanel({
   files,
   fileHashes,
-  model
+  requestTitle
 }: {
   files: File[];
   fileHashes: Record<string, string>;
-  model: string;
+  requestTitle?: string;
 }) {
+  const attachedHashes = files.map((file) => ({
+    name: file.name,
+    hash: fileHashes[fileKey(file)] || "Calculando hash..."
+  }));
+
   return (
-    <section className="processingIntegrity">
+    <section className="processingInfoPanel processingIntegrity">
       <header>
         <div>
-          <span className="panelLabel">Controle de sigilo e integridade</span>
-          <h2>Processamento local preparado</h2>
+          <span className="panelLabel">Preparacao atual</span>
+          <h2>{files.length ? "Arquivos aguardando anonimização" : "Nenhum arquivo anexado"}</h2>
         </div>
         <div className="summaryPills">
-          <span>{formatModelName(model)}</span>
           <span>{files.length} arquivo(s)</span>
+          <span>{requestTitle?.trim() || "Sem nome informado"}</span>
         </div>
       </header>
-      <p>
-        Os hashes abaixo sÃ£o calculados localmente antes da anonimizaÃ§Ã£o. Eles servem para controle interno, conferÃªncia de integridade e rastreabilidade da solicitaÃ§Ã£o.
-      </p>
-      {files.length > 0 ? (
-        <div className="integrityFiles">
-          {files.map((file) => (
-            <AuditHash
-              key={fileKey(file)}
-              label={`SHA-256 original Â· ${file.name}`}
-              value={fileHashes[fileKey(file)] || "Calculando hash..."}
-            />
+
+      {attachedHashes.length ? (
+        <div className="integrityCompactList">
+          {attachedHashes.map((item) => (
+            <div key={item.name}>
+              <span>{item.name}</span>
+              <code>{shortHash(item.hash)}</code>
+            </div>
           ))}
         </div>
       ) : (
-        <div className="integrityEmpty">Nenhum arquivo anexado para cÃ¡lculo de hash.</div>
+        <div className="integrityEmpty">Nenhum arquivo anexado para cÃ¡lculo de hash local.</div>
       )}
     </section>
   );
@@ -1104,6 +1270,7 @@ function RequestsPage({
   }
 
   const result = selectedFile?.result;
+  const personalizedResult = isPersonalizedResult(result);
 
   return (
     <section className="requestsLayout">
@@ -1216,18 +1383,340 @@ function RequestsPage({
               requestTitle={selectedGroup?.title}
               requestCreatedAt={selectedGroup?.createdAt}
             />
+            {personalizedResult ? (
+              <ManualReanalysisPanel
+                selectedGroup={selectedGroup}
+                selectedFile={selectedFile}
+                onManualCorrection={onManualCorrection}
+              />
+            ) : null}
             <DiagnosticChatPanel result={result} selectedGroup={selectedGroup} selectedFile={selectedFile} />
-            <ManualReanalysisPanel
-              selectedGroup={selectedGroup}
-              selectedFile={selectedFile}
-              onManualCorrection={onManualCorrection}
-            />
+            {!personalizedResult ? (
+              <ManualReanalysisPanel
+                selectedGroup={selectedGroup}
+                selectedFile={selectedFile}
+                onManualCorrection={onManualCorrection}
+              />
+            ) : null}
 
             <ExportBar result={result} fileName={selectedFile?.name} />
           </div>
         </div>
       </section>
       {qualityModal ? <QualityModal data={qualityModal} onClose={() => setQualityModal(null)} /> : null}
+    </section>
+  );
+}
+
+function AuditReviewPage({
+  requests,
+  selectedGroup,
+  selectedFile,
+  onSelectGroup,
+  onSelectFile,
+  onManualCorrection
+}: {
+  requests: RequestGroup[];
+  selectedGroup?: RequestGroup;
+  selectedFile?: ProcessedFile;
+  onSelectGroup: (groupId: string) => void;
+  onSelectFile: (fileId: string) => void;
+  onManualCorrection: (groupId: string, fileId: string, corrections: ManualCorrectionPayload[]) => Promise<Result | undefined>;
+}) {
+  const result = selectedFile?.result;
+  const rows = result?.control_table || [];
+  const reviewItems = result?.review_items || [];
+  const [queue, setQueue] = useState<AuditQueueItem[]>([]);
+  const [editingRowKey, setEditingRowKey] = useState<string | null>(null);
+  const [correctionSuffix, setCorrectionSuffix] = useState("");
+  const [correctionNote, setCorrectionNote] = useState("");
+  const [processingQueue, setProcessingQueue] = useState(false);
+  const [queueResult, setQueueResult] = useState<Result | null>(null);
+
+  useEffect(() => {
+    setQueue([]);
+    setEditingRowKey(null);
+    setCorrectionSuffix("");
+    setCorrectionNote("");
+    setProcessingQueue(false);
+    setQueueResult(null);
+  }, [selectedFile?.id]);
+
+  const queuedIds = useMemo(() => new Set(queue.map((item) => item.id)), [queue]);
+  const visibleReviewItems = reviewItems.filter((item) => !queuedIds.has(`review:${item.id}:accept`) && !queuedIds.has(`review:${item.id}:reject`));
+  const visibleRows = rows.filter((row, index) => {
+    const key = auditRowKey(row, index);
+    return !queuedIds.has(`row:${key}:correct`) && !queuedIds.has(`row:${key}:revert`);
+  });
+
+  function addQueueItem(item: AuditQueueItem) {
+    setQueue((items) => (items.some((current) => current.id === item.id) ? items : [...items, item]));
+    setQueueResult(null);
+  }
+
+  function queueReviewDecision(item: NonNullable<Result["review_items"]>[number], action: "accept_review" | "reject_review") {
+    addQueueItem({
+      id: `review:${item.id}:${action === "accept_review" ? "accept" : "reject"}`,
+      action,
+      title: action === "accept_review" ? "Indicacao acatada" : "Indicacao rejeitada",
+      detail: `${item.category}: ${item.label}`,
+      note: item.recommendation
+    });
+  }
+
+  function queueRowRevert(row: Result["control_table"][number], index: number) {
+    const key = auditRowKey(row, index);
+    addQueueItem({
+      id: `row:${key}:revert`,
+      action: "revert_substitution",
+      title: "Reverter substituicao",
+      detail: `${row.anonymous_id} -> ${row.original_value}`,
+      original_value: row.original_value,
+      entity_type: normalizeEntityTypeForManual(row.entity_type),
+      anonymous_id: row.original_value,
+      note: "Reverter marcador para o valor original no novo produto."
+    });
+  }
+
+  function queueRowCorrection(row: Result["control_table"][number], index: number) {
+    if (!correctionSuffix.trim()) return;
+    const key = auditRowKey(row, index);
+    const marker = buildManualAnonymousId(normalizeEntityTypeForManual(row.entity_type), correctionSuffix);
+    addQueueItem({
+      id: `row:${key}:correct`,
+      action: "correct_substitution",
+      title: "Corrigir codigo",
+      detail: `${row.original_value} -> ${marker}`,
+      original_value: row.original_value,
+      entity_type: normalizeEntityTypeForManual(row.entity_type),
+      anonymous_id: marker,
+      note: correctionNote.trim() || "Correcao definida no painel de auditoria."
+    });
+    setEditingRowKey(null);
+    setCorrectionSuffix("");
+    setCorrectionNote("");
+  }
+
+  async function runQueuedActions() {
+    if (!selectedGroup || !selectedFile?.result || !queue.length || processingQueue) return;
+    const corrections = queue
+      .filter((item) => item.action === "correct_substitution" || item.action === "revert_substitution")
+      .filter((item) => item.original_value && item.entity_type && item.anonymous_id)
+      .map((item) => ({
+        original_value: item.original_value || "",
+        entity_type: item.entity_type || "OTHER_IDENTIFIER",
+        anonymous_id: item.anonymous_id
+      }));
+    if (!corrections.length) return;
+    setProcessingQueue(true);
+    setQueueResult(null);
+    try {
+      const nextResult = await onManualCorrection(selectedGroup.id, selectedFile.id, corrections);
+      if (nextResult) {
+        setQueueResult(nextResult);
+        setQueue([]);
+      }
+    } finally {
+      setProcessingQueue(false);
+    }
+  }
+
+  const latestResult = queueResult || result;
+  const downloadFormat = latestResult?.audit.export_sha256.pdf ? "pdf" : Object.keys(latestResult?.audit.export_sha256 || {}).find(isExternalProductFormat);
+  const executableQueueCount = queue.filter((item) => item.action === "correct_substitution" || item.action === "revert_substitution").length;
+
+  if (!requests.length) {
+    return (
+      <section className="emptyState">
+        <ShieldCheck size={34} />
+        <h2>Nenhuma auditoria disponivel</h2>
+        <p>Processe uma solicitacao para consultar substituicoes, indicacoes pendentes e consistencia do NCE.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="auditWorkspace">
+      <aside className="requestGroups auditGroups">
+        {requests.map((group) => (
+          <button
+            key={group.id}
+            className={group.id === selectedGroup?.id ? "selected" : ""}
+            onClick={() => onSelectGroup(group.id)}
+          >
+            <FolderOpen size={17} />
+            <div>
+              <strong>{group.title}</strong>
+              <span>{group.files.length} arquivo(s) - {formatDate(group.createdAt)}</span>
+            </div>
+          </button>
+        ))}
+      </aside>
+
+      <section className="auditReviewPanel">
+        <header>
+          <div>
+            <span className="panelLabel">Correcoes de anonimizacoes</span>
+            <h2>{selectedGroup?.title || "Selecione uma solicitacao"}</h2>
+            <p>Revise substituicoes, indicacoes pendentes e consistencia antes de qualquer uso externo.</p>
+          </div>
+          <div className="summaryPills">
+            <span>{rows.length} substituicao(oes)</span>
+            <span>{reviewItems.length} indicacao(oes)</span>
+          </div>
+        </header>
+
+        <div className="auditFileTabs">
+          {selectedGroup?.files.map((file) => (
+            <button
+              key={file.id}
+              type="button"
+              className={file.id === selectedFile?.id ? "selected" : ""}
+              onClick={() => onSelectFile(file.id)}
+            >
+              <Files size={15} />
+              {file.name}
+            </button>
+          ))}
+        </div>
+
+        {result ? (
+          <>
+            <div className="auditDecisionGrid">
+              <AuditItem label="Consistencia" value={result.stats.consistency_status || "Validada"} />
+              <AuditItem label="Dicionario NCE" value={`${result.stats.nce_dictionary_size ?? 0} codigo(s)`} />
+              <AuditItem label="Sincronizacao" value={(result.stats.sync_entries_loaded ?? 0) ? "Aplicada" : "Nao aplicada"} />
+              <AuditItem label="Revisao humana" value={reviewItems.length ? "Pendente" : "Sem indicacao automatica"} />
+            </div>
+
+            <div className="auditCompactColumns">
+              <section className="auditIndications">
+                <div className="auditSectionHeader">
+                  <h3>Indicacoes pendentes</h3>
+                  <span>{visibleReviewItems.length}</span>
+                </div>
+                {visibleReviewItems.length ? (
+                  <div className="auditScrollableList">
+                    {visibleReviewItems.map((item) => (
+                      <article key={item.id}>
+                        <div>
+                          <strong>{item.category}</strong>
+                          <span>{item.label}</span>
+                          <small>{item.recommendation}</small>
+                        </div>
+                        <div className="auditDecisionActions">
+                          <button type="button" onClick={() => queueReviewDecision(item, "accept_review")}>Acatar</button>
+                          <button type="button" onClick={() => queueReviewDecision(item, "reject_review")}>Rejeitar</button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="auditEmptyNotice compact">Nao ha indicacoes automaticas pendentes para este arquivo.</div>
+                )}
+              </section>
+
+              <section className="auditSubstitutionTable">
+                <div className="auditSectionHeader">
+                  <h3>Substituicoes feitas</h3>
+                  <span>{visibleRows.length}</span>
+                </div>
+                {visibleRows.length ? (
+                  <div className="auditScrollableList">
+                    {visibleRows.map((row, index) => {
+                      const key = auditRowKey(row, index);
+                      const editing = editingRowKey === key;
+                      return (
+                        <article key={key}>
+                          <div>
+                            <strong>{row.anonymous_id}</strong>
+                            <span>{row.entity_type}</span>
+                          </div>
+                          <p>{row.original_value}</p>
+                          <em>{row.occurrences} ocorrencia(s)</em>
+                          <div className="auditDecisionActions">
+                            <button type="button" onClick={() => setEditingRowKey(editing ? null : key)}>Corrigir</button>
+                            <button type="button" onClick={() => queueRowRevert(row, index)}>Reverter</button>
+                          </div>
+                          {editing ? (
+                            <form className="auditCorrectionEditor" onSubmit={(event) => {
+                              event.preventDefault();
+                              queueRowCorrection(row, index);
+                            }}>
+                              <label>
+                                Novo numero/letra/termo
+                                <input value={correctionSuffix} onChange={(event) => setCorrectionSuffix(event.target.value)} placeholder="Ex.: 001, A, ALVO_01" />
+                              </label>
+                              <label>
+                                Motivo
+                                <input value={correctionNote} onChange={(event) => setCorrectionNote(event.target.value)} placeholder="Opcional, para registro interno" />
+                              </label>
+                              <button type="submit" disabled={!correctionSuffix.trim()}>Enviar para fila</button>
+                            </form>
+                          ) : null}
+                        </article>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="auditEmptyNotice compact">Nenhuma substituicao registrada neste arquivo.</div>
+                )}
+              </section>
+            </div>
+
+            <section className="auditExecutionQueue">
+              {processingQueue ? <ReanalysisLoadingDialog total={executableQueueCount || queue.length} /> : null}
+              <header>
+                <div>
+                  <span className="panelLabel">Fila de decisao</span>
+                  <strong>{queue.length ? `${queue.length} acao(oes) aguardando execucao final` : "Nenhuma acao na fila"}</strong>
+                </div>
+                <button type="button" disabled={!queue.length || !executableQueueCount || processingQueue} onClick={() => void runQueuedActions()}>
+                  <RefreshCw size={16} />
+                  {processingQueue ? "Gerando..." : "Gerar novo arquivo"}
+                </button>
+              </header>
+              {queue.length ? (
+                <div className="auditQueueList">
+                  {queue.map((item) => (
+                    <article key={item.id}>
+                      <div>
+                        <strong>{item.title}</strong>
+                        <span>{item.detail}</span>
+                        {item.note ? <small>{item.note}</small> : null}
+                      </div>
+                      <button type="button" onClick={() => setQueue((items) => items.filter((current) => current.id !== item.id))}>
+                        <XCircle size={14} />
+                        Retirar
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p>Escolha acatar, rejeitar, corrigir ou reverter. A acao sai da lista principal e fica aqui ate a execucao final.</p>
+              )}
+              {queueResult && downloadFormat ? (
+                <div className="auditGeneratedProduct">
+                  <CheckCircle2 size={17} />
+                  <strong>Novo produto gerado com hash atualizado.</strong>
+                  <button type="button" onClick={() => void downloadResultProduct(queueResult, downloadFormat, selectedFile?.name)}>
+                    <Download size={16} />
+                    Baixar novo {formatExportLabel(downloadFormat)}
+                  </button>
+                  {queueResult.audit.export_sha256.reanalise_log ? (
+                    <button type="button" onClick={() => void downloadResultProduct(queueResult, "reanalise_log", selectedFile?.name)}>
+                      <Download size={16} />
+                      Baixar log
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+          </>
+        ) : (
+          <div className="auditEmptyNotice">Selecione um arquivo concluido para abrir a auditoria.</div>
+        )}
+      </section>
     </section>
   );
 }
@@ -1671,6 +2160,7 @@ function FloatingNexusAssistant({
   const [messages, setMessages] = useState<NexusAssistantMessage[]>([]);
   const [answering, setAnswering] = useState(false);
   const [fontScale, setFontScale] = useState(1.1);
+  const [selectedQuickPrompt, setSelectedQuickPrompt] = useState(NEXUS_QUICK_PROMPTS[0]);
   const wasLoadingRef = useRef(false);
   const lastStepRef = useRef("");
   const nexusMessagesRef = useRef<HTMLDivElement | null>(null);
@@ -1692,13 +2182,7 @@ function FloatingNexusAssistant({
   useEffect(() => {
     if (loading && !wasLoadingRef.current) {
       setOpen(true);
-      setMessages([
-        {
-          role: "nexus",
-          text: "IA NEXUS ativa. Aguarde a conclusÃ£o da solicitaÃ§Ã£o e realize revisÃ£o humana antes de qualquer uso externo.",
-          tone: "info"
-        }
-      ]);
+      setMessages([]);
     }
     if (!loading && wasLoadingRef.current) {
       setOpen(false);
@@ -1711,16 +2195,7 @@ function FloatingNexusAssistant({
   useEffect(() => {
     if (!loading || !processingStep || lastStepRef.current === processingStep) return;
     lastStepRef.current = processingStep;
-    pushNexusMessage(processingStepToNexusText(processingStep, fileName, currentFileIndex, totalFiles), "info");
   }, [processingStep, loading, fileName, currentFileIndex, totalFiles]);
-
-  function pushNexusMessage(text: string, tone: NexusAssistantMessage["tone"] = "info") {
-    setMessages((items) => {
-      const last = items[items.length - 1];
-      if (last?.role === "nexus" && last.text === text) return items;
-      return [...items.slice(-7), { role: "nexus", text, tone }];
-    });
-  }
 
   function cancelNexusAnswer() {
     nexusAnswerCanceledByOperatorRef.current = true;
@@ -1728,6 +2203,10 @@ function FloatingNexusAssistant({
   }
 
   function askNexusQuick(prompt: string) {
+    if (prompt.toLowerCase().includes("nova pergunta")) {
+      setMessages([]);
+      return;
+    }
     const answer = nexusLocalAnswer(prompt, {
       loading,
       processingStep,
@@ -1838,7 +2317,7 @@ function FloatingNexusAssistant({
 
           <div className="nexusAssistantStatus">
             <strong>{loading ? "Acompanhando solicitaÃ§Ã£o" : "OrientaÃ§Ã£o institucional"}</strong>
-            <span>{loading ? `Tempo decorrido: ${formatElapsed(elapsedSeconds)}` : "Canal restrito a finalidade, sigilo e revisÃ£o humana."}</span>
+            <span>{loading ? "Use os botoes para receber orientacoes rapidas durante o processamento." : "Canal restrito a finalidade, sigilo e revisao humana."}</span>
           </div>
 
           <div className="nexusAssistantMessages" ref={nexusMessagesRef}>
@@ -1855,13 +2334,24 @@ function FloatingNexusAssistant({
             )}
           </div>
 
-          <div className="nexusQuickPrompts" aria-label="Perguntas rapidas da IA NEXUS">
-            {NEXUS_QUICK_PROMPTS.map((prompt) => (
-              <button key={prompt} type="button" onClick={() => askNexusQuick(prompt)}>
-                {prompt}
-              </button>
-            ))}
-          </div>
+          <form
+            className="nexusPromptPicker"
+            aria-label="Perguntas rapidas da IA NEXUS"
+            onSubmit={(event) => {
+              event.preventDefault();
+              askNexusQuick(selectedQuickPrompt);
+            }}
+          >
+            <label>
+              Perguntas frequentes
+              <select value={selectedQuickPrompt} onChange={(event) => setSelectedQuickPrompt(event.target.value)}>
+                {NEXUS_QUICK_PROMPTS.map((prompt) => (
+                  <option key={prompt} value={prompt}>{prompt}</option>
+                ))}
+              </select>
+            </label>
+            <button type="submit">Perguntar</button>
+          </form>
 
           <form
             className="nexusAssistantForm"
@@ -1891,23 +2381,6 @@ function FloatingNexusAssistant({
   );
 }
 
-function processingStepToNexusText(step: string, _fileName: string, _currentFileIndex: number, _totalFiles: number) {
-  const normalized = step.toLowerCase();
-  if (normalized.includes("preparando")) {
-    return "A solicitaÃ§Ã£o foi recebida. Aguarde a conclusÃ£o e mantenha a revisÃ£o humana como etapa obrigatÃ³ria.";
-  }
-  if (normalized.includes("ia local")) {
-    return "A anonimizaÃ§Ã£o estÃ¡ em andamento. O tempo pode variar conforme o tamanho do material e a capacidade do computador.";
-  }
-  if (normalized.includes("hash") || normalized.includes("export")) {
-    return "A solicitaÃ§Ã£o estÃ¡ sendo finalizada para disponibilizaÃ§Ã£o do produto de revisÃ£o.";
-  }
-  if (normalized.includes("hist")) {
-    return "O resultado serÃ¡ disponibilizado no histÃ³rico da solicitaÃ§Ã£o para conferÃªncia institucional.";
-  }
-  return "A solicitaÃ§Ã£o permanece em andamento. Aguarde a conclusÃ£o antes de revisar o produto final.";
-}
-
 function nexusLocalAnswer(
   question: string,
   _context: {
@@ -1921,29 +2394,53 @@ function nexusLocalAnswer(
   }
 ) {
   const normalized = question.toLowerCase();
-  if (normalized.includes("erro") || normalized.includes("problema") || normalized.includes("json") || normalized.includes("log") || normalized.includes("intern")) {
-    return "Este canal Ã© restrito a orientaÃ§Ãµes institucionais de uso, revisÃ£o e finalidade da anonimizaÃ§Ã£o. QuestÃµes tÃ©cnicas devem ser tratadas pelos instrumentos formais de auditoria e suporte.";
+  if (normalized.includes("nova pergunta")) {
+    return "Escolha uma nova pergunta frequente na lista. O canal esta organizado assim para manter respostas curtas, seguras e voltadas ao uso do ANON.";
   }
-  if (normalized.includes("rif") || normalized.includes("coaf") || normalized.includes("financeir")) {
-    return "Em RIF e dados financeiros, o objetivo Ã© substituir identificadores sensÃ­veis mantendo valores, datas, movimentaÃ§Ãµes, estrutura e coerÃªncia analÃ­tica.";
+  if (
+    normalized.includes("dado sensivel") ||
+    normalized.includes("ficou visivel") ||
+    normalized.includes("nao anonimizado") ||
+    normalized.includes("não anonimizado") ||
+    normalized.includes("permaneceu")
+  ) {
+    return "Se um dado sensivel ficou visivel, nao use o produto externamente. Abra a solicitacao, use a reanalise dirigida ou o painel de correcoes, informe o texto exatamente como aparece, escolha o tipo correto e gere novo arquivo com novo hash.";
   }
-  if (normalized.includes("extrato") || normalized.includes("banc")) {
-    return "Em extratos bancÃ¡rios, revise se a sequÃªncia dos lanÃ§amentos, datas, valores e saldos permaneceu preservada, com substituiÃ§Ã£o apenas de identificadores sensÃ­veis.";
+  if (normalized.includes("sincron")) {
+    return "A sincronizacao reaplica, em nova demanda, os mesmos marcadores de uma anonimizacao anterior. Use somente o pacote JSON gerado pelo ANON. PDFs, TXT e logs servem para consulta e auditoria, nao para sincronizar marcadores.";
   }
-  if (normalized.includes("nao foi anonimizado") || normalized.includes("nÃ£o foi anonimizado") || normalized.includes("algo nao") || normalized.includes("algo nÃ£o")) {
-    return "Se um dado sensivel permanecer visivel, use a reanalise dirigida no historico do arquivo: informe o valor encontrado, escolha o tipo da entidade e gere novo produto com hash proprio.";
+  if (normalized.includes("reanal")) {
+    return "A reanalise dirigida corrige pontos especificos depois do processamento. Informe o valor exatamente como aparece no documento, escolha o tipo, defina o marcador e gere novo produto. O ANON registra log e calcula novo hash.";
+  }
+  if (normalized.includes("corre")) {
+    return "Correcoes de anonimizacao servem para revisar substituicoes ja feitas. Voce pode corrigir marcador, reverter decisao ou colocar a acao em fila antes de gerar o novo arquivo. A execucao final deve gerar produto e hash novos.";
+  }
+  if (normalized.includes("auditoria")) {
+    return "A auditoria concentra substituicoes feitas, indicacoes pendentes, consistencia entre arquivos, avisos, hashes e pontos de revisao humana. Use-a para decidir o que aceitar, rejeitar, corrigir ou reprocessar.";
+  }
+  if (normalized.includes("download") || normalized.includes("hash")) {
+    return "Os downloads ficam na aba Solicitacoes. Antes de baixar, o ANON confere o SHA-256 registrado. Se um novo arquivo for gerado por reanalise ou correcao, ele deve ter hash proprio.";
   }
   if (normalized.includes("interno") || normalized.includes("externo")) {
-    return "Produto externo e o arquivo anonimizado destinado a revisao humana e eventual compartilhamento. Produto interno contem auditoria, avisos, controle e rastreabilidade, devendo permanecer restrito.";
+    return "Produto externo e o arquivo anonimizado para revisao humana e eventual uso institucional. Produto interno contem auditoria, avisos, controle, correspondencias e rastreabilidade, devendo permanecer restrito.";
+  }
+  if (normalized.includes("rif") || normalized.includes("coaf") || normalized.includes("financeir")) {
+    return "Em RIF, confira especialmente nomes, CPF/CNPJ, contas, agencias, PIX, comunicantes, envolvidos e identificadores. Valores, datas, indexadores, colunas, comunicacoes e estrutura financeira devem permanecer preservados.";
+  }
+  if (normalized.includes("extrato") || normalized.includes("banc")) {
+    return "Em extrato bancario, revise titular, favorecidos, remetentes, contas, agencias, CPF/CNPJ e historicos com nomes. Datas, valores, saldos, ordem dos lancamentos e coluna Doc. devem ser preservados sempre que possivel.";
   }
   if (normalized.includes("revis") || normalized.includes("confer") || normalized.includes("compartilh")) {
-    return "Antes de compartilhar, confira manualmente se nomes, documentos, contas, endereÃ§os, contatos e demais identificadores foram substituÃ­dos sem alteraÃ§Ã£o indevida do conteÃºdo preservado.";
+    return "Antes de usar o produto, confira se identificadores sensiveis foram substituidos e se valores, datas, conclusoes, colunas, ordem das informacoes e sentido do documento foram preservados.";
   }
   if (normalized.includes("sigilo") || normalized.includes("seguran") || normalized.includes("uso")) {
-    return "O uso deve permanecer institucional, local e controlado, observando sigilo, finalidade, necessidade, rastreabilidade e revisÃ£o humana qualificada.";
+    return "O uso deve permanecer institucional, local e controlado, com sigilo, finalidade definida, necessidade, rastreabilidade e revisao humana qualificada antes de qualquer compartilhamento.";
   }
   if (normalized.includes("objetivo") || normalized.includes("serve") || normalized.includes("finalidade") || normalized.includes("anon")) {
-    return "A finalidade do ANON Ã© apoiar a anonimizaÃ§Ã£o documental, substituindo identificadores sensÃ­veis por marcadores consistentes e preservando o conteÃºdo tÃ©cnico, jurÃ­dico e financeiro.";
+    return "A finalidade do ANON e apoiar a anonimização documental: substituir identificadores sensiveis por marcadores consistentes, mantendo estrutura, valores, datas, tabelas e conteudo tecnico do documento.";
+  }
+  if (normalized.includes("erro") || normalized.includes("problema") || normalized.includes("json") || normalized.includes("log")) {
+    return "Quando houver erro ou aviso, nao trate o produto como final sem revisao. Consulte auditoria e avisos, use reanalise dirigida se houver dado sensivel exposto e preserve os logs para conferência.";
   }
   return null;
 }
@@ -2024,6 +2521,7 @@ function WorkSummary({
   requestCreatedAt?: string;
   summaryLabel?: string;
 }) {
+  const personalized = isPersonalizedResult(result);
   const summary = result
     ? [
         `SolicitaÃ§Ã£o: ${requestTitle || "NÃ£o informada"}`,
@@ -2035,10 +2533,12 @@ function WorkSummary({
         `Estrutura: ${result.audit.structure_preserved ? "Preservada" : "NÃ£o preservada"}`,
         `ValidaÃ§Ã£o: ${result.audit.validation_status}`,
         `Hash SHA-256 original: ${result.audit.source_sha256}`,
-        `Entidades identificadas: ${result.stats.entities_found}`,
-        `SubstituiÃ§Ãµes aplicadas: ${result.stats.replacements_applied}`,
+        ...(personalized ? [] : [
+          `Entidades identificadas: ${result.stats.entities_found}`,
+          `SubstituiÃ§Ãµes aplicadas: ${result.stats.replacements_applied}`,
+        ]),
         ...Object.entries(result.audit.export_sha256).map(([format, hash]) => `Hash SHA-256 ${format.toUpperCase()}: ${hash}`),
-        `Avisos de ValidaÃ§Ã£o: ${result.stats.validation_warnings.length}`
+        ...(personalized ? [] : [`Avisos de ValidaÃ§Ã£o: ${result.stats.validation_warnings.length}`])
       ].join("\n")
     : "";
 
@@ -2082,7 +2582,12 @@ function WorkSummary({
 
 function PipelineStatePanel({ result }: { result: Result }) {
   const stages = result.pipeline_state?.stages || [];
-  if (!stages.length) return null;
+  const syncLoaded = result.stats.sync_entries_loaded ?? 0;
+  const syncFound = result.stats.sync_entities_found ?? 0;
+  const dictionarySize = result.stats.nce_dictionary_size ?? 0;
+  const consistencyStatus = result.stats.consistency_status || "Validada";
+  const consistencyNotes = result.stats.consistency_notes || [];
+  if (!stages.length && !dictionarySize && !syncLoaded) return null;
 
   return (
     <section className="pipelineStatePanel">
@@ -2090,6 +2595,19 @@ function PipelineStatePanel({ result }: { result: Result }) {
         <span className="panelLabel">Estado do processamento</span>
         <strong>{pipelineStatusLabel(result.pipeline_state?.overall_status || "ok")}</strong>
       </header>
+      <div className="consistencyGrid" aria-label="Auditoria de consistencia e sincronizacao">
+        <AuditItem label="Dicionario central" value={dictionarySize ? `Ativo · ${dictionarySize} codigo(s)` : "Ativo"} />
+        <AuditItem label="Consistencia" value={consistencyStatus} />
+        <AuditItem label="Sincronizacao" value={syncLoaded ? "Aplicada" : "Nao aplicada"} />
+        <AuditItem label="Codigos sincronizados" value={syncLoaded ? `${syncFound}/${syncLoaded}` : "0"} />
+      </div>
+      {consistencyNotes.length ? (
+        <div className="consistencyNotes">
+          {consistencyNotes.map((note, index) => (
+            <span key={`${note}-${index}`}>{note}</span>
+          ))}
+        </div>
+      ) : null}
       <div className="pipelineStages">
         {stages.map((stage) => (
           <div key={stage.name} className={`pipelineStage ${stage.status}`}>
@@ -2148,48 +2666,37 @@ function DiagnosticChatPanel({
 }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Array<{ role: "user" | "anon"; text: string; source?: string }>>([]);
-  const [loadingAnswer, setLoadingAnswer] = useState(false);
+  const [selectedQuickPrompt, setSelectedQuickPrompt] = useState(NEXUS_QUICK_PROMPTS[0]);
   const diagnosticMessagesRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const element = diagnosticMessagesRef.current;
     if (!element) return;
     element.scrollTop = element.scrollHeight;
-  }, [messages, loadingAnswer]);
+  }, [messages]);
 
   if (!result) return null;
   const currentResult = result;
 
-  const quickQuestions = ["Qual Ã© a finalidade?", "O que devo revisar?", "Se surgir erro, o que fazer?", "Como conferir RIF ou extrato?"];
-
-  async function askDiagnostic(text: string) {
-    return;
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    setMessages((items) => [...items, { role: "user", text: trimmed }]);
-    setQuestion("");
-    setLoadingAnswer(true);
-    const timeoutController = new AbortController();
-    const timeoutId = window.setTimeout(() => timeoutController.abort(), 25000);
-    try {
-      const response = await fetch(API_URL + "/api/diagnostics/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: timeoutController.signal,
-        body: JSON.stringify({
-          question: trimmed,
-          profile: currentResult.safe_summary?.profile || selectedGroup?.documentKind || "",
-          document_id: currentResult.audit.safe_summary_id || currentResult.audit.source_sha256
-        })
-      });
-      const payload = await response.json();
-      setMessages((items) => [...items, { role: "anon", text: payload.answer || "OrientaÃ§Ã£o institucional indisponÃ­vel neste momento.", source: payload.source }]);
-    } catch {
-      setMessages((items) => [...items, { role: "anon", text: "Este canal permanece restrito a orientaÃ§Ãµes institucionais de uso, sigilo e revisÃ£o." }]);
-    } finally {
-      window.clearTimeout(timeoutId);
-      setLoadingAnswer(false);
+  function askDiagnostic(text: string) {
+    if (text.toLowerCase().includes("nova pergunta")) {
+      setMessages([]);
+      return;
     }
+    const localAnswer = nexusLocalAnswer(text, {
+      loading: false,
+      processingStep: "",
+      elapsedSeconds: currentResult.audit.processing_time_seconds,
+      fileName: selectedFile?.name || currentResult.original_filename,
+      selectedResult: currentResult,
+      selectedFile,
+      selectedGroup
+    });
+    setMessages((items) => [
+      ...items.slice(-6),
+      { role: "user", text },
+      { role: "anon", text: localAnswer || "Escolha uma das opcoes de orientacao para revisar o produto, conferir downloads, entender auditoria ou aplicar reanalise dirigida." }
+    ]);
   }
 
   return (
@@ -2210,23 +2717,10 @@ function DiagnosticChatPanel({
           IA local
         </div>
       </header>
-      <div className="diagnosticQuick">
-        {quickQuestions.map((item) => (
-          <button key={item} type="button" onClick={() => void askDiagnostic(item)} disabled>
-            {item}
-          </button>
-        ))}
-      </div>
       <div className="diagnosticMessages" ref={diagnosticMessagesRef}>
         {messages.length === 0 ? (
-          <div className="chatAnon emptyChat">
-            <div className="messageAvatar">
-              <MessageCircle size={16} />
-            </div>
-            <div>
-              <strong>IA NEXUS</strong>
-              <span>Estou conectada Ã  IA local para orientar esta solicitaÃ§Ã£o sobre o ANON, o produto anonimizado e a revisÃ£o humana obrigatÃ³ria.</span>
-            </div>
+          <div className="chatPlaceholder">
+            Escolha uma pergunta frequente abaixo para preencher este canal.
           </div>
         ) : (
           messages.map((message, index) => (
@@ -2241,28 +2735,35 @@ function DiagnosticChatPanel({
             </div>
           ))
         )}
-        {loadingAnswer ? (
-          <div className="chatAnon thinking">
-            <div className="messageAvatar">
-              <MessageCircle size={16} />
-            </div>
-            <div>
-              <strong>IA NEXUS</strong>
-              <span><TypingDots label="IA NEXUS respondendo" /></span>
-            </div>
-          </div>
-        ) : null}
       </div>
+      <form
+        className="diagnosticPromptPicker"
+        aria-label="Perguntas frequentes da IA NEXUS"
+        onSubmit={(event) => {
+          event.preventDefault();
+          askDiagnostic(selectedQuickPrompt);
+        }}
+      >
+        <label>
+          Perguntas frequentes
+          <select value={selectedQuickPrompt} onChange={(event) => setSelectedQuickPrompt(event.target.value)}>
+            {NEXUS_QUICK_PROMPTS.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+        </label>
+        <button type="submit">Perguntar</button>
+      </form>
       <form
         className="diagnosticForm"
         onSubmit={(event) => {
           event.preventDefault();
-          void askDiagnostic(question);
+          askDiagnostic(question);
         }}
       >
         <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Fale com a IA NEXUS, em breve..." disabled />
         <button type="submit" disabled>
-          {loadingAnswer ? <TypingDots label="Analisando resposta" /> : "Enviar"}
+          Enviar
         </button>
       </form>
     </section>
@@ -2280,10 +2781,13 @@ function TypingDots({ label }: { label: string }) {
 }
 function AuditSeal({ result }: { result: Result }) {
   const exportEntries = Object.entries(result.audit.export_sha256);
+  const personalized = isPersonalizedResult(result);
 
   return (
     <section className="auditSeal">
-      <div className="successStamp">DOCUMENTO PROCESSADO COM SUCESSO</div>
+      <div className={personalized ? "successStamp manualWaiting" : "successStamp"}>
+        {personalized ? "AGUARDANDO FINALIZAÇÃO AUDITIVA MANUAL" : "DOCUMENTO PROCESSADO COM SUCESSO"}
+      </div>
       <div className="auditGrid">
         <AuditItem label="Modelo" value={formatModelName(result.model)} />
         <AuditItem label="VersÃ£o ANON" value={result.audit.anon_version || "NÃ£o informada"} />
@@ -2292,7 +2796,7 @@ function AuditSeal({ result }: { result: Result }) {
         <AuditItem label="Estrutura" value={result.audit.structure_preserved ? "Preservada" : "NÃ£o preservada"} />
         <AuditItem label="ValidaÃ§Ã£o" value={result.audit.validation_status} />
       </div>
-      <AuditStrengthPanel result={result} />
+      {!personalized ? <AuditStrengthPanel result={result} /> : null}
       <section className="hashSection">
         <header>
           <span className="panelLabel">Hashes SHA-256</span>
@@ -2304,7 +2808,7 @@ function AuditSeal({ result }: { result: Result }) {
         ))}
       </section>
       <div className="auditCounters">
-        <Metric label="SubstituiÃ§Ãµes" value={result.stats.replacements_applied} />
+        {!personalized ? <Metric label="SubstituiÃ§Ãµes" value={result.stats.replacements_applied} /> : null}
         <DownloadFormatsInfo formats={exportEntries.map(([format]) => format)} />
       </div>
     </section>
@@ -2477,6 +2981,7 @@ function ExportBar({ result, fileName }: { result?: Result; fileName?: string })
   const availableFormats = result ? Object.keys(result.audit.export_sha256) : ["pdf", "docx", "txt"];
   const externalFormats = availableFormats.filter(isExternalProductFormat);
   const internalFormats = availableFormats.filter(isInternalProductFormat);
+  const personalized = isPersonalizedResult(result);
 
   async function downloadExport(format: string) {
     if (!result) return;
@@ -2509,10 +3014,10 @@ function ExportBar({ result, fileName }: { result?: Result; fileName?: string })
       <section className="exportGroup syncExportGroup">
         <header>
           <strong>SincronizaÃ§Ã£o</strong>
-          <small>Pacote interno para reaplicar os mesmos marcadores em outra demanda.</small>
+          <small>{personalized ? "Indisponivel para o perfil Personalizado." : "Pacote interno para reaplicar os mesmos marcadores em outra demanda."}</small>
         </header>
         <div className="exportButtons">
-          <button type="button" disabled={!result} onClick={() => result && void downloadSyncPackage(result, fileName)}>
+          <button type="button" disabled={!result || personalized} onClick={() => result && !personalized && void downloadSyncPackage(result, fileName)}>
             <Download size={16} />
             <span>
               <strong>SYNC</strong>
@@ -2578,7 +3083,7 @@ function InstitutionalFooter() {
         {" "}- PolÃ­cia Civil do Estado de Pernambuco.
       </span>
       <strong>
-        <a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noreferrer">VersÃ£o 1.8.39</a>
+        <a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noreferrer">VersÃ£o 2.0.0</a>
       </strong>
     </footer>
   );
@@ -2674,17 +3179,25 @@ function buildDownloadName(fileName: string, format: string) {
 }
 
 function formatExportLabel(format: string) {
-  if (format === "controle") return "CONTROLE";
+  if (format === "controle") return "SUBSTITUICOES PDF";
   if (format === "auditoria") return "AUDITORIA";
   if (format === "reanalise_log") return "LOG";
   return format === "avisos" ? "AVISOS" : format.toUpperCase();
 }
 
 function formatExportTitle(format: string) {
-  if (format === "controle") return "Tabela de controle interno gerada em arquivo separado e restrito.";
+  if (format === "controle") return "PDF simples com todas as substituicoes feitas, restrito a conferencia interna.";
   if (format === "auditoria") return "Manifesto interno de auditoria e rastreabilidade gerado.";
   if (format === "reanalise_log") return "Log da reanalise dirigida gerado.";
   return format === "avisos" ? "Arquivo de avisos e validaÃ§Ã£o gerado." : `Arquivo ${format.toUpperCase()} anonimizado gerado.`;
+}
+
+function statusLabel(status: ProcessedFile["status"]) {
+  if (status === "concluÃ­do") return "Concluido";
+  if (status === "processando") return "Processando";
+  if (status === "erro") return "Erro registrado";
+  if (status === "cancelado") return "Cancelado";
+  return "Pendente";
 }
 
 function isExternalProductFormat(format: string) {
@@ -2693,6 +3206,10 @@ function isExternalProductFormat(format: string) {
 
 function isInternalProductFormat(format: string) {
   return ["avisos", "controle", "auditoria", "reanalise_log"].includes(format);
+}
+
+function isPersonalizedResult(result?: Result) {
+  return result?.document_kind === "personalizado" || result?.safe_summary?.profile === "personalizado";
 }
 
 function qualityLabel(status: string) {
@@ -2759,6 +3276,24 @@ function buildManualAnonymousId(entityType: string, suffix: string) {
     .replace(/^_+|_+$/g, "")
     .toUpperCase();
   return cleanSuffix ? `[${prefix}_${cleanSuffix}]` : "";
+}
+
+function auditRowKey(row: Result["control_table"][number], index: number) {
+  return `${row.anonymous_id}-${row.original_value}-${index}`.replace(/\s+/g, "_");
+}
+
+function normalizeEntityTypeForManual(entityType: string) {
+  const normalized = entityType.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (normalized.includes("pessoa")) return "PERSON";
+  if (normalized.includes("cpf")) return "CPF";
+  if (normalized.includes("cnpj")) return "CNPJ";
+  if (normalized.includes("empresa") || normalized.includes("organiz")) return "ORGANIZATION";
+  if (normalized.includes("conta")) return "BANK_ACCOUNT";
+  if (normalized.includes("pix")) return "PIX";
+  if (normalized.includes("endere")) return "ADDRESS";
+  if (normalized.includes("telefone")) return "PHONE";
+  if (normalized.includes("mail")) return "EMAIL";
+  return "OTHER_IDENTIFIER";
 }
 
 function loadStoredRequests(): RequestGroup[] {

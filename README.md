@@ -148,7 +148,7 @@ Esta versão entrega:
 
 ## Versionamento
 
-Versão atual: **1.8.39**.
+Versão atual: **2.0.0**.
 
 Toda atualização funcional, visual ou documental deve incrementar a versão e registrar a mudança em `CHANGELOG.md`.
 

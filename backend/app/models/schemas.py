@@ -6,6 +6,7 @@ class DocumentKind(str, Enum):
     rif = "rif"
     extrato_bancario = "extrato_bancario"
     relatorio_investigativo = "relatorio_investigativo"
+    personalizado = "personalizado"
 
 
 class EntityType(str, Enum):
@@ -72,6 +73,11 @@ class AnonymizationStats(BaseModel):
     confidence_score: int | None = None
     confidence_level: str | None = None
     confidence_reasons: list[str] = Field(default_factory=list)
+    sync_entries_loaded: int = 0
+    sync_entities_found: int = 0
+    nce_dictionary_size: int = 0
+    consistency_status: str = "Nao avaliada"
+    consistency_notes: list[str] = Field(default_factory=list)
 
 
 class AnonymizationControlRow(BaseModel):
@@ -101,6 +107,7 @@ class HumanReviewItem(BaseModel):
 class AuditInfo(BaseModel):
     source_sha256: str
     export_sha256: dict[str, str]
+    export_sha256_reason: dict[str, str] = Field(default_factory=dict)
     processing_time_seconds: float
     ocr_used: bool
     structure_preserved: bool
