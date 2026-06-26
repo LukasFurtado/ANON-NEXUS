@@ -61,6 +61,7 @@ def detect_entities_with_ollama(text: str, model: str, document_kind: DocumentKi
     if not text.strip():
         return OllamaDetectionResult(entities=[])
 
+    model = settings.default_model
     entities: list[Entity] = []
     result = OllamaDetectionResult(entities=entities)
     for chunk_start, chunk in _iter_text_chunks(text):
@@ -101,7 +102,6 @@ def _detect_entities_with_ollama_chunk(
             f"TEXTO:\n{text}"
         ),
         "think": False,
-        "options": {"temperature": 0, "top_p": 0.9, "repeat_penalty": 1.1, "num_predict": 4096},
     }
 
     raw = _request_ollama_generate(payload)
@@ -213,7 +213,6 @@ RESPOSTA_ANTERIOR:
         "format": "json",
         "prompt": prompt,
         "think": False,
-        "options": {"temperature": 0, "top_p": 0.9, "repeat_penalty": 1.1, "num_predict": 2048},
     }
 
 

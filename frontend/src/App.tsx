@@ -8,12 +8,14 @@
   FileText,
   Files,
   FolderOpen,
+  HelpCircle,
   CheckCircle2,
   ListChecks,
   Lock,
   MessageCircle,
   Play,
   RefreshCw,
+  Settings,
   Trash2,
   ShieldCheck,
   UploadCloud,
@@ -88,6 +90,8 @@ type Result = {
   audit: {
     source_sha256: string;
     export_sha256: Record<string, string>;
+    export_sha256_reason?: Record<string, string>;
+    export_sha256_updated_at?: Record<string, string>;
     processing_time_seconds: number;
     ocr_used: boolean;
     structure_preserved: boolean;
@@ -127,6 +131,7 @@ type ProcessedFile = {
   id: string;
   name: string;
   status: "pendente" | "processando" | "concluÃ­do" | "erro" | "cancelado";
+  origin?: "inicial" | "complementar";
   result?: Result;
   error?: string;
 };
@@ -156,6 +161,11 @@ type ModelsResponse = {
   installed: string[];
   models: string[];
   ollama_online: boolean;
+  operational_model?: string;
+  assistant_model?: string;
+  operational_ready?: boolean;
+  assistant_ready?: boolean;
+  provision_notes?: string[];
   note: string;
 };
 
@@ -197,10 +207,17 @@ type SystemMetrics = {
   };
 };
 
+type InlineLogState = {
+  title: string;
+  text: string;
+};
+
 const API_URL = "http://127.0.0.1:8000";
 const REQUESTS_STORAGE_KEY = "nexus-anon.requests.v1";
 const REQUESTS_RECOVERY_KEY = "nexus-anon.requests.recovery.v1";
-const FALLBACK_MODELS = ["qwen3:32b"];
+const OPERATIONAL_MODEL = "nexus.op:latest";
+const CHAT_MODEL = "nexus-chat:latest";
+const FALLBACK_MODELS = [OPERATIONAL_MODEL, CHAT_MODEL];
 const MAX_FILES = 3;
 const VALID_DOCUMENT_KINDS = new Set(["rif", "extrato_bancario", "relatorio_investigativo", "personalizado"]);
 const LOCAL_AI_PROCESSING_MESSAGES = [
@@ -260,7 +277,7 @@ function fileKey(file: File) {
 
 export function App() {
   const [files, setFiles] = useState<File[]>([]);
-  const [model, setModel] = useState("qwen3:32b");
+  const [model, setModel] = useState(OPERATIONAL_MODEL);
   const [documentKind, setDocumentKind] = useState("");
   const [requestName, setRequestName] = useState("");
   const [fileHashes, setFileHashes] = useState<Record<string, string>>({});
@@ -268,6 +285,11 @@ export function App() {
   const [localModels, setLocalModels] = useState<string[]>(FALLBACK_MODELS);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsStatus, setModelsStatus] = useState("Modelos locais ainda nÃ£o detectados nesta sessÃ£o.");
+  const [ollamaOnline, setOllamaOnline] = useState(false);
+  const [operationalReady, setOperationalReady] = useState(false);
+  const [assistantReady, setAssistantReady] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [faqOpen, setFaqOpen] = useState(false);
   const [useOllama, setUseOllama] = useState(false);
   const [rulesModalOpen, setRulesModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -275,6 +297,7 @@ export function App() {
   const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(null);
   const [currentFileName, setCurrentFileName] = useState("");
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [processingTotalFiles, setProcessingTotalFiles] = useState(0);
   const [processingStep, setProcessingStep] = useState("Preparando processamento local.");
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<RequestGroup[]>(() => loadStoredRequests());
@@ -351,6 +374,7 @@ export function App() {
     setActiveView("solicitacoes");
     setProcessingStartedAt(Date.now());
     setElapsedSeconds(0);
+    setProcessingTotalFiles(files.length);
     setLoading(true);
     setError(null);
     setRequestName("");
@@ -415,6 +439,7 @@ export function App() {
       setProcessingStartedAt(null);
       setCurrentFileName("");
       setCurrentFileIndex(0);
+      setProcessingTotalFiles(0);
       setProcessingStep("Preparando processamento local.");
       setFiles([]);
       setFileHashes({});
@@ -456,6 +481,7 @@ export function App() {
     setActiveView("solicitacoes");
     setProcessingStartedAt(Date.now());
     setElapsedSeconds(0);
+    setProcessingTotalFiles(files.length);
     setLoading(true);
     setError(null);
     setRequestName("");
@@ -525,6 +551,7 @@ export function App() {
       setProcessingStartedAt(null);
       setCurrentFileName("");
       setCurrentFileIndex(0);
+      setProcessingTotalFiles(0);
       setProcessingStep("Preparando processamento local.");
       setFiles([]);
       setFileHashes({});
@@ -696,25 +723,109 @@ export function App() {
     return result;
   }
 
+  async function addComplementaryFile(groupId: string, baseFileId: string, file: File) {
+    const group = requests.find((item) => item.id === groupId);
+    const baseFile = group?.files.find((item) => item.id === baseFileId) ?? group?.files.find((item) => item.result);
+    if (!group || !baseFile?.result) {
+      window.alert("Selecione um arquivo ja processado para servir como base de sincronizacao.");
+      return;
+    }
+
+    const controller = new AbortController();
+    const fileId = crypto.randomUUID();
+    const nextFile: ProcessedFile = {
+      id: fileId,
+      name: file.name,
+      status: "processando",
+      origin: "complementar"
+    };
+
+    abortControllerRef.current = controller;
+    setRequests((groups) =>
+      groups.map((item) => (item.id === groupId ? { ...item, files: [...item.files, nextFile] } : item))
+    );
+    setSelectedGroupId(groupId);
+    setSelectedFileId(fileId);
+    setActiveView("solicitacoes");
+    setProcessingStartedAt(Date.now());
+    setElapsedSeconds(0);
+    setCurrentFileName(file.name);
+    setCurrentFileIndex(group.files.length + 1);
+    setProcessingTotalFiles(group.files.length + 1);
+    setProcessingStep("Arquivo complementar recebido. Preparando sincronizacao automatica da solicitacao.");
+    setLoading(true);
+    setError(null);
+
+    try {
+      const syncResponse = await fetch(`${API_URL}/api/jobs/${baseFile.result.job_id}/sync-package`, { signal: controller.signal });
+      if (!syncResponse.ok) throw new Error(await readErrorMessage(syncResponse));
+      const syncBlob = await syncResponse.blob();
+      const syncFile = new File([syncBlob], "sincronizacao_anon.json", { type: "application/json" });
+
+      const form = new FormData();
+      form.append("file", file);
+      form.append("document_kind", group.documentKind || baseFile.result.document_kind || "rif");
+      form.append("model", group.model || baseFile.result.model || model);
+      form.append("use_ollama", "true");
+      form.append("request_title", group.title);
+      form.append("sync_package", syncFile);
+
+      setProcessingStep("Aplicando marcadores sincronizados ao novo arquivo complementar.");
+      const response = await fetch(`${API_URL}/api/anonymize`, {
+        method: "POST",
+        body: form,
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(await readErrorMessage(response));
+      setProcessingStep("Registrando arquivo complementar no historico da solicitacao.");
+      const result = (await response.json()) as Result;
+      updateFile(groupId, fileId, { status: "concluÃ­do", result, origin: "complementar" });
+    } catch (err) {
+      updateFile(groupId, fileId, {
+        status: err instanceof DOMException && err.name === "AbortError" ? "cancelado" : "erro",
+        error: err instanceof Error ? err.message : "Erro inesperado ao processar arquivo complementar.",
+        origin: "complementar"
+      });
+      if (!(err instanceof DOMException && err.name === "AbortError")) {
+        setError(formatRequestError(err));
+      }
+    } finally {
+      abortControllerRef.current = null;
+      setLoading(false);
+      setProcessingStartedAt(null);
+      setCurrentFileName("");
+      setCurrentFileIndex(0);
+      setProcessingTotalFiles(0);
+      setProcessingStep("Preparando processamento local.");
+    }
+  }
+
   async function detectLocalModels() {
     setModelsLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/models`);
       if (!response.ok) throw new Error("Falha ao consultar modelos locais.");
       const payload = (await response.json()) as ModelsResponse;
-      const detected = payload.models.length > 0 ? payload.models : FALLBACK_MODELS;
+      const installed = payload.installed || [];
+      const detected = installed.length > 0 ? installed : payload.models.filter((item) => !FALLBACK_MODELS.includes(item));
+      const operationalDetected = Boolean(payload.operational_ready) || hasLocalModel(installed, OPERATIONAL_MODEL);
+      const assistantDetected = Boolean(payload.assistant_ready) || hasLocalModel(installed, CHAT_MODEL);
       setLocalModels(detected);
-      if (!detected.includes(model)) {
-        setModel(detected[0]);
-      }
+      setModel(OPERATIONAL_MODEL);
+      setOllamaOnline(payload.ollama_online);
+      setOperationalReady(operationalDetected);
+      setAssistantReady(assistantDetected);
       setModelsStatus(
-        payload.ollama_online
-          ? `${payload.installed.length} modelo(s) local(is) detectado(s) no Ollama.`
-          : "Ollama nÃ£o respondeu. Lista padrÃ£o mantida."
+        payload.ollama_online && operationalDetected && assistantDetected
+          ? "IA Nexus sincronizada com o Ollama local."
+          : payload.note || "IA Nexus indisponivel. Abra o Ollama e confirme os modelos nexus.op:latest e nexus-chat:latest."
       );
     } catch (err) {
       setLocalModels(FALLBACK_MODELS);
-      setModelsStatus(err instanceof Error ? err.message : "NÃ£o foi possÃ­vel detectar modelos locais.");
+      setOllamaOnline(false);
+      setOperationalReady(false);
+      setAssistantReady(false);
+      setModelsStatus(err instanceof Error ? err.message : "Nao foi possivel consultar a IA Nexus local.");
     } finally {
       setModelsLoading(false);
     }
@@ -765,7 +876,7 @@ export function App() {
           elapsedSeconds={elapsedSeconds}
           model={model}
           currentFileIndex={currentFileIndex}
-          totalFiles={files.length}
+          totalFiles={processingTotalFiles || files.length}
           processingStep={processingStep}
           onCancel={cancelProcessing}
         />
@@ -826,6 +937,14 @@ export function App() {
           >
             <ShieldCheck size={17} />
             Auditoria
+          </button>
+          <button type="button" onClick={() => setSettingsOpen(true)}>
+            <Settings size={17} />
+            ConfiguraÃ§Ãµes
+          </button>
+          <button type="button" onClick={() => setFaqOpen(true)}>
+            <HelpCircle size={17} />
+            FAQ IA Nexus
           </button>
         </nav>
 
@@ -889,21 +1008,13 @@ export function App() {
           </label>
 
           <label>
-            Modelo local
-            <div className="modelDetector">
-              <select value={model} onChange={(event) => setModel(event.target.value)}>
-                {localModels.map((item) => (
-                  <option key={item} value={item}>
-                    {formatModelName(item)}
-                  </option>
-                ))}
-              </select>
-              <button type="button" onClick={detectLocalModels} disabled={modelsLoading}>
-                <RefreshCw size={15} />
-                Detectar
-              </button>
-            </div>
-            <small className="modelStatus">{modelsStatus}</small>
+            InteligÃªncia Artificial
+            <AiNexusStatus
+              online={ollamaOnline && operationalReady}
+              loading={modelsLoading}
+              message={modelsStatus}
+              onRefresh={detectLocalModels}
+            />
           </label>
 
           <label>
@@ -936,13 +1047,20 @@ export function App() {
                 </p>
               </details>
             </div>
-            <input
-              ref={syncPackageInputRef}
-              type="file"
-              accept=".json"
-              onChange={(event) => handleSyncPackageChange(event.target.files)}
-              disabled={loading || isPersonalizedMode}
-            />
+            <label className={`syncPackagePicker ${syncPackage ? "ready" : ""} ${loading || isPersonalizedMode ? "disabled" : ""}`}>
+              <UploadCloud size={18} />
+              <span>
+                <strong>{syncPackage ? "Pacote vinculado" : "Selecionar pacote JSON"}</strong>
+                <small>{syncPackage ? syncPackage.name : "Nenhum arquivo selecionado"}</small>
+              </span>
+              <input
+                ref={syncPackageInputRef}
+                type="file"
+                accept=".json"
+                onChange={(event) => handleSyncPackageChange(event.target.files)}
+                disabled={loading || isPersonalizedMode}
+              />
+            </label>
             {syncPackage && !isPersonalizedMode ? (
               <button
                 type="button"
@@ -984,6 +1102,22 @@ export function App() {
           <span>Processamento 100% local. Nenhum documento Ã© enviado para a internet.</span>
         </div>
       </aside>
+
+      {settingsOpen ? (
+        <SettingsOverlay
+          onClose={() => setSettingsOpen(false)}
+          onRefresh={detectLocalModels}
+          onDownloadErrorLog={downloadErrorLog}
+          loading={modelsLoading}
+          ollamaOnline={ollamaOnline}
+          operationalReady={operationalReady}
+          assistantReady={assistantReady}
+          modelsStatus={modelsStatus}
+          installedModels={localModels}
+        />
+      ) : null}
+
+      {faqOpen ? <NexusFaqDialog onClose={() => setFaqOpen(false)} /> : null}
 
       <section className="workspace">
         <header className="topbar">
@@ -1062,6 +1196,7 @@ export function App() {
             onDownloadLog={(group) => void downloadGroupLog(group)}
             onDownloadErrorLog={() => void downloadErrorLog()}
             onManualCorrection={(groupId, fileId, corrections) => applyManualCorrection(groupId, fileId, corrections)}
+            onAddComplementaryFile={(groupId: string, baseFileId: string, file: File) => void addComplementaryFile(groupId, baseFileId, file)}
           />
         )}
 
@@ -1084,6 +1219,7 @@ function ProcessingPage({
   fileHashes: Record<string, string>;
   model: string;
 }) {
+  const settingsDate = new Date().toLocaleString("pt-BR");
   return (
     <section className="processingHome">
       <ProcessingOverviewPanel requests={requests} files={files} model={model} />
@@ -1168,9 +1304,9 @@ function LastProcessPanel({ requests }: { requests: RequestGroup[] }) {
           <small>{latestFile?.status ? statusLabel(latestFile.status) : "Aguardando primeira solicitacao"}</small>
         </article>
         <article>
-          <span>Modelo</span>
+          <span>Inteligencia Artificial</span>
           <strong>{latestGroup ? formatModelName(latestGroup.model) : "Nao informado"}</strong>
-          <small>Modelo local registrado na solicitacao.</small>
+          <small>IA Nexus operacional registrada na solicitacao.</small>
         </article>
         <article>
           <span>Perfil</span>
@@ -1230,6 +1366,159 @@ function ProcessingIntegrityPanel({
   );
 }
 
+function AiNexusStatus({
+  online,
+  loading,
+  message,
+  onRefresh
+}: {
+  online: boolean;
+  loading: boolean;
+  message: string;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className={`aiNexusStatus ${online ? "online" : "offline"}`}>
+      <button type="button" onClick={onRefresh} disabled={loading} aria-label="Atualizar status da IA Nexus">
+        <ShieldCheck size={19} />
+        <strong>{online ? "IA Nexus - Online" : "Acionar Ollama"}</strong>
+      </button>
+      {!online ? <small>{message}</small> : null}
+    </div>
+  );
+}
+
+function SettingsOverlay({
+  onClose,
+  onRefresh,
+  onDownloadErrorLog,
+  loading,
+  ollamaOnline,
+  operationalReady,
+  assistantReady,
+  modelsStatus,
+  installedModels
+}: {
+  onClose: () => void;
+  onRefresh: () => void;
+  onDownloadErrorLog: () => void;
+  loading: boolean;
+  ollamaOnline: boolean;
+  operationalReady: boolean;
+  assistantReady: boolean;
+  modelsStatus: string;
+  installedModels: string[];
+}) {
+  const settingsDate = new Date().toLocaleString("pt-BR");
+  return (
+    <div className="settingsOverlay" role="dialog" aria-modal="true" aria-label="Configurações do ANON">
+      <section className="settingsPanel">
+        <header>
+          <div>
+            <span className="panelLabel">ConfiguraÃ§Ãµes locais</span>
+            <h2>Ecossistema ANON</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar configurações">
+            <XCircle size={20} />
+          </button>
+        </header>
+
+        <div className="settingsStatusGrid">
+          <SettingsStatusCard label="Ollama local" ok={ollamaOnline} value={ollamaOnline ? "Ativo" : "Indisponivel"} />
+          <SettingsStatusCard label="ANON - Operacional" ok={operationalReady} value={operationalReady ? "Ativo" : "Modelo nao detectado"} />
+          <SettingsStatusCard label="IA Nexus" ok={assistantReady} value={assistantReady ? "Ativo" : "Modelo nao detectado"} />
+          <SettingsStatusCard label="ANON" ok value="Versao 3.0.0" />
+        </div>
+
+        <div className="settingsArchitecture">
+          <strong>Arquitetura operacional</strong>
+          <p>
+            O processamento combina diferentes camadas de analise que atuam em conjunto, do mais deterministico ao mais
+            interpretativo. Cada camada tem uma funcao especifica, e o resultado final e a soma do trabalho de todas elas.
+          </p>
+        </div>
+
+        <div className="settingsModelList">
+          <strong>Modelos detectados</strong>
+          <span>{installedModels.length} modelo(s) local(is) detectado(s).</span>
+          <small>{modelsStatus}</small>
+        </div>
+
+        <div className="settingsMeta">
+          <span>Copyright {new Date().getFullYear()} ANON - Uso institucional e interno.</span>
+          <span>Data e hora local: {settingsDate}</span>
+          <span>Versao 3.0.0</span>
+          <span>
+            Criador e Programador -{" "}
+            <a href="https://github.com/LukasFurtado" target="_blank" rel="noreferrer">Lukas Furtado</a>
+          </span>
+        </div>
+
+        <footer>
+          <button type="button" onClick={onRefresh} disabled={loading}>
+            <RefreshCw size={15} />
+            Atualizar status
+          </button>
+          <button type="button" onClick={() => void onDownloadErrorLog()}>
+            <Download size={15} />
+            Baixar log do sistema
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function SettingsStatusCard({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+  return (
+    <article className={`settingsStatusCard ${ok ? "ok" : "fail"}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </article>
+  );
+}
+
+function NexusFaqDialog({ onClose }: { onClose: () => void }) {
+  const faqItems = NEXUS_QUICK_PROMPTS
+    .filter((item) => !item.toLowerCase().includes("nova pergunta"))
+    .map((question) => ({
+      question,
+      answer:
+        nexusLocalAnswer(question, {
+          loading: false,
+          processingStep: "",
+          elapsedSeconds: 0,
+          fileName: ""
+        }) ||
+        "Oriente-se pela finalidade do ANON: substituir dados sensiveis por marcadores consistentes, preservar a estrutura documental e realizar revisao humana antes de qualquer uso institucional."
+    }));
+
+  return (
+    <div className="settingsOverlay" role="dialog" aria-modal="true" aria-label="Perguntas frequentes da IA Nexus">
+      <section className="faqPanel">
+        <header>
+          <div>
+            <span className="panelLabel">FAQ IA Nexus</span>
+            <h2>Perguntas frequentes</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar perguntas frequentes">
+            <XCircle size={20} />
+          </button>
+        </header>
+
+        <div className="faqList">
+          {faqItems.map((item) => (
+            <article key={item.question}>
+              <strong>{item.question}</strong>
+              <p>{item.answer}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function RequestsPage({
   requests,
   selectedGroup,
@@ -1240,7 +1529,8 @@ function RequestsPage({
   onDeleteGroup,
   onDownloadLog,
   onDownloadErrorLog,
-  onManualCorrection
+  onManualCorrection,
+  onAddComplementaryFile
 }: {
   requests: RequestGroup[];
   selectedGroup?: RequestGroup;
@@ -1252,12 +1542,28 @@ function RequestsPage({
   onDownloadLog: (group: RequestGroup) => void;
   onDownloadErrorLog: () => void;
   onManualCorrection: (groupId: string, fileId: string, corrections: ManualCorrectionPayload[]) => Promise<Result | undefined>;
+  onAddComplementaryFile: (groupId: string, baseFileId: string, file: File) => void;
 }) {
   const [qualityModal, setQualityModal] = useState<{
     status: string;
     score?: number;
     reasons: string[];
   } | null>(null);
+  const complementaryInputRef = useRef<HTMLInputElement | null>(null);
+  const [complementaryFile, setComplementaryFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    setComplementaryFile(null);
+    if (complementaryInputRef.current) complementaryInputRef.current.value = "";
+  }, [selectedGroup?.id, selectedFile?.id]);
+
+  function startComplementarySync() {
+    const baseFileId = selectedFile?.id || selectedGroup?.files.find((item) => item.result)?.id;
+    if (!selectedGroup || !baseFileId || !complementaryFile) return;
+    onAddComplementaryFile(selectedGroup.id, baseFileId, complementaryFile);
+    setComplementaryFile(null);
+    if (complementaryInputRef.current) complementaryInputRef.current.value = "";
+  }
 
   if (requests.length === 0) {
     return (
@@ -1336,13 +1642,14 @@ function RequestsPage({
             {selectedGroup?.files.map((item) => (
               <button
                 key={item.id}
-                className={item.id === selectedFile?.id ? "selected" : ""}
+                className={`${item.id === selectedFile?.id ? "selected" : ""} ${item.origin === "complementar" ? "complementaryFile" : ""}`}
                 onClick={() => onSelectFile(item.id)}
               >
                 <Files size={16} />
                 <div>
                   <strong>{item.name}</strong>
                   <span className={`fileStatus ${item.status}`}>{item.status}</span>
+                  {item.origin === "complementar" ? <span className="complementaryBadge">Adicao complementar</span> : null}
                   {item.result?.stats.quality_status ? (
                     <button
                       type="button"
@@ -1383,21 +1690,46 @@ function RequestsPage({
               requestTitle={selectedGroup?.title}
               requestCreatedAt={selectedGroup?.createdAt}
             />
-            {personalizedResult ? (
+            {result ? <AuditHashSection result={result} /> : null}
+            <div className="postProcessingToolsGrid">
               <ManualReanalysisPanel
                 selectedGroup={selectedGroup}
                 selectedFile={selectedFile}
                 onManualCorrection={onManualCorrection}
               />
-            ) : null}
-            <DiagnosticChatPanel result={result} selectedGroup={selectedGroup} selectedFile={selectedFile} />
-            {!personalizedResult ? (
-              <ManualReanalysisPanel
-                selectedGroup={selectedGroup}
-                selectedFile={selectedFile}
-                onManualCorrection={onManualCorrection}
-              />
-            ) : null}
+              <section className="complementarySyncPanel">
+                <div>
+                  <span className="panelLabel">Adicao complementar sincronizada</span>
+                  <strong>Anexar novo arquivo a esta solicitacao</strong>
+                  <p>
+                    O ANON usara automaticamente as mesmas regras e referencias de substituicoes para os nomes
+                    identificados nesta solicitacao. O novo documento sera incluido neste mesmo historico.
+                  </p>
+                </div>
+                <label className={`complementaryDropZone ${complementaryFile ? "ready" : ""}`}>
+                  <UploadCloud size={24} />
+                  <strong>{complementaryFile ? complementaryFile.name : "Selecionar arquivo complementar"}</strong>
+                  <span>{complementaryFile ? "Arquivo recebido. Confirme para iniciar." : "PDF, DOCX, DOC, TXT, RTF ou CSV"}</span>
+                  <input
+                    ref={complementaryInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.doc,.txt,.rtf,.csv"
+                    onChange={(event) => {
+                      setComplementaryFile(event.target.files?.[0] || null);
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="complementaryStartButton"
+                  disabled={!complementaryFile || !selectedGroup || !selectedFile?.result}
+                  onClick={startComplementarySync}
+                >
+                  <Play size={15} />
+                  Iniciar adicao
+                </button>
+              </section>
+            </div>
 
             <ExportBar result={result} fileName={selectedFile?.name} />
           </div>
@@ -1432,6 +1764,7 @@ function AuditReviewPage({
   const [correctionNote, setCorrectionNote] = useState("");
   const [processingQueue, setProcessingQueue] = useState(false);
   const [queueResult, setQueueResult] = useState<Result | null>(null);
+  const [inlineLog, setInlineLog] = useState<InlineLogState | null>(null);
 
   useEffect(() => {
     setQueue([]);
@@ -1440,6 +1773,7 @@ function AuditReviewPage({
     setCorrectionNote("");
     setProcessingQueue(false);
     setQueueResult(null);
+    setInlineLog(null);
   }, [selectedFile?.id]);
 
   const queuedIds = useMemo(() => new Set(queue.map((item) => item.id)), [queue]);
@@ -1470,7 +1804,7 @@ function AuditReviewPage({
       id: `row:${key}:revert`,
       action: "revert_substitution",
       title: "Reverter substituicao",
-      detail: `${row.anonymous_id} -> ${row.original_value}`,
+      detail: `Atual: ${row.anonymous_id} | Novo: ${row.original_value} | Valor: ${row.original_value}`,
       original_value: row.original_value,
       entity_type: normalizeEntityTypeForManual(row.entity_type),
       anonymous_id: row.original_value,
@@ -1481,12 +1815,12 @@ function AuditReviewPage({
   function queueRowCorrection(row: Result["control_table"][number], index: number) {
     if (!correctionSuffix.trim()) return;
     const key = auditRowKey(row, index);
-    const marker = buildManualAnonymousId(normalizeEntityTypeForManual(row.entity_type), correctionSuffix);
+    const marker = correctionSuffix.trim();
     addQueueItem({
       id: `row:${key}:correct`,
       action: "correct_substitution",
       title: "Corrigir codigo",
-      detail: `${row.original_value} -> ${marker}`,
+      detail: `Atual: ${row.anonymous_id} | Novo: ${marker} | Valor: ${row.original_value}`,
       original_value: row.original_value,
       entity_type: normalizeEntityTypeForManual(row.entity_type),
       anonymous_id: marker,
@@ -1518,6 +1852,19 @@ function AuditReviewPage({
       }
     } finally {
       setProcessingQueue(false);
+    }
+  }
+
+  async function readQueueLog() {
+    if (!queueResult) return;
+    try {
+      const text = await readResultProductText(queueResult, "reanalise_log");
+      setInlineLog({
+        title: `Log da reanalise - ${selectedFile?.name || queueResult.original_filename}`,
+        text
+      });
+    } catch {
+      window.alert("Nao foi possivel abrir o log da reanalise.");
     }
   }
 
@@ -1644,8 +1991,8 @@ function AuditReviewPage({
                               queueRowCorrection(row, index);
                             }}>
                               <label>
-                                Novo numero/letra/termo
-                                <input value={correctionSuffix} onChange={(event) => setCorrectionSuffix(event.target.value)} placeholder="Ex.: 001, A, ALVO_01" />
+                                Novo identificador completo
+                                <input value={correctionSuffix} onChange={(event) => setCorrectionSuffix(event.target.value)} placeholder="Ex.: [PESSOA_001], [ALVO_A], [CPF_010]" />
                               </label>
                               <label>
                                 Motivo
@@ -1683,6 +2030,11 @@ function AuditReviewPage({
                       <div>
                         <strong>{item.title}</strong>
                         <span>{item.detail}</span>
+                        {item.action === "correct_substitution" || item.action === "revert_substitution" ? (
+                          <small>
+                            Esta acao modifica "{item.original_value}" para "{item.anonymous_id}" no novo produto.
+                          </small>
+                        ) : null}
                         {item.note ? <small>{item.note}</small> : null}
                       </div>
                       <button type="button" onClick={() => setQueue((items) => items.filter((current) => current.id !== item.id))}>
@@ -1698,19 +2050,33 @@ function AuditReviewPage({
               {queueResult && downloadFormat ? (
                 <div className="auditGeneratedProduct">
                   <CheckCircle2 size={17} />
-                  <strong>Novo produto gerado com hash atualizado.</strong>
-                  <button type="button" onClick={() => void downloadResultProduct(queueResult, downloadFormat, selectedFile?.name)}>
-                    <Download size={16} />
-                    Baixar novo {formatExportLabel(downloadFormat)}
-                  </button>
-                  {queueResult.audit.export_sha256.reanalise_log ? (
-                    <button type="button" onClick={() => void downloadResultProduct(queueResult, "reanalise_log", selectedFile?.name)}>
+                  <div>
+                    <strong>Novos produtos externos gerados com hash atualizado.</strong>
+                    <small>Arquivos internos restritos e sincronizacao devem ser consultados no painel Solicitações.</small>
+                  </div>
+                  {Object.keys(queueResult.audit.export_sha256).filter(isExternalProductFormat).map((format) => (
+                    <button
+                      key={format}
+                      type="button"
+                      className={isReanalysisUpdated(queueResult, format) ? "reanalysisDownload" : ""}
+                      onClick={() => void downloadResultProduct(queueResult, format, selectedFile?.name)}
+                    >
                       <Download size={16} />
-                      Baixar log
+                      Baixar novo {formatExportLabel(format)}
+                      {isReanalysisUpdated(queueResult, format) ? (
+                        <small>{formatExportChangeStatus(queueResult, format)}</small>
+                      ) : null}
+                    </button>
+                  ))}
+                  {queueResult.audit.export_sha256.reanalise_log ? (
+                    <button type="button" onClick={() => void readQueueLog()}>
+                      <Download size={16} />
+                      Ler log da reanalise
                     </button>
                   ) : null}
                 </div>
               ) : null}
+              {inlineLog ? <InlineLogReader data={inlineLog} onClose={() => setInlineLog(null)} /> : null}
             </section>
           </>
         ) : (
@@ -1736,6 +2102,7 @@ function ManualReanalysisPanel({
   const [corrections, setCorrections] = useState<ManualCorrectionPayload[]>([]);
   const [reprocessing, setReprocessing] = useState(false);
   const [lastResult, setLastResult] = useState<Result | null>(null);
+  const [inlineLog, setInlineLog] = useState<InlineLogState | null>(null);
   const builtAnonymousId = buildManualAnonymousId(entityType, anonymousId);
   const canAdd = Boolean(value.trim() && anonymousId.trim());
   const canReprocess = Boolean(selectedGroup && selectedFile?.result && corrections.length > 0 && !reprocessing);
@@ -1743,6 +2110,7 @@ function ManualReanalysisPanel({
   useEffect(() => {
     setCorrections([]);
     setLastResult(null);
+    setInlineLog(null);
     setValue("");
     setAnonymousId("");
   }, [selectedFile?.id]);
@@ -1778,8 +2146,25 @@ function ManualReanalysisPanel({
     }
   }
 
-  const latestResult = lastResult || selectedFile?.result;
-  const downloadFormat = latestResult?.audit.export_sha256.pdf ? "pdf" : Object.keys(latestResult?.audit.export_sha256 || {}).find(isExternalProductFormat);
+  async function readManualLog() {
+    if (!lastResult) return;
+    try {
+      const text = await readResultProductText(lastResult, "reanalise_log");
+      setInlineLog({
+        title: `Log da reanalise - ${selectedFile?.name || lastResult.original_filename}`,
+        text
+      });
+    } catch {
+      window.alert("Nao foi possivel abrir o log da reanalise.");
+    }
+  }
+
+  const externalReanalysisFormats = Object.keys(lastResult?.audit.export_sha256 || {}).filter((format) => isExternalProductFormat(format) && format !== "csv");
+  const manualDownloadFormats = [
+    ...(lastResult?.audit.export_sha256.csv ? ["csv"] : []),
+    ...externalReanalysisFormats
+  ];
+  const hasAnyExternalReanalysisFormat = Boolean(lastResult && Object.keys(lastResult.audit.export_sha256).some(isExternalProductFormat));
   const hasReanalysisLog = Boolean(lastResult?.audit.export_sha256.reanalise_log);
 
   return (
@@ -1822,7 +2207,7 @@ function ManualReanalysisPanel({
             <option value="OTHER_IDENTIFIER">Outro identificador</option>
           </select>
         </label>
-        <label>
+        <label className="manualMarkerLabel">
           Numero, letra ou termo do marcador
           <input
             value={anonymousId}
@@ -1865,27 +2250,37 @@ function ManualReanalysisPanel({
           <RefreshCw size={16} />
           {reprocessing ? "Providenciando..." : "Reprocessar tudo"}
         </button>
-        {lastResult && downloadFormat ? (
-          <button
-            type="button"
-            className="manualDownloadButton"
-            onClick={() => void downloadResultProduct(lastResult, downloadFormat, selectedFile?.name)}
-          >
-            <Download size={16} />
-            Baixar novo {formatExportLabel(downloadFormat)}
-          </button>
+        {hasAnyExternalReanalysisFormat ? (
+          <span className="manualDownloadNotice">Arquivos internos restritos e sincronizacao devem ser consultados no painel Solicitações.</span>
+        ) : null}
+        {lastResult && manualDownloadFormats.length ? (
+          <div className="manualFormatDownloads" aria-label="Novos arquivos da reanalise para download">
+            {manualDownloadFormats.map((format) => (
+              <button
+                key={format}
+                type="button"
+                className="manualDownloadButton compactFormatButton"
+                onClick={() => void downloadResultProduct(lastResult, format, selectedFile?.name)}
+                title={`Arquivo ${formatExportLabel(format)} anonimizado gerado.`}
+                aria-label={`Baixar novo ${formatExportLabel(format)}`}
+              >
+                <FormatFileIcon format={format} />
+              </button>
+            ))}
+          </div>
         ) : null}
         {lastResult && hasReanalysisLog ? (
           <button
             type="button"
             className="manualLogDownloadButton"
-            onClick={() => void downloadResultProduct(lastResult, "reanalise_log", selectedFile?.name)}
+            onClick={() => void readManualLog()}
           >
-            <Download size={16} />
-            Baixar log da reanalise
+            <FileText size={16} />
+            Ler log da reanalise
           </button>
         ) : null}
       </div>
+      {inlineLog ? <InlineLogReader data={inlineLog} onClose={() => setInlineLog(null)} /> : null}
     </section>
   );
 }
@@ -1903,6 +2298,34 @@ function ReanalysisLoadingDialog({ total }: { total: number }) {
         <TypingDots label="Reprocessamento em andamento" />
       </section>
     </div>
+  );
+}
+
+function InlineLogReader({ data, onClose }: { data: InlineLogState; onClose: () => void }) {
+  async function copyAll() {
+    await navigator.clipboard.writeText(data.text);
+  }
+
+  return (
+    <section className="inlineLogReader" aria-label="Leitura de log">
+      <header>
+        <div>
+          <span className="panelLabel">Leitura interna</span>
+          <strong>{data.title}</strong>
+        </div>
+        <div>
+          <button type="button" onClick={copyAll}>
+            <Copy size={14} />
+            Copiar tudo
+          </button>
+          <button type="button" onClick={onClose}>
+            <XCircle size={14} />
+            Fechar
+          </button>
+        </div>
+      </header>
+      <pre>{data.text}</pre>
+    </section>
   );
 }
 
@@ -1962,6 +2385,9 @@ function ProcessingDialog({
 }) {
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [aiMessageIndex, setAiMessageIndex] = useState(0);
+  const [position, setPosition] = useState({ x: 36, y: 32 });
+  const [minimized, setMinimized] = useState(false);
+  const dragRef = useRef({ dragging: false, startX: 0, startY: 0, originX: 36, originY: 32 });
 
   useEffect(() => {
     let mounted = true;
@@ -1994,17 +2420,71 @@ function ProcessingDialog({
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    function move(event: MouseEvent) {
+      if (!dragRef.current.dragging) return;
+      setPosition({
+        x: Math.max(8, Math.min(window.innerWidth - 260, dragRef.current.originX + event.clientX - dragRef.current.startX)),
+        y: Math.max(8, Math.min(window.innerHeight - 80, dragRef.current.originY + event.clientY - dragRef.current.startY))
+      });
+    }
+
+    function stop() {
+      dragRef.current.dragging = false;
+    }
+
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", stop);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", stop);
+    };
+  }, []);
+
+  function startDrag(event: React.MouseEvent<HTMLElement>) {
+    if ((event.target as HTMLElement).closest("button")) return;
+    dragRef.current = {
+      dragging: true,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: position.x,
+      originY: position.y
+    };
+  }
+
+  if (minimized) {
+    return (
+      <div className="processingOverlay floatingProcessingLayer" role="status" aria-live="polite">
+        <section
+          className="processingMinimized"
+          style={{ left: position.x, top: position.y }}
+          onMouseDown={startDrag}
+        >
+          <RefreshCw size={16} />
+          <div>
+            <strong>Processando</strong>
+            <span>{fileName} · {formatElapsed(elapsedSeconds)}</span>
+          </div>
+          <button type="button" onClick={() => setMinimized(false)}>Abrir</button>
+        </section>
+      </div>
+    );
+  }
+
   return (
-    <div className="processingOverlay" role="dialog" aria-modal="true">
-      <section className="processingWindow">
-        <header>
+    <div className="processingOverlay floatingProcessingLayer" role="dialog" aria-modal="false">
+      <section className="processingWindow floatingProcessingWindow" style={{ left: position.x, top: position.y }}>
+        <header onMouseDown={startDrag}>
           <div>
             <span className="panelLabel">Processamento local</span>
             <h2>Processando solicitaÃ§Ã£o, aguarde.</h2>
           </div>
-          <div className="processingTimer">
-            <Clock size={18} />
-            {formatElapsed(elapsedSeconds)}
+          <div className="processingHeaderActions">
+            <div className="processingTimer">
+              <Clock size={18} />
+              {formatElapsed(elapsedSeconds)}
+            </div>
+            <button type="button" onClick={() => setMinimized(true)}>Minimizar</button>
           </div>
         </header>
 
@@ -2160,7 +2640,6 @@ function FloatingNexusAssistant({
   const [messages, setMessages] = useState<NexusAssistantMessage[]>([]);
   const [answering, setAnswering] = useState(false);
   const [fontScale, setFontScale] = useState(1.1);
-  const [selectedQuickPrompt, setSelectedQuickPrompt] = useState(NEXUS_QUICK_PROMPTS[0]);
   const wasLoadingRef = useRef(false);
   const lastStepRef = useRef("");
   const nexusMessagesRef = useRef<HTMLDivElement | null>(null);
@@ -2202,29 +2681,7 @@ function FloatingNexusAssistant({
     nexusAnswerAbortRef.current?.abort();
   }
 
-  function askNexusQuick(prompt: string) {
-    if (prompt.toLowerCase().includes("nova pergunta")) {
-      setMessages([]);
-      return;
-    }
-    const answer = nexusLocalAnswer(prompt, {
-      loading,
-      processingStep,
-      elapsedSeconds,
-      fileName,
-      selectedResult,
-      selectedFile,
-      selectedGroup
-    }) || "A orientacao principal e revisar manualmente o produto final, confirmar se apenas identificadores sensiveis foram substituidos e preservar valores, datas, estrutura e finalidade institucional.";
-    setMessages((items) => [
-      ...items.slice(-6),
-      { role: "user", text: prompt },
-      { role: "nexus", text: answer, tone: "info" }
-    ]);
-  }
-
   async function askNexus(text: string) {
-    return;
     const trimmed = text.trim();
     if (!trimmed) return;
     setMessages((items) => [...items.slice(-7), { role: "user", text: trimmed }]);
@@ -2285,23 +2742,21 @@ function FloatingNexusAssistant({
     }
   }
 
-  if (!loading) return null;
-
   return (
     <aside className={`nexusFloatingAssistant ${open ? "open" : "collapsed"}`} aria-live="polite">
       <button type="button" className="nexusAssistantToggle" onClick={() => setOpen((value) => !value)}>
         <MessageCircle size={18} />
-        <span>IA NEXUS</span>
+        <span>IA Nexus</span>
       </button>
 
       {open && (
         <div className="nexusAssistantPanel" style={{ "--nexus-font-scale": fontScale } as React.CSSProperties}>
           <header>
             <div>
-              <span className="panelLabel">ObservaÃ§Ã£o operacional</span>
-              <h3>IA NEXUS</h3>
+              <span className="panelLabel">Chat Operacional</span>
+              <h3>IA Nexus</h3>
             </div>
-            <div className="nexusAssistantHeaderTools" aria-label="Controles da IA NEXUS">
+            <div className="nexusAssistantHeaderTools" aria-label="Controles da IA Nexus">
               <button type="button" onClick={() => setFontScale((value) => Math.max(0.95, Number((value - 0.1).toFixed(2))))}>
                 A-
               </button>
@@ -2315,11 +2770,6 @@ function FloatingNexusAssistant({
             </div>
           </header>
 
-          <div className="nexusAssistantStatus">
-            <strong>{loading ? "Acompanhando solicitaÃ§Ã£o" : "OrientaÃ§Ã£o institucional"}</strong>
-            <span>{loading ? "Use os botoes para receber orientacoes rapidas durante o processamento." : "Canal restrito a finalidade, sigilo e revisao humana."}</span>
-          </div>
-
           <div className="nexusAssistantMessages" ref={nexusMessagesRef}>
             {messages.length === 0 ? (
               <p>Estou pronta para orientar sobre finalidade da anonimizaÃ§Ã£o, sigilo, preservaÃ§Ã£o documental e revisÃ£o humana.</p>
@@ -2327,7 +2777,7 @@ function FloatingNexusAssistant({
               messages.map((message, index) => (
                 <div key={`${message.role}-${index}`} className={`nexusMessage ${message.role} ${message.tone || "info"}`}>
                   {message.role === "user" ? <img className="anonymousInlineAvatar" src="/anonymous-avatar.png" alt="Anonymous" /> : null}
-                  <strong>{message.role === "user" ? "Anonymous" : "IA NEXUS"}</strong>
+                  <strong>{message.role === "user" ? "Anonymous" : "IA Nexus"}</strong>
                   <span>{message.text}</span>
                 </div>
               ))
@@ -2335,26 +2785,7 @@ function FloatingNexusAssistant({
           </div>
 
           <form
-            className="nexusPromptPicker"
-            aria-label="Perguntas rapidas da IA NEXUS"
-            onSubmit={(event) => {
-              event.preventDefault();
-              askNexusQuick(selectedQuickPrompt);
-            }}
-          >
-            <label>
-              Perguntas frequentes
-              <select value={selectedQuickPrompt} onChange={(event) => setSelectedQuickPrompt(event.target.value)}>
-                {NEXUS_QUICK_PROMPTS.map((prompt) => (
-                  <option key={prompt} value={prompt}>{prompt}</option>
-                ))}
-              </select>
-            </label>
-            <button type="submit">Perguntar</button>
-          </form>
-
-          <form
-            className="nexusAssistantForm"
+            className="nexusAssistantForm unifiedNexusForm"
             onSubmit={(event) => {
               event.preventDefault();
               void askNexus(question);
@@ -2363,10 +2794,10 @@ function FloatingNexusAssistant({
             <input
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
-              placeholder="Fale com a IA NEXUS, em breve..."
-              disabled
+              placeholder="Fale com a IA Nexus."
+              disabled={answering}
             />
-            <button type="submit" disabled>
+            <button type="submit" disabled={answering || !question.trim()}>
               {answering ? <TypingDots label="Processando resposta" /> : "Enviar"}
             </button>
             {answering && (
@@ -2780,7 +3211,6 @@ function TypingDots({ label }: { label: string }) {
   );
 }
 function AuditSeal({ result }: { result: Result }) {
-  const exportEntries = Object.entries(result.audit.export_sha256);
   const personalized = isPersonalizedResult(result);
 
   return (
@@ -2797,20 +3227,31 @@ function AuditSeal({ result }: { result: Result }) {
         <AuditItem label="ValidaÃ§Ã£o" value={result.audit.validation_status} />
       </div>
       {!personalized ? <AuditStrengthPanel result={result} /> : null}
-      <section className="hashSection">
-        <header>
-          <span className="panelLabel">Hashes SHA-256</span>
-          <strong>Integridade do arquivo original e dos produtos exportÃ¡veis</strong>
-        </header>
-        <AuditHash label="Hash SHA-256 original" value={result.audit.source_sha256} />
-        {exportEntries.map(([format, hash]) => (
-          <AuditHash key={format} label={`Hash SHA-256 ${format.toUpperCase()}`} value={hash} />
-        ))}
-      </section>
       <div className="auditCounters">
         {!personalized ? <Metric label="SubstituiÃ§Ãµes" value={result.stats.replacements_applied} /> : null}
-        <DownloadFormatsInfo formats={exportEntries.map(([format]) => format)} />
+        <DownloadFormatsInfo formats={Object.keys(result.audit.export_sha256)} />
       </div>
+    </section>
+  );
+}
+
+function AuditHashSection({ result }: { result: Result }) {
+  const exportEntries = Object.entries(result.audit.export_sha256);
+  return (
+    <section className="hashSection standaloneHashSection">
+      <header>
+        <span className="panelLabel">Hashes SHA-256</span>
+        <strong>Integridade do arquivo original e dos produtos exportÃ¡veis</strong>
+      </header>
+      <AuditHash label="Hash SHA-256 original" value={result.audit.source_sha256} />
+      {exportEntries.map(([format, hash]) => (
+        <AuditHash
+          key={format}
+          label={`Hash SHA-256 ${format.toUpperCase()}`}
+          value={hash}
+          reason={result.audit.export_sha256_reason?.[format]}
+        />
+      ))}
     </section>
   );
 }
@@ -2891,21 +3332,29 @@ function AuditStrengthPanel({ result }: { result: Result }) {
   );
 }
 
-function AuditHash({ label, value }: { label: string; value: string }) {
+function AuditHash({ label, value, reason }: { label: string; value: string; reason?: string }) {
   const ready = !value.startsWith("Calculando");
+  const reanalysisUpdated = Boolean(reason?.toUpperCase().includes("REANALISE DIRIGIDA"));
+  const copyText = reason ? `${label}: ${value}\nObservacao: ${reason}` : value;
 
   async function copyHash() {
     if (!ready) return;
-    await navigator.clipboard.writeText(value);
+    await navigator.clipboard.writeText(copyText);
   }
 
   return (
-    <div className="auditHash">
+    <div className={reanalysisUpdated ? "auditHash reanalysisHash" : "auditHash"}>
       <div>
         <span>{label}</span>
         <strong>{shortHash(value)}</strong>
+        {reanalysisUpdated ? <em>Atualizado por Reanalise Dirigida</em> : null}
       </div>
-      <button type="button" onClick={copyHash} disabled={!ready}>
+      <button
+        type="button"
+        onClick={copyHash}
+        disabled={!ready}
+        title={reanalysisUpdated ? "Hash modificado em decorrencia de Reanalise Dirigida." : undefined}
+      >
         <Copy size={13} />
         Copiar
       </button>
@@ -2959,6 +3408,32 @@ async function downloadResultProduct(result: Result, format: string, fileName?: 
   URL.revokeObjectURL(url);
 }
 
+async function readResultProductText(result: Result, format: string) {
+  const response = await fetch(`${API_URL}/api/exports/${result.job_id}/${format}`);
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+  return response.text();
+}
+
+async function downloadOriginalProduct(result: Result, fileName?: string) {
+  const response = await fetch(`${API_URL}/api/exports/${result.job_id}/original`);
+  if (!response.ok) {
+    window.alert("Nao foi possivel baixar o arquivo original preservado.");
+    return;
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName || result.original_filename || "arquivo_original";
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function downloadSyncPackage(result: Result, fileName?: string) {
   const response = await fetch(`${API_URL}/api/jobs/${result.job_id}/sync-package`);
   if (!response.ok) {
@@ -2981,11 +3456,24 @@ function ExportBar({ result, fileName }: { result?: Result; fileName?: string })
   const availableFormats = result ? Object.keys(result.audit.export_sha256) : ["pdf", "docx", "txt"];
   const externalFormats = availableFormats.filter(isExternalProductFormat);
   const internalFormats = availableFormats.filter(isInternalProductFormat);
-  const personalized = isPersonalizedResult(result);
+  const [inlineLog, setInlineLog] = useState<InlineLogState | null>(null);
 
   async function downloadExport(format: string) {
     if (!result) return;
     await downloadResultProduct(result, format, fileName);
+  }
+
+  async function readInternalLog(format: string) {
+    if (!result) return;
+    try {
+      const text = await readResultProductText(result, format);
+      setInlineLog({
+        title: `${formatExportLabel(format)} - ${fileName || result.original_filename}`,
+        text
+      });
+    } catch {
+      window.alert("Nao foi possivel abrir o log para leitura.");
+    }
   }
 
   return (
@@ -2996,12 +3484,22 @@ function ExportBar({ result, fileName }: { result?: Result; fileName?: string })
           <strong>Produtos gerados para download</strong>
           <small>{fileName ? `Itens derivados de ${fileName}` : "Selecione um arquivo processado para baixar o produto final."}</small>
         </span>
+        <button
+          type="button"
+          className="originalDownloadButton"
+          disabled={!result}
+          onClick={() => result && void downloadOriginalProduct(result, fileName)}
+        >
+          <Download size={14} />
+          Original
+        </button>
       </div>
       <ExportGroup
         title="Produto externo"
-        description="Arquivo anonimizado para revisÃ£o humana e eventual uso fora do controle interno."
+        description="Todos os arquivos listados nesta caixa foram anonimizados e estao prontos para download."
         formats={externalFormats}
         result={result}
+        variant="external"
         onDownload={downloadExport}
       />
       <ExportGroup
@@ -3009,23 +3507,29 @@ function ExportBar({ result, fileName }: { result?: Result; fileName?: string })
         description="Auditoria, avisos, tabela de controle e rastreabilidade. NÃ£o compartilhar como produto final."
         formats={internalFormats}
         result={result}
+        variant="internal"
         onDownload={downloadExport}
+        onRead={readInternalLog}
       />
       <section className="exportGroup syncExportGroup">
         <header>
           <strong>SincronizaÃ§Ã£o</strong>
-          <small>{personalized ? "Indisponivel para o perfil Personalizado." : "Pacote interno para reaplicar os mesmos marcadores em outra demanda."}</small>
+          <small>
+            Baixe este JSON para reaplicar, em outra solicitaÃ§Ã£o, os mesmos marcadores usados nos mesmos termos.
+            Use no campo SincronizaÃ§Ã£o antes de iniciar uma nova anonimizaÃ§Ã£o.
+          </small>
         </header>
         <div className="exportButtons">
-          <button type="button" disabled={!result || personalized} onClick={() => result && !personalized && void downloadSyncPackage(result, fileName)}>
+          <button type="button" disabled={!result} onClick={() => result && void downloadSyncPackage(result, fileName)}>
             <Download size={16} />
             <span>
               <strong>SYNC</strong>
-              <small>Pacote de sincronizaÃ§Ã£o</small>
+              <small>JSON de sincronizacao</small>
             </span>
           </button>
         </div>
       </section>
+      {inlineLog ? <InlineLogReader data={inlineLog} onClose={() => setInlineLog(null)} /> : null}
     </footer>
   );
 }
@@ -3035,16 +3539,20 @@ function ExportGroup({
   description,
   formats,
   result,
+  variant,
+  onRead,
   onDownload
 }: {
   title: string;
   description: string;
   formats: string[];
   result?: Result;
+  variant: "external" | "internal";
+  onRead?: (format: string) => Promise<void>;
   onDownload: (format: string) => Promise<void>;
 }) {
   return (
-    <section className="exportGroup">
+    <section className={`exportGroup ${variant === "external" ? "externalExportGroup" : "internalExportGroup"}`}>
       <header>
         <strong>{title}</strong>
         <small>{description}</small>
@@ -3056,13 +3564,28 @@ function ExportGroup({
               key={format}
               type="button"
               disabled={!result}
-              onClick={() => void onDownload(format)}
+              onClick={() => {
+                if (format === "reanalise_log" && onRead) {
+                  void onRead(format);
+                  return;
+                }
+                void onDownload(format);
+              }}
               title={result ? formatExportTitle(format) : undefined}
+              className={`${format === "reanalise_log" ? "readInlineLogButton" : ""} ${result && isReanalysisUpdated(result, format) ? "reanalysisDownload" : ""}`}
             >
-              <Download size={16} />
+              {format === "reanalise_log" ? <FileText size={16} /> : <Download size={16} />}
               <span>
                 <strong>{formatExportLabel(format)}</strong>
-                <small>{isInternalProductFormat(format) ? "Uso interno" : "Produto anonimizado"}</small>
+                <small>
+                  {format === "reanalise_log"
+                    ? "Ler na pagina"
+                    : result && isReanalysisUpdated(result, format)
+                      ? formatExportChangeStatus(result, format)
+                    : isInternalProductFormat(format)
+                      ? `${formatExportExtension(format)} restrito`
+                      : "Sem alteração"}
+                </small>
               </span>
             </button>
           ))
@@ -3083,7 +3606,7 @@ function InstitutionalFooter() {
         {" "}- PolÃ­cia Civil do Estado de Pernambuco.
       </span>
       <strong>
-        <a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noreferrer">VersÃ£o 2.0.0</a>
+        <a href="https://github.com/LukasFurtado/NEXUS-ANON" target="_blank" rel="noreferrer">VersÃ£o 3.0.0</a>
       </strong>
     </footer>
   );
@@ -3185,11 +3708,31 @@ function formatExportLabel(format: string) {
   return format === "avisos" ? "AVISOS" : format.toUpperCase();
 }
 
+function formatExportExtension(format: string) {
+  if (format === "controle" || format === "avisos") return "PDF";
+  if (format === "auditoria") return "JSON";
+  if (format === "reanalise_log") return "TXT";
+  return format.toUpperCase();
+}
+
 function formatExportTitle(format: string) {
   if (format === "controle") return "PDF simples com todas as substituicoes feitas, restrito a conferencia interna.";
   if (format === "auditoria") return "Manifesto interno de auditoria e rastreabilidade gerado.";
   if (format === "reanalise_log") return "Log da reanalise dirigida gerado.";
   return format === "avisos" ? "Arquivo de avisos e validaÃ§Ã£o gerado." : `Arquivo ${format.toUpperCase()} anonimizado gerado.`;
+}
+
+function FormatFileIcon({ format }: { format: string }) {
+  return <span className={`formatFileIcon format-${format.toLowerCase()}`}>{formatExportExtension(format)}</span>;
+}
+
+function hasLocalModel(models: string[], expected: string) {
+  const normalizedExpected = expected.trim().toLowerCase();
+  const expectedWithoutTag = normalizedExpected.split(":", 1)[0];
+  return models.some((model) => {
+    const current = model.trim().toLowerCase();
+    return current === normalizedExpected || (current === expectedWithoutTag && !current.includes(":"));
+  });
 }
 
 function statusLabel(status: ProcessedFile["status"]) {
@@ -3258,7 +3801,24 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function formatAuditDate(value?: string) {
+  if (!value) return "";
+  return formatDate(value);
+}
+
+function isReanalysisUpdated(result: Result, format: string) {
+  return Boolean(result.audit.export_sha256_reason?.[format]?.toUpperCase().includes("REANALISE DIRIGIDA"));
+}
+
+function formatExportChangeStatus(result: Result, format: string) {
+  if (!isReanalysisUpdated(result, format)) return "Sem alteração";
+  const date = formatAuditDate(result.audit.export_sha256_updated_at?.[format]);
+  return date ? `Alterado em: ${date}` : "Alterado em: data não registrada";
+}
+
 function formatModelName(value: string) {
+  if (value === OPERATIONAL_MODEL) return "Nexus.op";
+  if (value === CHAT_MODEL) return "Nexus Chat";
   if (value === "qwen3:32b") return "Qwen3 32B";
   return value;
 }

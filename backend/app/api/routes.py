@@ -27,17 +27,33 @@ router = APIRouter()
 @router.get("/models")
 def models() -> dict[str, object]:
     installed = _list_ollama_models()
-    recommended = ["qwen3:32b"]
+    operational_model = settings.default_model
+    assistant_model = settings.nexus_assistant_model
+    recommended = [operational_model, assistant_model]
+    provision_notes = _ensure_nexus_models(installed, operational_model, assistant_model)
+    if provision_notes:
+        installed = _list_ollama_models()
     merged = []
     for model in recommended + installed:
         if model not in merged:
             merged.append(model)
+    operational_ready = _model_installed(operational_model, installed)
+    assistant_ready = _model_installed(assistant_model, installed)
     return {
         "recommended": recommended,
         "installed": installed,
         "models": merged,
         "ollama_online": bool(installed),
-        "note": "Modelos sao detectados localmente pelo Ollama.",
+        "operational_model": operational_model,
+        "assistant_model": assistant_model,
+        "operational_ready": operational_ready,
+        "assistant_ready": assistant_ready,
+        "provision_notes": provision_notes,
+        "note": (
+            "IA Nexus sincronizada com o Ollama."
+            if operational_ready and assistant_ready
+            else _models_pending_note(installed, provision_notes)
+        ),
     }
 
 
@@ -62,6 +78,68 @@ def _list_ollama_models() -> list[str]:
         if isinstance(name, str) and name not in names:
             names.append(name)
     return names
+
+
+def _model_installed(expected: str, installed: list[str]) -> bool:
+    expected_normalized = expected.strip().lower()
+    expected_without_tag = expected_normalized.split(":", 1)[0]
+    for model in installed:
+        current = model.strip().lower()
+        if current == expected_normalized:
+            return True
+        if ":" not in current and current == expected_without_tag:
+            return True
+    return False
+
+
+def _ensure_nexus_models(installed: list[str], operational_model: str, assistant_model: str) -> list[str]:
+    if not installed:
+        return []
+    if not _model_installed("qwen3:32b", installed):
+        return ["Modelo base qwen3:32b nao detectado no Ollama."]
+
+    root = Path(__file__).resolve().parents[3]
+    modelfiles = {
+        operational_model: root / "resources" / "ollama" / "Modelfile.nexus.op",
+        assistant_model: root / "resources" / "ollama" / "Modelfile.nexus-chat",
+    }
+    notes: list[str] = []
+    for model, modelfile_path in modelfiles.items():
+        if _model_installed(model, installed):
+            continue
+        if not modelfile_path.exists():
+            notes.append(f"Modelfile local nao encontrado para {model}.")
+            continue
+        try:
+            _create_ollama_model(model, modelfile_path)
+            notes.append(f"Modelo {model} preparado automaticamente.")
+        except Exception as exc:
+            notes.append(f"Nao foi possivel preparar {model}: {exc}")
+    return notes
+
+
+def _create_ollama_model(model: str, modelfile_path: Path) -> None:
+    payload = {
+        "model": model,
+        "modelfile": modelfile_path.read_text(encoding="utf-8"),
+        "stream": False,
+    }
+    request = urllib.request.Request(
+        f"{settings.ollama_url}/api/create",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=120) as response:
+        response.read()
+
+
+def _models_pending_note(installed: list[str], provision_notes: list[str]) -> str:
+    if _model_installed("qwen3:32b", installed):
+        if provision_notes:
+            return "IA Nexus ainda nao sincronizada. Tente atualizar o status; se persistir, verifique o log do sistema."
+        return "qwen3:32b foi detectado. Clique em Atualizar status para preparar a IA Nexus especializada."
+    return "Acione o Ollama e instale qwen3:32b para preparar nexus.op:latest e nexus-chat:latest."
 
 
 @router.get("/integrity")
@@ -111,11 +189,12 @@ async def anonymize(
     file: UploadFile = File(...),
     sync_package: UploadFile | None = File(None),
     document_kind: DocumentKind = Form(...),
-    model: str = Form("qwen3:32b"),
+    model: str = Form("nexus.op:latest"),
     use_ollama: bool = Form(True),
     request_title: str | None = Form(None),
 ) -> dict:
     _enforce_integrity()
+    model = settings.default_model
     sync_entries = _read_sync_entries(sync_package)
     suffix = Path(file.filename or "documento.txt").suffix
     with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -172,11 +251,12 @@ async def anonymize_batch(
     files: list[UploadFile] = File(...),
     sync_package: UploadFile | None = File(None),
     document_kind: DocumentKind = Form(...),
-    model: str = Form("qwen3:32b"),
+    model: str = Form("nexus.op:latest"),
     use_ollama: bool = Form(True),
     request_title: str | None = Form(None),
 ) -> dict:
     _enforce_integrity()
+    model = settings.default_model
     sync_entries = _read_sync_entries(sync_package)
     if not files:
         message = "Nenhum arquivo enviado."
@@ -255,6 +335,29 @@ async def anonymize_batch(
             tmp_path.unlink(missing_ok=True)
 
     return result.model_dump()
+
+
+@router.get("/exports/{job_id}/original")
+def export_original(job_id: str) -> FileResponse:
+    _enforce_integrity()
+    source_dir = Path("data") / "sources" / job_id
+    candidates = [path for path in source_dir.glob("original.*") if path.is_file()]
+    if not candidates:
+        message = "Arquivo original preservado nao encontrado."
+        log_error(message, stage="download_original", extra={"job_id": job_id})
+        raise HTTPException(status_code=404, detail=message)
+    source_path = candidates[0]
+    state_path = Path("data") / "exports" / job_id / "estado_reanalise.json"
+    original_filename = f"original{source_path.suffix}"
+    if state_path.exists():
+        try:
+            import json
+
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            original_filename = str(state.get("original_filename") or original_filename)
+        except Exception:
+            original_filename = f"original{source_path.suffix}"
+    return FileResponse(source_path, filename=original_filename)
 
 
 @router.get("/exports/{job_id}/{format_name}")

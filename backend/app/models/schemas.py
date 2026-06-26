@@ -108,6 +108,7 @@ class AuditInfo(BaseModel):
     source_sha256: str
     export_sha256: dict[str, str]
     export_sha256_reason: dict[str, str] = Field(default_factory=dict)
+    export_sha256_updated_at: dict[str, str] = Field(default_factory=dict)
     processing_time_seconds: float
     ocr_used: bool
     structure_preserved: bool
@@ -143,7 +144,7 @@ class BatchAnonymizationResult(BaseModel):
 
 class AnonymizeOptions(BaseModel):
     document_kind: DocumentKind
-    model: str = "qwen3:32b"
+    model: str = "nexus.op:latest"
     use_ollama: bool = True
     preserve_layout: bool = True
     request_title: str | None = None

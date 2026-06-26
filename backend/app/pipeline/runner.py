@@ -12,8 +12,8 @@ from app.core.nce import NCEGroupContext
 from app.core.profile_loader import load_profile
 from app.core.quality_classifier import classify_quality
 from app.core.safe_summary import generate_safe_summary, persist_safe_summary
-from app.models.schemas import AnonymizationResult, AnonymizationStats, AnonymizeOptions, AuditInfo, BatchAnonymizationResult, DocumentKind
-from app.pipeline.anonymizer import ReplacementState, apply_anonymization
+from app.models.schemas import AnonymizationResult, AnonymizationStats, AnonymizationSyncEntry, AnonymizeOptions, AuditInfo, BatchAnonymizationResult, DocumentKind
+from app.pipeline.anonymizer import ReplacementState, TYPE_LABELS, apply_anonymization
 from app.pipeline.exporter import export_audit_manifest, export_processing_log, export_text
 from app.pipeline.ocr import needs_ocr, run_ocr
 from app.pipeline.parser import extract_text, inspect_source_document
@@ -34,6 +34,7 @@ def run_pipeline(
     options: AnonymizeOptions,
     replacement_state: ReplacementState | None = None,
     nce_context: NCEGroupContext | None = None,
+    learn_only: bool = False,
 ) -> AnonymizationResult:
     started_at = time.perf_counter()
     job_id = str(uuid.uuid4())
@@ -50,7 +51,7 @@ def run_pipeline(
     )
     file_bytes = path.read_bytes()
     sha256 = hashlib.sha256(file_bytes).hexdigest().upper()
-    source_copy_path = _persist_source_copy(job_id, path, original_filename)
+    source_copy_path = path if learn_only else _persist_source_copy(job_id, path, original_filename)
     trace.emit("ANON", "hash_origem", "Hash SHA-256 do arquivo original calculado.", sha256=sha256)
 
     state.stage_start("parser", path.suffix.lower())
@@ -337,6 +338,64 @@ def run_pipeline(
         replacements=applied,
         control_rows=len(control_rows),
     )
+    if learn_only:
+        elapsed = round(time.perf_counter() - started_at, 3)
+        nce_context.coordinate(
+            nce_file_context,
+            stage="batch_learning",
+            status="completed",
+            decision="master_dictionary",
+            summary="Arquivo usado para consolidar o espelho mestre do lote antes da exportacao final.",
+            dictionary_size=len(nce_context.replacement_state.replacements),
+            replacements=applied,
+        )
+        pipeline_state = state.finalize()
+        return AnonymizationResult(
+            job_id=job_id,
+            original_filename=original_filename,
+            document_kind=options.document_kind,
+            model=options.model,
+            original_text=original_text,
+            anonymized_text=anonymized_text,
+            entities=entities,
+            control_table=control_rows,
+            review_items=[],
+            stats=AnonymizationStats(
+                entities_found=len(entities),
+                replacements_applied=applied,
+                preserved_dates=preserved_dates,
+                preserved_values=preserved_values,
+                validation_warnings=[],
+                ollama_chunks_processed=ollama_metrics["chunks_processed"],
+                ollama_json_rejected_chunks=ollama_metrics["json_rejected_chunks"],
+                ollama_correction_attempts=ollama_metrics["correction_attempts"],
+                ollama_correction_successes=ollama_metrics["correction_successes"],
+                ollama_json_rejection_reasons=ollama_metrics["json_rejection_reasons"],
+                ollama_failure_reason=ollama_metrics["failure_reason"],
+                ollama_preserved_items=ollama_metrics["preserved_items"],
+                communication_events=trace.public_events(),
+                communication_summary=trace.summary(),
+                sync_entries_loaded=len(options.sync_entries),
+                sync_entities_found=len(sync_entities),
+                nce_dictionary_size=len(nce_context.replacement_state.replacements),
+                consistency_status="Espelho mestre em construcao",
+                consistency_notes=[],
+            ),
+            audit=AuditInfo(
+                source_sha256=sha256,
+                export_sha256={},
+                processing_time_seconds=elapsed,
+                ocr_used=ocr_used,
+                structure_preserved=options.preserve_layout,
+                validation_status="Aprendizagem de lote",
+                anon_version=APP_VERSION,
+                safe_summary_id=sha256,
+                pipeline_state_id=job_id,
+            ),
+            export_paths={},
+            safe_summary={},
+            pipeline_state=pipeline_state,
+        )
     warnings.extend(validate_output(original_text, anonymized_text, options.document_kind))
     post_validation = validate_post_anonymization(original_text, anonymized_text, options.document_kind, original_filename)
     warnings.extend(post_validation.warnings)
@@ -474,6 +533,14 @@ def run_pipeline(
     if Path(audit_manifest_path).exists():
         export_paths["auditoria"] = audit_manifest_path
         export_hashes["auditoria"] = _sha256_file(Path(audit_manifest_path))
+    export_hash_reasons = {
+        format_name: "Hash gerado no processamento inicial."
+        for format_name in export_hashes
+    }
+    export_hash_updated_at = {
+        format_name: datetime.now().isoformat(timespec="seconds")
+        for format_name in export_hashes
+    }
     _persist_reanalysis_state(
         job_id,
         {
@@ -490,6 +557,8 @@ def run_pipeline(
             "control_table": [row.model_dump() for row in control_rows],
             "export_metadata": export_metadata,
             "export_sha256": export_hashes,
+            "export_sha256_reason": export_hash_reasons,
+            "export_sha256_updated_at": export_hash_updated_at,
             "created_at": datetime.now().isoformat(timespec="seconds"),
         },
     )
@@ -589,6 +658,8 @@ def run_pipeline(
         audit=AuditInfo(
             source_sha256=sha256,
             export_sha256=export_hashes,
+            export_sha256_reason=export_hash_reasons,
+            export_sha256_updated_at=export_hash_updated_at,
             processing_time_seconds=elapsed,
             ocr_used=ocr_used,
             structure_preserved=options.preserve_layout,
@@ -610,16 +681,34 @@ def run_batch_pipeline(
 ) -> BatchAnonymizationResult:
     group_id = str(uuid.uuid4())
     started_at = datetime.now()
-    nce_context = NCEGroupContext.start(
+    learning_context = NCEGroupContext.start(
         request_title=options.request_title,
         document_kind=options.document_kind,
         model=options.model,
     )
-    replacement_state = nce_context.replacement_state
+    master_replacement_state = learning_context.replacement_state
     results: list[AnonymizationResult] = []
 
+    if len(files) > 1 and options.document_kind != DocumentKind.personalizado:
+        for path, original_filename in files:
+            run_pipeline(path, original_filename, options, master_replacement_state, learning_context, learn_only=True)
+
+    final_context = NCEGroupContext.start(
+        request_title=options.request_title,
+        document_kind=options.document_kind,
+        model=options.model,
+        replacement_state=_clone_replacement_state(master_replacement_state),
+    )
+
     for path, original_filename in files:
-        results.append(run_pipeline(path, original_filename, options, replacement_state, nce_context))
+        results.append(run_pipeline(path, original_filename, options, final_context.replacement_state, final_context))
+
+    if len(files) > 1:
+        group_sync_entries = _sync_entries_from_results(results)
+        for result in results:
+            result.stats.consistency_status = _batch_consistency_status(results)
+            result.stats.consistency_notes = _batch_consistency_notes(results, group_sync_entries)
+            _inject_group_sync_entries(result.job_id, group_sync_entries, group_id, len(files))
 
     log_path = export_processing_log(
         group_id,
@@ -635,12 +724,13 @@ def run_batch_pipeline(
                 f"Maquina local: {_local_machine_identity()}",
                 "Protecao de dados: ativa",
                 "Processamento declarado: local/offline, com hashes SHA-256 para controle de integridade.",
-                f"NCE grupo: {nce_context.group_id}",
-                f"NCE dicionario compartilhado: {len(nce_context.replacement_state.replacements)} entidade(s) canonica(s)",
+                f"NCE grupo: {final_context.group_id}",
+                f"NCE dicionario compartilhado: {len(final_context.replacement_state.replacements)} entidade(s) canonica(s)",
+                f"Espelho mestre do lote: {'Aplicado em segunda fase' if len(files) > 1 else 'Nao necessario para arquivo unico'}",
                 f"Sincronizacao importada: {'Sim' if options.sync_entries else 'Nao'}",
                 f"Entradas de sincronizacao carregadas: {len(options.sync_entries)}",
                 f"Entradas de sincronizacao localizadas: {sum(result.stats.sync_entities_found for result in results)}",
-                f"Consistencia entre arquivos: {'Validada' if not any(result.stats.consistency_notes for result in results) else 'Validada com avisos'}",
+                f"Consistencia entre arquivos: {_batch_consistency_status(results)}",
             ],
             "files": [
                 {
@@ -675,6 +765,116 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: file.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest().upper()
+
+
+def _clone_replacement_state(state: ReplacementState) -> ReplacementState:
+    return ReplacementState(counters=dict(state.counters), replacements=dict(state.replacements))
+
+
+def _sync_entries_from_results(results: list[AnonymizationResult]) -> list[AnonymizationSyncEntry]:
+    entries: list[AnonymizationSyncEntry] = []
+    seen: set[tuple[str, str, str]] = set()
+    for result in results:
+        for row in result.control_table:
+            entity_type = _entity_type_from_control_label(row.entity_type)
+            key = (entity_type.value, row.original_value.casefold().strip(), row.anonymous_id.strip())
+            if not row.original_value.strip() or not row.anonymous_id.strip() or key in seen:
+                continue
+            seen.add(key)
+            entries.append(
+                AnonymizationSyncEntry(
+                    original_value=row.original_value,
+                    entity_type=entity_type,
+                    anonymous_id=row.anonymous_id,
+                    source="batch_master_dictionary",
+                )
+            )
+    return entries
+
+
+def _entity_type_from_control_label(label: str) -> "EntityType":
+    from app.models.schemas import EntityType
+
+    normalized = _normalize_label(label)
+    for entity_type, type_label in TYPE_LABELS.items():
+        if _normalize_label(type_label) == normalized:
+            return EntityType(entity_type)
+    try:
+        return EntityType(label)
+    except ValueError:
+        return EntityType.other_identifier
+
+
+def _normalize_label(value: str) -> str:
+    return " ".join((value or "").casefold().strip().split())
+
+
+def _batch_consistency_status(results: list[AnonymizationResult]) -> str:
+    if len(results) <= 1:
+        return results[0].stats.consistency_status if results else "Nao avaliada"
+    entries = _sync_entries_from_results(results)
+    return _batch_consistency_status_from_entries(entries)
+
+
+def _batch_consistency_notes(results: list[AnonymizationResult], entries: list[AnonymizationSyncEntry]) -> list[str]:
+    if len(results) <= 1 and not entries:
+        return []
+    notes: list[str] = [
+        (
+            "Lote processado em duas fases: primeiro foi consolidado um espelho mestre progressivo; "
+            "depois o dicionario final foi reaplicado em todos os arquivos do grupo."
+        ),
+        f"Espelho mestre final contem {len(entries)} termo(s) rastreavel(is) para sincronizacao entre arquivos.",
+    ]
+    conflicts = _marker_conflicts(entries)
+    original_conflicts = _original_marker_conflicts(entries)
+    if conflicts:
+        notes.append(f"Conflitos de marcador identificados para revisao: {', '.join(conflicts[:5])}.")
+    if original_conflicts:
+        notes.append(f"Entidades com mais de um marcador identificadas para revisao: {', '.join(original_conflicts[:5])}.")
+    if conflicts or original_conflicts:
+        return notes
+    else:
+        notes.append("Auditoria de consistencia: nenhum marcador duplicado para entidades diferentes foi identificado no espelho mestre.")
+    return notes
+
+
+def _marker_conflicts(entries: list[AnonymizationSyncEntry]) -> list[str]:
+    marker_to_originals: dict[str, set[str]] = {}
+    for entry in entries:
+        marker_to_originals.setdefault(entry.anonymous_id, set()).add(entry.original_value.casefold().strip())
+    return [marker for marker, originals in marker_to_originals.items() if len(originals) > 1]
+
+
+def _original_marker_conflicts(entries: list[AnonymizationSyncEntry]) -> list[str]:
+    original_to_markers: dict[tuple[str, str], set[str]] = {}
+    for entry in entries:
+        key = (entry.entity_type.value, entry.original_value.casefold().strip())
+        original_to_markers.setdefault(key, set()).add(entry.anonymous_id.strip())
+    return [original for (_, original), markers in original_to_markers.items() if len(markers) > 1]
+
+
+def _inject_group_sync_entries(job_id: str, entries: list[AnonymizationSyncEntry], group_id: str, total_files: int) -> None:
+    state_path = Path("data") / "exports" / job_id / "estado_reanalise.json"
+    if not state_path.exists():
+        return
+    json_module = __import__("json")
+    state = json_module.loads(state_path.read_text(encoding="utf-8"))
+    state["batch_sync_group_id"] = group_id
+    state["batch_sync_total_files"] = total_files
+    state["sync_entries"] = [entry.model_dump(mode="json") for entry in entries]
+    state["batch_consistency_audit"] = {
+        "status": _batch_consistency_status_from_entries(entries),
+        "master_entries": len(entries),
+        "total_files": total_files,
+        "method": "espelho_mestre_progressivo_reaplicado",
+        "notes": _batch_consistency_notes([], entries),
+    }
+    state_path.write_text(json_module.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _batch_consistency_status_from_entries(entries: list[AnonymizationSyncEntry]) -> str:
+    return "Validada" if not _marker_conflicts(entries) and not _original_marker_conflicts(entries) else "Validada com avisos"
 
 
 def _run_personalized_initial(
@@ -767,6 +967,14 @@ def _run_personalized_initial(
     if Path(audit_manifest_path).exists():
         export_paths["auditoria"] = audit_manifest_path
         export_hashes["auditoria"] = _sha256_file(Path(audit_manifest_path))
+    export_hash_reasons = {
+        format_name: "Hash gerado na preparacao inicial."
+        for format_name in export_hashes
+    }
+    export_hash_updated_at = {
+        format_name: datetime.now().isoformat(timespec="seconds")
+        for format_name in export_hashes
+    }
     export_metadata["export_sha256"] = export_hashes
     _persist_reanalysis_state(
         job_id,
@@ -784,6 +992,8 @@ def _run_personalized_initial(
             "control_table": [],
             "export_metadata": export_metadata,
             "export_sha256": export_hashes,
+            "export_sha256_reason": export_hash_reasons,
+            "export_sha256_updated_at": export_hash_updated_at,
             "created_at": datetime.now().isoformat(timespec="seconds"),
         },
     )
@@ -848,6 +1058,8 @@ def _run_personalized_initial(
         audit=AuditInfo(
             source_sha256=sha256,
             export_sha256=export_hashes,
+            export_sha256_reason=export_hash_reasons,
+            export_sha256_updated_at=export_hash_updated_at,
             processing_time_seconds=elapsed,
             ocr_used=ocr_used,
             structure_preserved=True,

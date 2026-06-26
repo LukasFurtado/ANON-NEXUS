@@ -80,7 +80,13 @@ if ($hasOllama) {
     } else {
         Write-Ok "qwen3:32b ja esta instalado."
     }
-    Write-Ok "Padrao de IA local: qwen3:32b. O ANON aplica prompts, perfis e validadores internamente."
+    if (($models -match 'qwen3:32b') -or ($answer -match '^[sS]')) {
+        $modelScript = Join-Path $root "scripts\create-anonrif2-model.ps1"
+        if (Test-Path $modelScript) {
+            & $modelScript
+        }
+    }
+    Write-Ok "Padrao de IA local: nexus.op:latest para pipeline e nexus-chat:latest para orientacao."
 }
 
 Write-Step "5. Criando atalho de abertura"

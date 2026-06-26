@@ -57,7 +57,6 @@ PERGUNTA DO OPERADOR:
                 "stream": False,
                 "prompt": prompt,
                 "think": False,
-                "options": {"temperature": 0.1},
             }
         ).encode("utf-8"),
         headers={"Content-Type": "application/json"},

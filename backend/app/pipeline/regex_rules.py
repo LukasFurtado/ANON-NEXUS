@@ -38,10 +38,21 @@ PERSON_HINT = re.compile(
     rf"\b(?:INVESTIGADO|VITIMA|TESTEMUNHA|DELEGADO|PROMOTOR|JUIZ|ADVOGADO|POLICIAL)\s*[:\-]\s*([{NAME_CHARS}][{WORD_CHARS}'\-]+(?:\s+[{NAME_CHARS}][{WORD_CHARS}'\-]+){{1,5}})",
     re.I,
 )
-COMPANY_HINT = re.compile(rf"\b([{NAME_CHARS}0-9][{NAME_CHARS}0-9\s&.-]{{3,80}}\s(?:LTDA|S/A|SA|ME|EPP|EIRELI))\b", re.I)
+COMPANY_SUFFIX_PATTERN = (
+    r"(?:LTDA|L\.T\.D\.A\.|ME|M\.E\.|S/A|S\.A\.|SA|CIA\.?|COMPANHIA|EPP|EIRELI|EI|SLU|SCP|SPE|S/S|SS|"
+    r"ASSOCIACAO|ASSOCIAÇÃO|COOPERATIVA|COOP)"
+)
+COMPANY_HINT = re.compile(
+    rf"\b([{NAME_CHARS}0-9][{WORD_CHARS}0-9\s&,'/-]{{2,120}}?\s{COMPANY_SUFFIX_PATTERN})(?=\b|\s|$|[,.;:/\-\n])",
+    re.I,
+)
 ADDRESS_HINT = re.compile(r"\b(?:residente|domiciliad[oa]|situad[oa]|localizad[oa])\s+(?:na|no|a|ao|em)\s+([^,\n;]+(?:,\s*(?:n[o.]?\s*)?\d+[A-Za-z0-9\-]*)?)", re.I)
 NAME_BEFORE_DOCUMENT = re.compile(
     rf"\b([{NAME_CHARS}][{WORD_CHARS}'\-]+(?:\s+(?:da|de|do|das|dos|e)\s+|\s+)[{NAME_CHARS}][{WORD_CHARS}'\-]+(?:\s+[{NAME_CHARS}][{WORD_CHARS}'\-]+){{0,4}})\s*,?\s+(?:CPF|RG|CNH|PASSAPORTE)\b",
+    re.I,
+)
+NAME_BEFORE_RAW_CPF = re.compile(
+    rf"\b([{NAME_CHARS}][{WORD_CHARS}'\-]+(?:\s+(?:da|de|do|das|dos|e)\s+|\s+)[{NAME_CHARS}][{WORD_CHARS}'\-]+(?:\s+(?!(?:CPF|CPF/CNPJ|RG|CNH|PASSAPORTE)\b)[{NAME_CHARS}][{WORD_CHARS}'\-]+){{0,5}})\s*[-,;/]?\s*(?:CPF\s*)?(0?\d{{3}}\.?\d{{3}}\.?\d{{3}}-?\d{{2}}|\d{{10}})(?!\d)",
     re.I,
 )
 NAME_AFTER_TRANSACTION = re.compile(
@@ -86,17 +97,25 @@ def detect_entities_by_regex(text: str, document_kind: DocumentKind, original_fi
             fragment = match.group(1).strip()
             if document_kind == DocumentKind.rif:
                 fragment, start = _clean_rif_person_fragment(match.group(1), match.start(1))
-            if fragment.lower().startswith(("rua ", "avenida ", "av ", "travessa ", "estrada ")):
-                continue
-            if any(term in f" {fragment.lower()} " for term in TRANSACTION_FRAGMENT_BLOCKLIST):
+            if _is_bad_person_fragment(fragment):
                 continue
             entities.append(Entity(type=EntityType.person, text=fragment, start=start, end=start + len(fragment), source="regex"))
+
+    for match in NAME_BEFORE_RAW_CPF.finditer(text):
+        start = match.start(1)
+        fragment = match.group(1).strip()
+        if document_kind == DocumentKind.rif:
+            fragment, start = _clean_rif_person_fragment(match.group(1), match.start(1))
+        if not _is_bad_person_fragment(fragment):
+            entities.append(Entity(type=EntityType.person, text=fragment, start=start, end=start + len(fragment), source="regex"))
+        entities.append(_typed_identifier_entity(text, match.start(2), match.end(2)))
 
     for match in ADDRESS_HINT.finditer(text):
         entities.append(Entity(type=EntityType.address, text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
 
     for match in COMPANY_HINT.finditer(text):
-        entities.append(Entity(type=EntityType.organization, text=match.group(1), start=match.start(1), end=match.end(1), source="regex"))
+        fragment, start = _clean_company_fragment(match.group(1), match.start(1))
+        entities.append(Entity(type=EntityType.organization, text=fragment, start=start, end=start + len(fragment), source="regex"))
 
     return _deduplicate(entities)
 
@@ -152,6 +171,8 @@ def _typed_identifier_entity(text: str, start: int, end: int) -> Entity:
     digits = re.sub(r"\D", "", value)
     if len(digits) == 11 and is_valid_cpf_digits(value):
         entity_type = EntityType.cpf
+    elif len(digits) == 10 and is_valid_cpf_digits(value):
+        entity_type = EntityType.cpf
     elif len(digits) == 14 and is_valid_cnpj_digits(value):
         entity_type = EntityType.cnpj
     else:
@@ -180,13 +201,37 @@ def _looks_like_bank_statement_counterparty(value: str) -> bool:
 
 
 def _bank_counterparty_type(value: str) -> EntityType:
-    normalized = value.upper()
-    company_terms = (" LTDA", " S/A", " S.A.", " EIRELI", " INDUSTRIA", " COMERCIO", " MINISTERIO", " CCLA ")
-    return EntityType.organization if any(term in normalized for term in company_terms) else EntityType.person
+    return EntityType.organization if _has_company_signal(value) else EntityType.person
+
+
+def _has_company_signal(value: str) -> bool:
+    normalized = re.sub(r"\s+", " ", value.upper()).strip()
+    if re.search(rf"(?:^|\s){COMPANY_SUFFIX_PATTERN}\.?$", normalized, re.I):
+        return True
+    company_terms = (
+        " INDUSTRIA",
+        " INDÚSTRIA",
+        " COMERCIO",
+        " COMÉRCIO",
+        " SERVICOS",
+        " SERVIÇOS",
+        " PARTICIPACOES",
+        " PARTICIPAÇÕES",
+        " MINISTERIO",
+        " CCLA ",
+        " COOPERATIVA",
+        " ASSOCIACAO",
+        " ASSOCIAÇÃO",
+    )
+    return any(term in f" {normalized} " for term in company_terms)
 
 
 RIF_NARRATIVE_NAME_BEFORE_ID = re.compile(
     rf"\b([{NAME_CHARS}][{WORD_CHARS}'\.-]+(?:\s+(?:DA|DE|DO|DAS|DOS|E)\s+|\s+)[{NAME_CHARS}][{WORD_CHARS}'\.-]+(?:\s+[{NAME_CHARS}][{WORD_CHARS}'\.-]+){{0,5}})\s*[-,]?\s*(?:CPF|CNPJ)\b",
+    re.I,
+)
+RIF_NARRATIVE_COMPANY_BEFORE_ID = re.compile(
+    rf"\b([{NAME_CHARS}0-9][{WORD_CHARS}0-9\s&,'/-]{{3,120}}?\s{COMPANY_SUFFIX_PATTERN})\s*[-,;/]?\s*(?:CNPJ|CPF/CNPJ)?\s*\d{{5,14}}\b",
     re.I,
 )
 RIF_NARRATIVE_NAME_IN_PARENS_AFTER_ID = re.compile(
@@ -225,6 +270,10 @@ def _detect_rif_csv_entities(text: str, original_filename: str | None = None) ->
 
 def _detect_rif_narrative_entities(text: str) -> list[Entity]:
     entities: list[Entity] = []
+    for match in RIF_NARRATIVE_COMPANY_BEFORE_ID.finditer(text):
+        fragment, start = _clean_company_fragment(match.group(1), match.start(1))
+        if not _is_rif_operational_fragment(fragment):
+            entities.append(Entity(type=EntityType.organization, text=fragment, start=start, end=start + len(fragment), source="regex"))
     for pattern in (RIF_NARRATIVE_NAME_BEFORE_ID, RIF_NARRATIVE_NAME_IN_PARENS_AFTER_ID, RIF_NARRATIVE_LABEL_NAME):
         for match in pattern.finditer(text):
             fragment, start = _clean_rif_person_fragment(match.group(1), match.start(1))
@@ -246,6 +295,15 @@ def _clean_rif_person_fragment(value: str, start: int) -> tuple[str, int]:
     return fragment, start
 
 
+def _clean_company_fragment(value: str, start: int) -> tuple[str, int]:
+    fragment = re.sub(r"\s+", " ", value.strip())
+    prefix = re.match(r"(?i)^(?:e|de|da|do|das|dos)\s+", fragment)
+    if prefix:
+        fragment = fragment[prefix.end() :].strip()
+        start += prefix.end()
+    return fragment, start
+
+
 def _is_rif_operational_fragment(value: str) -> bool:
     normalized = re.sub(r"\s+", " ", value.upper()).strip()
     protected = (
@@ -264,6 +322,13 @@ def _is_rif_operational_fragment(value: str) -> bool:
         "LOTERIAS",
     )
     return any(term in normalized for term in protected)
+
+
+def _is_bad_person_fragment(fragment: str) -> bool:
+    normalized = fragment.lower()
+    if normalized.startswith(("rua ", "avenida ", "av ", "travessa ", "estrada ")):
+        return True
+    return any(term in f" {normalized} " for term in TRANSACTION_FRAGMENT_BLOCKLIST)
 
 
 def _detect_rif_rows(

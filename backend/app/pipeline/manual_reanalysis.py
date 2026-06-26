@@ -50,7 +50,7 @@ def run_manual_reanalysis(source_job_id: str, corrections: list[ManualCorrection
     original_text = str(state.get("original_text") or "")
     original_filename = str(state.get("original_filename") or "documento")
     document_kind = DocumentKind(str(state.get("document_kind") or DocumentKind.relatorio_investigativo.value))
-    model = str(state.get("model") or "qwen3:32b")
+    model = str(state.get("model") or "nexus.op:latest")
     request_title = str(state.get("request_title") or "Reanalise dirigida")
     source_sha256 = str(state.get("source_sha256") or "")
     rows = _rows_from_state(state)
@@ -115,6 +115,11 @@ def run_manual_reanalysis(source_job_id: str, corrections: list[ManualCorrection
         format_name: "Hash atualizado em decorrencia de REANALISE DIRIGIDA."
         for format_name in export_hashes
     }
+    reanalysis_timestamp = datetime.now().isoformat(timespec="seconds")
+    export_hash_updated_at = {
+        format_name: reanalysis_timestamp
+        for format_name in export_hashes
+    }
 
     _persist_reanalysis_state(
         job_id,
@@ -128,9 +133,10 @@ def run_manual_reanalysis(source_job_id: str, corrections: list[ManualCorrection
             "export_metadata": metadata,
             "export_sha256": export_hashes,
             "export_sha256_reason": export_hash_reasons,
+            "export_sha256_updated_at": export_hash_updated_at,
             "manual_note": note or "",
             "manual_reanalysis_report": [report.__dict__ for report in manual_reports],
-            "created_at": datetime.now().isoformat(timespec="seconds"),
+            "created_at": reanalysis_timestamp,
         },
     )
 
@@ -170,6 +176,7 @@ def run_manual_reanalysis(source_job_id: str, corrections: list[ManualCorrection
             source_sha256=source_sha256,
             export_sha256=export_hashes,
             export_sha256_reason=export_hash_reasons,
+            export_sha256_updated_at=export_hash_updated_at,
             processing_time_seconds=elapsed,
             ocr_used=bool(metadata.get("ocr_used")),
             structure_preserved=True,

@@ -478,6 +478,253 @@ select {
   text-transform: none;
 }
 
+.aiNexusStatus {
+  display: grid;
+  gap: 7px;
+}
+
+.aiNexusStatus button {
+  min-height: 46px;
+  border-radius: 999px;
+  border: 1px solid rgba(46, 204, 138, 0.6);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-weight: 1000;
+  letter-spacing: 0.03em;
+  color: #eafff4;
+  background:
+    linear-gradient(135deg, rgba(46, 204, 138, 0.28), rgba(0, 75, 141, 0.18)),
+    rgba(46, 204, 138, 0.08);
+  box-shadow: 0 0 22px rgba(46, 204, 138, 0.32);
+  cursor: pointer;
+  animation: aiNexusPulse 1.7s ease-in-out infinite alternate;
+}
+
+.aiNexusStatus.offline button {
+  border-color: rgba(240, 96, 96, 0.62);
+  color: #ffe2e2;
+  background:
+    linear-gradient(135deg, rgba(240, 96, 96, 0.28), rgba(100, 18, 34, 0.2)),
+    rgba(240, 96, 96, 0.08);
+  box-shadow: 0 0 22px rgba(240, 96, 96, 0.32);
+}
+
+.aiNexusStatus button:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+.aiNexusStatus small {
+  color: #ffcaca;
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+@keyframes aiNexusPulse {
+  from {
+    filter: brightness(0.95);
+    transform: translateY(0);
+  }
+  to {
+    filter: brightness(1.16);
+    transform: translateY(-1px);
+  }
+}
+
+.settingsOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(2, 5, 10, 0.62);
+  backdrop-filter: blur(11px);
+}
+
+.settingsPanel {
+  width: min(760px, 100%);
+  max-height: min(760px, 92dvh);
+  overflow: auto;
+  border: 1px solid rgba(103, 183, 255, 0.28);
+  border-radius: 10px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  background:
+    radial-gradient(circle at top left, rgba(71, 197, 255, 0.13), transparent 36%),
+    linear-gradient(135deg, rgba(0, 59, 115, 0.35), rgba(255, 255, 255, 0.025)),
+    var(--surface);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.52);
+}
+
+.settingsPanel > header,
+.settingsPanel footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settingsPanel h2 {
+  margin: 4px 0 0;
+}
+
+.settingsPanel > header button,
+.settingsPanel footer button {
+  min-height: 38px;
+  border: 1px solid var(--blue-strong);
+  border-radius: 7px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  background: var(--blue-dim);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.settingsStatusGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.settingsStatusCard,
+.settingsArchitecture,
+.settingsModelList,
+.settingsMeta {
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 13px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.settingsStatusCard {
+  display: grid;
+  gap: 6px;
+}
+
+.settingsStatusCard span,
+.settingsModelList small {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.settingsStatusCard strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.settingsStatusCard.ok {
+  border-color: rgba(46, 204, 138, 0.34);
+  background: rgba(46, 204, 138, 0.08);
+}
+
+.settingsStatusCard.fail {
+  border-color: rgba(240, 96, 96, 0.34);
+  background: rgba(240, 96, 96, 0.08);
+}
+
+.settingsArchitecture,
+.settingsModelList {
+  display: grid;
+  gap: 8px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.settingsArchitecture p,
+.settingsModelList span {
+  margin: 0;
+}
+
+.settingsMeta {
+  display: grid;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.settingsMeta a {
+  color: #67b7ff;
+  font-weight: 900;
+  text-decoration: underline;
+}
+
+.faqPanel {
+  width: min(820px, calc(100vw - 40px));
+  max-height: min(82vh, 760px);
+  overflow: hidden;
+  border: 1px solid rgba(103, 183, 255, 0.42);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at top left, rgba(71, 197, 255, 0.16), transparent 42%),
+    rgba(13, 28, 48, 0.96);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+
+.faqPanel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.faqPanel h2 {
+  margin: 4px 0 0;
+  font-size: 25px;
+  letter-spacing: 0;
+}
+
+.faqPanel header button {
+  min-width: 40px;
+  min-height: 40px;
+  border: 1px solid rgba(103, 183, 255, 0.42);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(74, 169, 255, 0.12);
+  cursor: pointer;
+}
+
+.faqList {
+  max-height: calc(min(82vh, 760px) - 82px);
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px 18px;
+}
+
+.faqList article {
+  border: 1px solid rgba(103, 183, 255, 0.24);
+  border-radius: 8px;
+  padding: 12px 13px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.faqList article strong {
+  display: block;
+  color: #ffffff;
+  margin-bottom: 7px;
+  font-size: 13px;
+}
+
+.faqList article p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.55;
+  text-align: justify;
+}
+
 .syncPackageBox {
   display: grid;
   gap: 9px;
@@ -530,10 +777,77 @@ select {
   text-transform: none;
 }
 
-.syncPackageBox input[type="file"] {
-  width: 100%;
-  color: var(--text-dim);
+.syncPackagePicker {
+  position: relative;
+  min-height: 46px;
+  border: 1px solid rgba(103, 183, 255, 0.28);
+  border-radius: 7px;
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #eaf7ff;
+  background:
+    linear-gradient(135deg, rgba(29, 122, 194, 0.18), rgba(255, 255, 255, 0.025)),
+    rgba(7, 17, 31, 0.56);
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.syncPackagePicker:hover {
+  border-color: rgba(103, 183, 255, 0.52);
+  background:
+    linear-gradient(135deg, rgba(29, 122, 194, 0.28), rgba(36, 196, 126, 0.08)),
+    rgba(7, 17, 31, 0.62);
+}
+
+.syncPackagePicker.ready {
+  border-color: rgba(46, 204, 138, 0.48);
+  background:
+    linear-gradient(135deg, rgba(46, 204, 138, 0.18), rgba(29, 122, 194, 0.12)),
+    rgba(7, 17, 31, 0.62);
+}
+
+.syncPackagePicker svg {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.syncPackagePicker span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.syncPackagePicker span strong {
+  color: #ffffff;
   font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.syncPackagePicker span small {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.syncPackagePicker input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.syncPackagePicker.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.syncPackagePicker.disabled input[type="file"] {
+  cursor: not-allowed;
 }
 
 .syncPackageBox button {
@@ -556,10 +870,6 @@ select {
   border-color: rgba(130, 140, 155, 0.22);
   background: rgba(255, 255, 255, 0.025);
   opacity: 0.72;
-}
-
-.syncPackageBox.disabled input[type="file"] {
-  cursor: not-allowed;
 }
 
 .requestNameInput,
@@ -955,6 +1265,27 @@ pre {
   color: var(--blue);
 }
 
+.originalDownloadButton {
+  width: fit-content;
+  min-height: 30px;
+  border: 1px solid rgba(103, 183, 255, 0.32);
+  border-radius: 6px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  background: rgba(74, 169, 255, 0.1);
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.originalDownloadButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .splitExports {
   align-items: stretch;
 }
@@ -965,6 +1296,18 @@ pre {
   border-radius: 8px;
   padding: 12px;
   background: rgba(255, 255, 255, 0.025);
+}
+
+.externalExportGroup {
+  border-color: rgba(43, 217, 143, 0.4);
+  background:
+    linear-gradient(135deg, rgba(43, 217, 143, 0.12), rgba(74, 169, 255, 0.06)),
+    rgba(255, 255, 255, 0.028);
+  box-shadow: inset 3px 0 0 rgba(43, 217, 143, 0.55);
+}
+
+.internalExportGroup {
+  border-color: rgba(103, 183, 255, 0.24);
 }
 
 .syncExportGroup {
@@ -1018,6 +1361,15 @@ pre {
   cursor: pointer;
 }
 
+.exportButtons button.reanalysisDownload,
+.auditGeneratedProduct button.reanalysisDownload {
+  border-color: rgba(46, 204, 138, 0.5);
+  background:
+    linear-gradient(135deg, rgba(46, 204, 138, 0.22), rgba(74, 169, 255, 0.12)),
+    rgba(13, 48, 42, 0.2);
+  box-shadow: 0 0 0 1px rgba(46, 204, 138, 0.08);
+}
+
 .exportButtons button span {
   display: grid;
   gap: 2px;
@@ -1047,6 +1399,56 @@ pre {
   min-height: 40px;
   display: flex;
   align-items: center;
+}
+
+.inlineLogReader {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(103, 183, 255, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  background:
+    linear-gradient(135deg, rgba(74, 169, 255, 0.08), rgba(4, 6, 9, 0.26)),
+    rgba(4, 6, 9, 0.2);
+}
+
+.inlineLogReader header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inlineLogReader header > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inlineLogReader button {
+  min-height: 30px;
+  border: 1px solid rgba(103, 183, 255, 0.34);
+  border-radius: 6px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  background: rgba(74, 169, 255, 0.12);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.inlineLogReader pre {
+  max-height: min(360px, 44vh);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  padding: 12px;
+  overflow: auto;
+  color: #eaf4ff;
+  background: rgba(4, 6, 9, 0.52);
+  font-size: 12px;
 }
 
 .requestsLayout {
@@ -1244,6 +1646,102 @@ pre {
   cursor: not-allowed;
 }
 
+.postProcessingToolsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.complementarySyncPanel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  border: 1px solid rgba(46, 204, 138, 0.34);
+  border-radius: 8px;
+  padding: 13px 14px;
+  background:
+    linear-gradient(135deg, rgba(46, 204, 138, 0.1), rgba(74, 169, 255, 0.06)),
+    rgba(4, 6, 9, 0.18);
+}
+
+.complementarySyncPanel strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+}
+
+.complementarySyncPanel p {
+  margin: 5px 0 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.complementaryDropZone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  min-height: 128px;
+  border: 1px dashed rgba(46, 204, 138, 0.42);
+  border-radius: 8px;
+  padding: 16px;
+  color: #d7ffe8;
+  background:
+    radial-gradient(circle at top, rgba(46, 204, 138, 0.18), transparent 56%),
+    rgba(46, 204, 138, 0.08);
+  text-align: center;
+  cursor: pointer;
+}
+
+.complementaryDropZone.ready {
+  border-style: solid;
+  border-color: rgba(46, 204, 138, 0.68);
+  box-shadow: inset 0 0 0 1px rgba(46, 204, 138, 0.08);
+}
+
+.complementaryDropZone strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.complementaryDropZone span {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.complementaryDropZone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.complementaryStartButton {
+  min-height: 42px;
+  border: 1px solid rgba(46, 204, 138, 0.46);
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #052216;
+  background: linear-gradient(135deg, #45d996, #22a872);
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.complementaryStartButton:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
 .fileProducts {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
@@ -1287,6 +1785,27 @@ pre {
 .fileStatus.cancelado {
   color: #ffd0d0;
   background: rgba(240, 96, 96, 0.12);
+}
+
+.fileList button.complementaryFile {
+  border-color: rgba(46, 204, 138, 0.38);
+  background:
+    linear-gradient(135deg, rgba(46, 204, 138, 0.12), rgba(74, 169, 255, 0.06)),
+    rgba(4, 6, 9, 0.22);
+}
+
+.complementaryBadge {
+  display: inline-flex !important;
+  width: fit-content;
+  border: 1px solid rgba(46, 204, 138, 0.38);
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #d7ffe8;
+  background: rgba(46, 204, 138, 0.12);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .qualityBadge {
@@ -1701,6 +2220,33 @@ pre {
   flex-wrap: wrap;
   border-color: rgba(43, 217, 143, 0.32);
   background: rgba(43, 217, 143, 0.08);
+}
+
+.auditGeneratedProduct > div {
+  display: grid;
+  gap: 3px;
+  min-width: min(340px, 100%);
+}
+
+.auditGeneratedProduct small {
+  display: block;
+  color: #b9d3e8;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.auditGeneratedProduct button {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.auditGeneratedProduct button small {
+  width: 100%;
+  color: #9af0c8;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .auditEmptyNotice {
@@ -2196,14 +2742,15 @@ pre {
 
 .manualReanalysisPanel form {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 0.8fr) minmax(160px, 0.8fr) auto;
-  gap: 9px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 12px 9px;
   align-items: end;
 }
 
 .manualReanalysisPanel label {
   display: grid;
   gap: 6px;
+  min-width: 0;
   color: var(--text-faint);
   font-size: 10px;
   font-weight: 900;
@@ -2214,6 +2761,7 @@ pre {
 .manualReanalysisPanel input,
 .manualReanalysisPanel select {
   width: 100%;
+  min-width: 0;
   border: 1px solid rgba(103, 183, 255, 0.22);
   border-radius: 7px;
   padding: 10px 11px;
@@ -2239,18 +2787,32 @@ pre {
   background: #e2bd57;
 }
 
+.manualReanalysisPanel form > button {
+  min-height: 39px;
+}
+
+.manualMarkerLabel {
+  position: relative;
+}
+
 .manualMarkerPreview {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
   display: block;
   max-width: 100%;
   min-width: 0;
+  min-height: 14px;
   line-height: 1.35;
   color: #f6d98b;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0;
   text-transform: none;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .manualReanalysisPanel button {
@@ -2354,12 +2916,87 @@ pre {
   align-items: center;
 }
 
+.manualFormatDownloads {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 1px solid rgba(103, 183, 255, 0.28);
+  margin-left: 4px;
+  padding-left: 12px;
+}
+
+.manualDownloadNotice {
+  flex: 1 1 260px;
+  color: #b9d3e8;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .manualReanalysisActions .manualDownloadButton {
+  flex-wrap: wrap;
   color: #eaf7ff;
   background:
     linear-gradient(135deg, rgba(29, 122, 194, 0.28), rgba(36, 196, 126, 0.12)),
     rgba(29, 122, 194, 0.2);
   border-color: rgba(103, 183, 255, 0.46);
+}
+
+.manualReanalysisActions .compactFormatButton {
+  width: 44px;
+  min-width: 44px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-radius: 8px;
+}
+
+.formatFileIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 25px;
+  border-radius: 5px;
+  color: #ffffff;
+  background:
+    linear-gradient(135deg, rgba(103, 183, 255, 0.42), rgba(7, 17, 31, 0.82)),
+    rgba(29, 122, 194, 0.24);
+  border: 1px solid rgba(103, 183, 255, 0.38);
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+}
+
+.format-pdf {
+  background: linear-gradient(135deg, rgba(220, 62, 62, 0.56), rgba(77, 12, 20, 0.72));
+  border-color: rgba(240, 96, 96, 0.52);
+}
+
+.format-docx {
+  background: linear-gradient(135deg, rgba(71, 129, 255, 0.58), rgba(10, 32, 82, 0.76));
+}
+
+.format-txt {
+  background: linear-gradient(135deg, rgba(190, 205, 222, 0.42), rgba(35, 47, 62, 0.86));
+}
+
+.format-csv {
+  background: linear-gradient(135deg, rgba(46, 204, 138, 0.58), rgba(10, 78, 50, 0.8));
+  border-color: rgba(46, 204, 138, 0.54);
+}
+
+.manualReanalysisActions .manualDownloadButton.reanalysisDownload {
+  border-color: rgba(46, 204, 138, 0.52);
+  background:
+    linear-gradient(135deg, rgba(46, 204, 138, 0.23), rgba(74, 169, 255, 0.11)),
+    rgba(13, 48, 42, 0.2);
+}
+
+.manualReanalysisActions .manualDownloadButton small {
+  width: 100%;
+  color: #9af0c8;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .manualReanalysisActions .manualLogDownloadButton {
@@ -2368,6 +3005,13 @@ pre {
     linear-gradient(135deg, rgba(226, 189, 87, 0.22), rgba(7, 17, 31, 0.38)),
     rgba(226, 189, 87, 0.1);
   border-color: rgba(226, 189, 87, 0.48);
+}
+
+.exportButtons button.readInlineLogButton {
+  border-color: rgba(226, 189, 87, 0.48);
+  background:
+    linear-gradient(135deg, rgba(226, 189, 87, 0.18), rgba(7, 17, 31, 0.35)),
+    rgba(226, 189, 87, 0.08);
 }
 
 .reanalysisLoadingBackdrop {
@@ -2483,6 +3127,22 @@ pre {
   margin-top: 4px;
   font-size: 12px;
   line-height: 1.2;
+}
+
+.auditHash.reanalysisHash {
+  border-color: rgba(46, 204, 138, 0.42);
+  background:
+    linear-gradient(135deg, rgba(46, 204, 138, 0.13), rgba(74, 169, 255, 0.07)),
+    rgba(13, 48, 42, 0.14);
+}
+
+.auditHash.reanalysisHash em {
+  display: block;
+  margin-top: 5px;
+  color: #9af0c8;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
 }
 
 .auditHash button {
@@ -2645,6 +3305,87 @@ pre {
     var(--surface);
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.48);
   overflow: hidden;
+}
+
+.floatingProcessingLayer {
+  display: block;
+  padding: 0;
+  pointer-events: none;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.floatingProcessingWindow {
+  position: fixed;
+  width: min(620px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  pointer-events: auto;
+  overflow: auto;
+}
+
+.floatingProcessingWindow header {
+  cursor: move;
+  user-select: none;
+}
+
+.processingHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.processingHeaderActions button,
+.processingMinimized button {
+  min-height: 30px;
+  border: 1px solid rgba(103, 183, 255, 0.4);
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--text);
+  background: rgba(74, 169, 255, 0.14);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.processingMinimized {
+  position: fixed;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: min(420px, calc(100vw - 24px));
+  border: 1px solid rgba(103, 183, 255, 0.45);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  background:
+    linear-gradient(135deg, rgba(0, 75, 141, 0.52), rgba(7, 17, 31, 0.96)),
+    var(--surface);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.42);
+  cursor: move;
+  user-select: none;
+}
+
+.processingMinimized > svg {
+  color: var(--blue);
+  animation: spin 1.2s linear infinite;
+}
+
+.processingMinimized > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.processingMinimized strong {
+  color: var(--text);
+}
+
+.processingMinimized span {
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .usageRulesWindow {
@@ -3488,27 +4229,6 @@ pre {
   letter-spacing: 0;
 }
 
-.nexusAssistantStatus {
-  display: grid;
-  gap: 4px;
-  margin: 12px;
-  border: 1px solid rgba(74, 169, 255, 0.24);
-  border-radius: 7px;
-  padding: 10px 12px;
-  background: rgba(74, 169, 255, 0.08);
-}
-
-.nexusAssistantStatus strong {
-  color: #e8f6ff;
-  font-size: calc(14px * var(--nexus-font-scale));
-}
-
-.nexusAssistantStatus span {
-  color: var(--text-dim);
-  font-size: calc(13px * var(--nexus-font-scale));
-  overflow-wrap: anywhere;
-}
-
 .nexusAssistantMessages {
   max-height: min(430px, 46vh);
   overflow: auto;
@@ -3595,14 +4315,15 @@ pre {
 
 .nexusAssistantForm {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(170px, 1fr) auto;
   gap: 8px;
   padding: 12px;
   border-top: 1px solid var(--border);
   background: rgba(4, 6, 9, 0.28);
 }
 
-.nexusAssistantForm input {
+.nexusAssistantForm input,
+.nexusAssistantForm select {
   min-height: 44px;
   min-width: 0;
   border: 1px solid var(--border);
@@ -3612,6 +4333,14 @@ pre {
   background: rgba(255, 255, 255, 0.045);
   font-size: calc(14px * var(--nexus-font-scale));
   font-weight: 700;
+}
+
+.nexusAssistantForm select {
+  border-color: rgba(103, 183, 255, 0.3);
+  color: #e8f6ff;
+  background:
+    linear-gradient(135deg, rgba(29, 122, 194, 0.16), rgba(255, 255, 255, 0.025)),
+    rgba(7, 17, 31, 0.96);
 }
 
 .nexusAssistantForm button {
@@ -3745,7 +4474,8 @@ pre {
   .auditCorrectionEditor,
   .exports,
   .requestsLayout,
-  .fileProducts {
+  .fileProducts,
+  .postProcessingToolsGrid {
     grid-template-columns: 1fr;
   }
 
@@ -3769,6 +4499,10 @@ pre {
   }
 
   .resourceUsageGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .nexusAssistantForm {
     grid-template-columns: 1fr;
   }
 }

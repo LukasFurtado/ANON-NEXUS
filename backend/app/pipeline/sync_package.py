@@ -18,9 +18,25 @@ def build_sync_package_from_state(job_id: str) -> dict[str, Any]:
     if not state_path.exists():
         raise ValueError("Estado de anonimização não encontrado para gerar pacote de sincronização.")
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    if state.get("document_kind") == "personalizado":
-        raise ValueError("O perfil Personalizado nao permite pacote de sincronizacao.")
-    rows = []
+    rows = _sync_rows_from_master_entries(state)
+    if not rows:
+        rows = []
+    else:
+        return {
+            "schema": SYNC_SCHEMA,
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "source_job_id": job_id,
+            "source_group_id": state.get("batch_sync_group_id"),
+            "request_title": state.get("request_title") or state.get("export_metadata", {}).get("request_title"),
+            "original_filename": state.get("original_filename"),
+            "document_kind": state.get("document_kind"),
+            "source_sha256": state.get("source_sha256"),
+            "entries": rows,
+            "operator_notice": (
+                "Pacote interno com espelho mestre do grupo. Use para reaplicar os mesmos marcadores "
+                "em documentos vinculados a mesma demanda investigativa."
+            ),
+        }
     for item in state.get("control_table") or []:
         try:
             row = AnonymizationControlRow.model_validate(item)
@@ -52,6 +68,26 @@ def build_sync_package_from_state(job_id: str) -> dict[str, Any]:
             "Use apenas quando desejar manter exatamente os mesmos marcadores para os mesmos termos."
         ),
     }
+
+
+def _sync_rows_from_master_entries(state: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for item in state.get("sync_entries") or []:
+        original = str(item.get("original_value") or "").strip()
+        anonymous_id = str(item.get("anonymous_id") or "").strip()
+        if not original or not anonymous_id:
+            continue
+        entity_type = _entity_type_from_any(item.get("entity_type") or item.get("entity_label"))
+        rows.append(
+            {
+                "original_value": original,
+                "entity_type": entity_type.value,
+                "entity_label": TYPE_LABELS.get(entity_type.value, entity_type.value),
+                "anonymous_id": anonymous_id,
+                "occurrences": item.get("occurrences", 0),
+            }
+        )
+    return rows
 
 
 def write_sync_package(job_id: str) -> Path:

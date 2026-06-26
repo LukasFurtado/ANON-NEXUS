@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     database_path: Path = Path("data/nexus_anon.sqlite3")
     ollama_url: str = "http://127.0.0.1:11434"
     ollama_timeout_seconds: int = 600
-    default_model: str = "qwen3:32b"
-    nexus_assistant_model: str = "qwen3:32b"
+    default_model: str = "nexus.op:latest"
+    nexus_assistant_model: str = "nexus-chat:latest"
     hybrid_enrichment_enabled: bool = False
     hybrid_default_mode: str = "OFFLINE"
     allowed_origins: list[str] = [
